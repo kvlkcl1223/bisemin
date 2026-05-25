@@ -1,0 +1,15 @@
+center_control\timers.o: ../Middlewares/Third_Party/FreeRTOS/Source/timers.c
+center_control\timers.o: E:\MDK\ARM\ARMCC\Bin\..\include\stdlib.h
+center_control\timers.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h
+center_control\timers.o: E:\MDK\ARM\ARMCC\Bin\..\include\stddef.h
+center_control\timers.o: E:\MDK\ARM\ARMCC\Bin\..\include\stdint.h
+center_control\timers.o: ../Core/Inc/FreeRTOSConfig.h
+center_control\timers.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/projdefs.h
+center_control\timers.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/portable.h
+center_control\timers.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/deprecated_definitions.h
+center_control\timers.o: ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F/portmacro.h
+center_control\timers.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/mpu_wrappers.h
+center_control\timers.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/task.h
+center_control\timers.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/list.h
+center_control\timers.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/queue.h
+center_control\timers.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/timers.h

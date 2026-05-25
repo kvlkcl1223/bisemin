@@ -1,0 +1,12 @@
+center_control\port.o: ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F/port.c
+center_control\port.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h
+center_control\port.o: E:\MDK\ARM\ARMCC\Bin\..\include\stddef.h
+center_control\port.o: E:\MDK\ARM\ARMCC\Bin\..\include\stdint.h
+center_control\port.o: ../Core/Inc/FreeRTOSConfig.h
+center_control\port.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/projdefs.h
+center_control\port.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/portable.h
+center_control\port.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/deprecated_definitions.h
+center_control\port.o: ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F/portmacro.h
+center_control\port.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/mpu_wrappers.h
+center_control\port.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/task.h
+center_control\port.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/list.h
