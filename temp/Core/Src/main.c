@@ -73,13 +73,70 @@ void Parse_Temperature_Byte(uint8_t rx_byte);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-/* 按键回调 → 面板按键事件映射 */
+/* ── 长按检测 ── */
+static uint32_t key_hold_start[KEY_MAX_NUM] = {0};
+static uint32_t key_last_repeat[KEY_MAX_NUM] = {0};
+static bool key_long_sent[KEY_MAX_NUM] = {false};
+
+/* 按键回调: 仅在按下瞬间触发 SHORT 事件, 同时记录 hold 起始时刻 */
 static void OnTM1638Key(TM1638_Key_t key)
 {
   PanelKey_t pk = PanelKey_FromTM1638(key);
-  if (pk != PANEL_KEY_NONE)
+  if (pk == PANEL_KEY_NONE)
+    return;
+
+  uint32_t now = osKernelGetTickCount();
+  key_hold_start[key] = now;
+  key_last_repeat[key] = 0;
+  key_long_sent[key] = false;
+  TempPanel_KeyEvent(&g_panel, pk, PANEL_KEY_EVT_SHORT, now);
+}
+
+/*
+ * 长按/连发检测: 需在主循环或 HMITask 中每 20ms 调用,
+ * 紧跟在 TM1638_ProcessKeys() 之后。
+ */
+void CheckKeyHoldEvents(void)
+{
+  uint32_t now = osKernelGetTickCount();
+  for (int i = 0; i < KEY_MAX_NUM; i++)
   {
-    TempPanel_KeyEvent(&g_panel, pk, PANEL_KEY_EVT_SHORT, HAL_GetTick());
+    PanelKey_t pk = PanelKey_FromTM1638((TM1638_Key_t)i);
+    if (pk == PANEL_KEY_NONE)
+      continue;
+
+    if (htm1638.key_states[i])
+    {
+      if (key_hold_start[i] == 0)
+        continue;
+
+      uint32_t held = now - key_hold_start[i];
+
+      /* 按住 > 2s 触发一次 LONG */
+      if (held >= 2000)
+      {
+        if (!key_long_sent[i])
+        {
+          TempPanel_KeyEvent(&g_panel, pk, PANEL_KEY_EVT_LONG, now);
+          key_long_sent[i] = true;
+        }
+      }
+      /* 按住 > 500ms 开始连发, 每 150ms 一次 REPEAT */
+      else if (held >= 500)
+      {
+        if (key_last_repeat[i] == 0 || now - key_last_repeat[i] >= 150)
+        {
+          TempPanel_KeyEvent(&g_panel, pk, PANEL_KEY_EVT_REPEAT, now);
+          key_last_repeat[i] = now;
+        }
+      }
+    }
+    else
+    {
+      key_hold_start[i] = 0;
+      key_last_repeat[i] = 0;
+      key_long_sent[i] = false;
+    }
   }
 }
 
@@ -298,11 +355,10 @@ int main(void)
       TempPanel_Task(&g_panel, now);
     }
 
-    /* 将收到的温度数据注入面板 (示例: 用 CH1 温度模拟测试) */
+    /* 将收到的温度数据注入面板 (float 直接传入) */
     if (flag_temp_update)
     {
-      TempPanel_UpdateMeasuredTemp(&g_panel, 1,
-                                   (int16_t)(Sys_Temperatures[1] * 10.0f), now);
+      TempPanel_UpdateMeasuredTemp(&g_panel, 1, Sys_Temperatures[1], now);
       flag_temp_update = 0;
     }
 

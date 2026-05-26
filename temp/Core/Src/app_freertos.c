@@ -165,28 +165,20 @@ void StartcontrolTask(void *argument)
     // for (uint8_t cell = 0; cell < PANEL_CELL_NUM; cell++)
     // {
     //   TempCell_t *c = &g_panel.cell[cell];
-
+    //
     //   if (c->run_mode != CELL_STOP && c->pid_enabled)
     //   {
-    //     float current = (float)c->current_temp_x10 * 0.1f;
     //     /* PID_TypeDef *pid = get_pid_for_cell(cell); */
-    //     float output = PID_Compute(&temp_pid, current);
-
-    //     /* --- 映射到 H 桥 PWM (请根据你的实际电路修改) --- */
+    //     float output = PID_Compute(&temp_pid, c->current_temp);
+    //
     //     if (cell == 0)
     //     {
-    //       if (output > 0.0f)
-    //       {
+    //       if (output > 0.0f) {
     //         __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_3, (uint32_t)output);
-    //         /* 关闭制冷通道 */
-    //       }
-    //       else
-    //       {
-    //         /* 关闭加热通道 */
+    //       } else {
     //         __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_4, (uint32_t)(-output));
     //       }
     //     }
-    //     /* cell == 1: 使用 TIM8, 根据你的实际硬件修改 */
     //   }
     // }
 
@@ -218,8 +210,11 @@ void StartHMITask(void *argument)
     {
       last_tick = now;
 
-      /* 1. 扫描 TM1638 按键 (内部触发 OnTM1638Key → TempPanel_KeyEvent) */
+      /* 1. 扫描 TM1638 按键 (内部触发 OnTM1638Key → TempPanel_KeyEvent SHORT) */
       TM1638_ProcessKeys(&htm1638);
+
+      /* 1.5 长按/连发检测 (触发 REPEAT / LONG) */
+      CheckKeyHoldEvents();
 
       /* 2. 面板周期任务: 超时检测 + 模式切换 + 显示刷新 */
       TempPanel_Task(&g_panel, now);

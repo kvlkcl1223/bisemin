@@ -1,7 +1,7 @@
 Dependencies for Project 'center_control', Target 'center_control': (DO NOT MODIFY !)
 CompilerVersion: 5060750::V5.06 update 6 (build 750)::.\ARMCC
 F (startup_stm32g431xx.s)(0x6A0D4F03)(--cpu Cortex-M4.fp.sp -g --apcs=interwork -I ../Core/Inc -I ../Drivers/STM32G4xx_HAL_Driver/Inc -I ../Drivers/STM32G4xx_HAL_Driver/Inc/Legacy -I ../Middlewares/Third_Party/FreeRTOS/Source/include -I ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 -I ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F -I ../Drivers/CMSIS/Device/ST/STM32G4xx/Include -I ../Drivers/CMSIS/Include-I.\RTE\_center_control-IE:\MDK\ARM\CMSIS\5.9.0\CMSIS\Core\Include-IE:\MDK\Keil\STM32G4xx_DFP\1.5.0\Drivers\CMSIS\Device\ST\STM32G4xx\Include--pd "__UVISION_VERSION SETA 537" --pd "_RTE_ SETA 1" --pd "STM32G431xx SETA 1" --pd "_RTE_ SETA 1"--list startup_stm32g431xx.lst --xref -o center_control\startup_stm32g431xx.o --depend center_control\startup_stm32g431xx.d)
-F (../Core/Src/main.c)(0x6A13EFBB)(--c99 -c --cpu Cortex-M4.fp.sp -g -O0 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32G4xx_HAL_Driver/Inc -I ../Drivers/STM32G4xx_HAL_Driver/Inc/Legacy -I ../Middlewares/Third_Party/FreeRTOS/Source/include -I ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 -I ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F -I ../Drivers/CMSIS/Device/ST/STM32G4xx/Include -I ../Drivers/CMSIS/Include -I ../My-I.\RTE\_center_control-IE:\MDK\ARM\CMSIS\5.9.0\CMSIS\Core\Include-IE:\MDK\Keil\STM32G4xx_DFP\1.5.0\Drivers\CMSIS\Device\ST\STM32G4xx\Include-D__UVISION_VERSION="537" -D_RTE_ -DSTM32G431xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32G431xx-o center_control\main.o --omf_browse center_control\main.crf --depend center_control\main.d)
+F (../Core/Src/main.c)(0x6A142019)(--c99 -c --cpu Cortex-M4.fp.sp -g -O0 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32G4xx_HAL_Driver/Inc -I ../Drivers/STM32G4xx_HAL_Driver/Inc/Legacy -I ../Middlewares/Third_Party/FreeRTOS/Source/include -I ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 -I ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F -I ../Drivers/CMSIS/Device/ST/STM32G4xx/Include -I ../Drivers/CMSIS/Include -I ../My-I.\RTE\_center_control-IE:\MDK\ARM\CMSIS\5.9.0\CMSIS\Core\Include-IE:\MDK\Keil\STM32G4xx_DFP\1.5.0\Drivers\CMSIS\Device\ST\STM32G4xx\Include-D__UVISION_VERSION="537" -D_RTE_ -DSTM32G431xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32G431xx-o center_control\main.o --omf_browse center_control\main.crf --depend center_control\main.d)
 I (../Core/Inc/main.h)(0x6A0D25FD)
 I (../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal.h)(0x69F1D5A2)
 I (../Core/Inc/stm32g4xx_hal_conf.h)(0x6A0D25FD)
@@ -52,11 +52,11 @@ I (../Core/Inc/spi.h)(0x6A0D25FC)
 I (../Core/Inc/tim.h)(0x6A0D25FD)
 I (../Core/Inc/usart.h)(0x6A0D25FD)
 I (../Core/Inc/gpio.h)(0x6A0D25FA)
-I (../My/tm1638_board.h)(0x6A13F73F)
+I (../My/tm1638_board.h)(0x6A141025)
 I (E:\MDK\ARM\ARMCC\include\stdbool.h)(0x5D9B3488)
 I (../My/pid_controller.h)(0x6A02F6FE)
-I (../My/temp_panel.h)(0x6A13F79A)
-F (../Core/Src/gpio.c)(0x6A13D65A)(--c99 -c --cpu Cortex-M4.fp.sp -g -O0 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32G4xx_HAL_Driver/Inc -I ../Drivers/STM32G4xx_HAL_Driver/Inc/Legacy -I ../Middlewares/Third_Party/FreeRTOS/Source/include -I ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 -I ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F -I ../Drivers/CMSIS/Device/ST/STM32G4xx/Include -I ../Drivers/CMSIS/Include -I ../My-I.\RTE\_center_control-IE:\MDK\ARM\CMSIS\5.9.0\CMSIS\Core\Include-IE:\MDK\Keil\STM32G4xx_DFP\1.5.0\Drivers\CMSIS\Device\ST\STM32G4xx\Include-D__UVISION_VERSION="537" -D_RTE_ -DSTM32G431xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32G431xx-o center_control\gpio.o --omf_browse center_control\gpio.crf --depend center_control\gpio.d)
+I (../My/temp_panel.h)(0x6A141FB6)
+F (../Core/Src/gpio.c)(0x6A141C2B)(--c99 -c --cpu Cortex-M4.fp.sp -g -O0 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32G4xx_HAL_Driver/Inc -I ../Drivers/STM32G4xx_HAL_Driver/Inc/Legacy -I ../Middlewares/Third_Party/FreeRTOS/Source/include -I ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 -I ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F -I ../Drivers/CMSIS/Device/ST/STM32G4xx/Include -I ../Drivers/CMSIS/Include -I ../My-I.\RTE\_center_control-IE:\MDK\ARM\CMSIS\5.9.0\CMSIS\Core\Include-IE:\MDK\Keil\STM32G4xx_DFP\1.5.0\Drivers\CMSIS\Device\ST\STM32G4xx\Include-D__UVISION_VERSION="537" -D_RTE_ -DSTM32G431xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32G431xx-o center_control\gpio.o --omf_browse center_control\gpio.crf --depend center_control\gpio.d)
 I (../Core/Inc/gpio.h)(0x6A0D25FA)
 I (../Core/Inc/main.h)(0x6A0D25FD)
 I (../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal.h)(0x69F1D5A2)
@@ -92,7 +92,7 @@ I (../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_tim.h)(0x69F1D5A2)
 I (../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_tim_ex.h)(0x69F1D5A2)
 I (../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_uart.h)(0x69F1D5A2)
 I (../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_uart_ex.h)(0x69F1D5A2)
-F (../Core/Src/app_freertos.c)(0x6A13F072)(--c99 -c --cpu Cortex-M4.fp.sp -g -O0 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32G4xx_HAL_Driver/Inc -I ../Drivers/STM32G4xx_HAL_Driver/Inc/Legacy -I ../Middlewares/Third_Party/FreeRTOS/Source/include -I ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 -I ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F -I ../Drivers/CMSIS/Device/ST/STM32G4xx/Include -I ../Drivers/CMSIS/Include -I ../My-I.\RTE\_center_control-IE:\MDK\ARM\CMSIS\5.9.0\CMSIS\Core\Include-IE:\MDK\Keil\STM32G4xx_DFP\1.5.0\Drivers\CMSIS\Device\ST\STM32G4xx\Include-D__UVISION_VERSION="537" -D_RTE_ -DSTM32G431xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32G431xx-o center_control\app_freertos.o --omf_browse center_control\app_freertos.crf --depend center_control\app_freertos.d)
+F (../Core/Src/app_freertos.c)(0x6A142027)(--c99 -c --cpu Cortex-M4.fp.sp -g -O0 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32G4xx_HAL_Driver/Inc -I ../Drivers/STM32G4xx_HAL_Driver/Inc/Legacy -I ../Middlewares/Third_Party/FreeRTOS/Source/include -I ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 -I ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F -I ../Drivers/CMSIS/Device/ST/STM32G4xx/Include -I ../Drivers/CMSIS/Include -I ../My-I.\RTE\_center_control-IE:\MDK\ARM\CMSIS\5.9.0\CMSIS\Core\Include-IE:\MDK\Keil\STM32G4xx_DFP\1.5.0\Drivers\CMSIS\Device\ST\STM32G4xx\Include-D__UVISION_VERSION="537" -D_RTE_ -DSTM32G431xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32G431xx-o center_control\app_freertos.o --omf_browse center_control\app_freertos.crf --depend center_control\app_freertos.d)
 I (../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h)(0x69F1D562)
 I (E:\MDK\ARM\ARMCC\include\stddef.h)(0x5D9B3488)
 I (E:\MDK\ARM\ARMCC\include\stdint.h)(0x5D9B3488)
@@ -138,9 +138,9 @@ I (../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_uart.h)(0x69F1D5A2)
 I (../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_uart_ex.h)(0x69F1D5A2)
 I (../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os.h)(0x69F1D562)
 I (../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os2.h)(0x69F1D562)
-I (../My/tm1638_board.h)(0x6A13F73F)
+I (../My/tm1638_board.h)(0x6A141025)
 I (E:\MDK\ARM\ARMCC\include\stdbool.h)(0x5D9B3488)
-I (../My/temp_panel.h)(0x6A13F79A)
+I (../My/temp_panel.h)(0x6A141FB6)
 F (../Core/Src/dma.c)(0x6A0D25FC)(--c99 -c --cpu Cortex-M4.fp.sp -g -O0 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32G4xx_HAL_Driver/Inc -I ../Drivers/STM32G4xx_HAL_Driver/Inc/Legacy -I ../Middlewares/Third_Party/FreeRTOS/Source/include -I ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 -I ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F -I ../Drivers/CMSIS/Device/ST/STM32G4xx/Include -I ../Drivers/CMSIS/Include -I ../My-I.\RTE\_center_control-IE:\MDK\ARM\CMSIS\5.9.0\CMSIS\Core\Include-IE:\MDK\Keil\STM32G4xx_DFP\1.5.0\Drivers\CMSIS\Device\ST\STM32G4xx\Include-D__UVISION_VERSION="537" -D_RTE_ -DSTM32G431xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32G431xx-o center_control\dma.o --omf_browse center_control\dma.crf --depend center_control\dma.d)
 I (../Core/Inc/dma.h)(0x6A0D25FC)
 I (../Core/Inc/main.h)(0x6A0D25FD)
@@ -1265,8 +1265,8 @@ I (../Middlewares/Third_Party/FreeRTOS/Source/include/mpu_wrappers.h)(0x69F1D562
 I (../Middlewares/Third_Party/FreeRTOS/Source/include/task.h)(0x69F1D562)
 I (../Middlewares/Third_Party/FreeRTOS/Source/include/list.h)(0x69F1D562)
 I (../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os2.h)(0x69F1D562)
-F (..\My\tm1638_board.c)(0x6A13F851)(--c99 -c --cpu Cortex-M4.fp.sp -g -O0 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32G4xx_HAL_Driver/Inc -I ../Drivers/STM32G4xx_HAL_Driver/Inc/Legacy -I ../Middlewares/Third_Party/FreeRTOS/Source/include -I ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 -I ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F -I ../Drivers/CMSIS/Device/ST/STM32G4xx/Include -I ../Drivers/CMSIS/Include -I ../My-I.\RTE\_center_control-IE:\MDK\ARM\CMSIS\5.9.0\CMSIS\Core\Include-IE:\MDK\Keil\STM32G4xx_DFP\1.5.0\Drivers\CMSIS\Device\ST\STM32G4xx\Include-D__UVISION_VERSION="537" -D_RTE_ -DSTM32G431xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32G431xx-o center_control\tm1638_board.o --omf_browse center_control\tm1638_board.crf --depend center_control\tm1638_board.d)
-I (..\My\tm1638_board.h)(0x6A13F73F)
+F (..\My\tm1638_board.c)(0x6A14235D)(--c99 -c --cpu Cortex-M4.fp.sp -g -O0 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32G4xx_HAL_Driver/Inc -I ../Drivers/STM32G4xx_HAL_Driver/Inc/Legacy -I ../Middlewares/Third_Party/FreeRTOS/Source/include -I ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 -I ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F -I ../Drivers/CMSIS/Device/ST/STM32G4xx/Include -I ../Drivers/CMSIS/Include -I ../My-I.\RTE\_center_control-IE:\MDK\ARM\CMSIS\5.9.0\CMSIS\Core\Include-IE:\MDK\Keil\STM32G4xx_DFP\1.5.0\Drivers\CMSIS\Device\ST\STM32G4xx\Include-D__UVISION_VERSION="537" -D_RTE_ -DSTM32G431xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32G431xx-o center_control\tm1638_board.o --omf_browse center_control\tm1638_board.crf --depend center_control\tm1638_board.d)
+I (..\My\tm1638_board.h)(0x6A141025)
 I (E:\MDK\ARM\ARMCC\include\stdint.h)(0x5D9B3488)
 I (E:\MDK\ARM\ARMCC\include\stdbool.h)(0x5D9B3488)
 I (../Core/Inc/main.h)(0x6A0D25FD)
@@ -1302,10 +1302,10 @@ I (../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_tim.h)(0x69F1D5A2)
 I (../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_tim_ex.h)(0x69F1D5A2)
 I (../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_uart.h)(0x69F1D5A2)
 I (../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_uart_ex.h)(0x69F1D5A2)
-F (..\My\temp_panel.c)(0x6A13FC80)(--c99 -c --cpu Cortex-M4.fp.sp -g -O0 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32G4xx_HAL_Driver/Inc -I ../Drivers/STM32G4xx_HAL_Driver/Inc/Legacy -I ../Middlewares/Third_Party/FreeRTOS/Source/include -I ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 -I ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F -I ../Drivers/CMSIS/Device/ST/STM32G4xx/Include -I ../Drivers/CMSIS/Include -I ../My-I.\RTE\_center_control-IE:\MDK\ARM\CMSIS\5.9.0\CMSIS\Core\Include-IE:\MDK\Keil\STM32G4xx_DFP\1.5.0\Drivers\CMSIS\Device\ST\STM32G4xx\Include-D__UVISION_VERSION="537" -D_RTE_ -DSTM32G431xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32G431xx-o center_control\temp_panel.o --omf_browse center_control\temp_panel.crf --depend center_control\temp_panel.d)
-I (..\My\temp_panel.h)(0x6A13F79A)
+F (..\My\temp_panel.c)(0x6A14200A)(--c99 -c --cpu Cortex-M4.fp.sp -g -O0 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32G4xx_HAL_Driver/Inc -I ../Drivers/STM32G4xx_HAL_Driver/Inc/Legacy -I ../Middlewares/Third_Party/FreeRTOS/Source/include -I ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 -I ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F -I ../Drivers/CMSIS/Device/ST/STM32G4xx/Include -I ../Drivers/CMSIS/Include -I ../My-I.\RTE\_center_control-IE:\MDK\ARM\CMSIS\5.9.0\CMSIS\Core\Include-IE:\MDK\Keil\STM32G4xx_DFP\1.5.0\Drivers\CMSIS\Device\ST\STM32G4xx\Include-D__UVISION_VERSION="537" -D_RTE_ -DSTM32G431xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32G431xx-o center_control\temp_panel.o --omf_browse center_control\temp_panel.crf --depend center_control\temp_panel.d)
+I (..\My\temp_panel.h)(0x6A141FB6)
 I (E:\MDK\ARM\ARMCC\include\stdint.h)(0x5D9B3488)
 I (E:\MDK\ARM\ARMCC\include\stdbool.h)(0x5D9B3488)
-I (..\My\tm1638_board.h)(0x6A13F73F)
+I (..\My\tm1638_board.h)(0x6A141025)
 I (..\My\pid_controller.h)(0x6A02F6FE)
 I (E:\MDK\ARM\ARMCC\include\stddef.h)(0x5D9B3488)

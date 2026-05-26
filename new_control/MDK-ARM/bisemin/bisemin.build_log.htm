@@ -1,0 +1,76 @@
+<html>
+<body>
+<pre>
+<h1>µVision Build Log</h1>
+<h2>Tool Versions:</h2>
+IDE-Version: ¶ÃVision V5.37.0.0
+Copyright (C) 2022 ARM Ltd and ARM Germany GmbH. All rights reserved.
+License Information: 1 ’≈Œƒ≤®, HP Inc., LIC=R4HV2-9BK62-YDWK5-GZ7IG-Q66J5-2PQTI
+ 
+Tool Versions:
+Toolchain:       MDK-ARM Professional  Version: 5.37.0.0
+Toolchain Path:  E:\MDK\ARM\ARMCC\Bin
+C Compiler:      Armcc.exe V5.06 update 6 (build 750)
+Assembler:       Armasm.exe V5.06 update 6 (build 750)
+Linker/Locator:  ArmLink.exe V5.06 update 6 (build 750)
+Library Manager: ArmAr.exe V5.06 update 6 (build 750)
+Hex Converter:   FromElf.exe V5.06 update 6 (build 750)
+CPU DLL:         SARMCM3.DLL V5.37.0.0
+Dialog DLL:      DCM.DLL V1.17.5.0
+Target DLL:      STLink\ST-LINKIII-KEIL_SWO.dll V3.0.9.0
+Dialog DLL:      TCM.DLL V1.56.1.0
+ 
+<h2>Project:</h2>
+E:\jianzhi\bisemin\new_control\MDK-ARM\bisemin.uvprojx
+Project File Date:  05/25/2026
+
+<h2>Output:</h2>
+*** Using Compiler 'V5.06 update 6 (build 750)', folder: 'E:\MDK\ARM\ARMCC\Bin'
+Build target 'bisemin'
+compiling bridge1_test.c...
+..\My\bridge1_test.h(27): warning:  #1-D: last line of file ends without a newline
+  #endif
+..\My\bridge1_test.c(325): warning:  #1-D: last line of file ends without a newline
+  }
+..\My\bridge1_test.c: 2 warnings, 0 errors
+compiling main.c...
+../Core/Src/main.c(123): warning:  #223-D: function "Bridge1_StartHoldTest" declared implicitly
+    Bridge1_StartHoldTest(0.05f, 1000);
+../Core/Src/main.c(144): warning:  #223-D: function "Bridge1_StopHoldTest" declared implicitly
+        Bridge1_StopHoldTest();
+../Core/Src/main.c: 2 warnings, 0 errors
+compiling app_freertos.c...
+..\My\bridge1_test.h(27): warning:  #1-D: last line of file ends without a newline
+  #endif
+../Core/Src/app_freertos.c: 1 warning, 0 errors
+linking...
+Program Size: Code=23514 RO-data=570 RW-data=80 ZI-data=4496  
+FromELF: creating hex file...
+"bisemin\bisemin.axf" - 0 Error(s), 5 Warning(s).
+
+<h2>Software Packages used:</h2>
+
+Package Vendor: ARM
+                http://www.keil.com/pack/ARM.CMSIS.5.9.0.pack
+                ARM.CMSIS.5.9.0
+                CMSIS (Common Microcontroller Software Interface Standard)
+   * Component: CORE Version: 5.6.0
+
+Package Vendor: Keil
+                https://www.keil.com/pack/Keil.STM32G4xx_DFP.1.5.0.pack
+                Keil.STM32G4xx_DFP.1.5.0
+                STMicroelectronics STM32G4 Series Device Support, Drivers and Examples
+
+<h2>Collection of Component include folders:</h2>
+  ./RTE/_bisemin
+  E:/MDK/ARM/CMSIS/5.9.0/CMSIS/Core/Include
+  E:/MDK/Keil/STM32G4xx_DFP/1.5.0/Drivers/CMSIS/Device/ST/STM32G4xx/Include
+
+<h2>Collection of Component Files used:</h2>
+
+   * Component: ARM::CMSIS:CORE:5.6.0
+      Include file:  CMSIS/Core/Include/tz_context.h
+Build Time Elapsed:  00:00:03
+</pre>
+</body>
+</html>
