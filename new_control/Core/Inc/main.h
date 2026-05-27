@@ -111,10 +111,10 @@ void Error_Handler(void);
 #define ADC_IL4_GPIO_Port GPIOB
 #define SLEEP1_Pin GPIO_PIN_7
 #define SLEEP1_GPIO_Port GPIOE
-#define SLEEP2_Pin GPIO_PIN_8
-#define SLEEP2_GPIO_Port GPIOE
-#define PWM1_Pin GPIO_PIN_9
+#define PWM1_Pin GPIO_PIN_8
 #define PWM1_GPIO_Port GPIOE
+#define SLEEP2_Pin GPIO_PIN_9
+#define SLEEP2_GPIO_Port GPIOE
 #define SLEEP3_Pin GPIO_PIN_10
 #define SLEEP3_GPIO_Port GPIOE
 #define PWM2_Pin GPIO_PIN_11

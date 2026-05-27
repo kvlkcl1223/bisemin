@@ -45,3 +45,16 @@ bisemin\bridge1_test.o: ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_uart_e
 bisemin\bridge1_test.o: ../Core/Inc/opamp.h
 bisemin\bridge1_test.o: ../Core/Inc/adc.h
 bisemin\bridge1_test.o: ../Core/Inc/dac.h
+bisemin\bridge1_test.o: ../Core/Inc/spi.h
+bisemin\bridge1_test.o: ../Core/Inc/tim.h
+bisemin\bridge1_test.o: ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os.h
+bisemin\bridge1_test.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h
+bisemin\bridge1_test.o: ../Core/Inc/FreeRTOSConfig.h
+bisemin\bridge1_test.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/projdefs.h
+bisemin\bridge1_test.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/portable.h
+bisemin\bridge1_test.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/deprecated_definitions.h
+bisemin\bridge1_test.o: ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F/portmacro.h
+bisemin\bridge1_test.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/mpu_wrappers.h
+bisemin\bridge1_test.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/task.h
+bisemin\bridge1_test.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/list.h
+bisemin\bridge1_test.o: ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os2.h

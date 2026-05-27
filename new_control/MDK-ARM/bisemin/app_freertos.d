@@ -52,4 +52,15 @@ bisemin\app_freertos.o: ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_uart.h
 bisemin\app_freertos.o: ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_uart_ex.h
 bisemin\app_freertos.o: ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os.h
 bisemin\app_freertos.o: ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os2.h
-bisemin\app_freertos.o: ..\My\bridge1_test.h
+bisemin\app_freertos.o: ../My/bridge1_test.h
+bisemin\app_freertos.o: ../Core/Inc/opamp.h
+bisemin\app_freertos.o: ../Core/Inc/adc.h
+bisemin\app_freertos.o: ../Core/Inc/dac.h
+bisemin\app_freertos.o: ../Core/Inc/usart.h
+bisemin\app_freertos.o: ../Core/Inc/gpio.h
+bisemin\app_freertos.o: E:\MDK\ARM\ARMCC\Bin\..\include\string.h
+bisemin\app_freertos.o: E:\MDK\ARM\ARMCC\Bin\..\include\stdio.h
+bisemin\app_freertos.o: E:\MDK\ARM\ARMCC\Bin\..\include\stdlib.h
+bisemin\app_freertos.o: E:\MDK\ARM\ARMCC\Bin\..\include\math.h
+bisemin\app_freertos.o: E:\MDK\ARM\ARMCC\Bin\..\include\stdbool.h
+bisemin\app_freertos.o: ../Core/Inc/tim.h

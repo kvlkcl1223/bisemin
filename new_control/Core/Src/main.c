@@ -30,7 +30,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "bridge1_test.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -45,7 +45,15 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
+uint8_t g_reg0 = 0;
+uint8_t g_reg1 = 0;
+uint8_t g_reg2 = 0;
+uint8_t g_reg3 = 0;
+uint8_t g_reg4 = 0;
+uint8_t g_reg5 = 0;
+uint8_t g_reg2_lock = 0;
+uint8_t g_reg2_unlock = 0;
+uint8_t g_reg3_after = 0;
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -63,7 +71,62 @@ void MX_FREERTOS_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+uint8_t DRV8703_ReadReg1(uint8_t addr)
+{
+  uint8_t tx[2];
+  uint8_t rx[2];
+  uint16_t frame;
 
+  /*
+   * DRV8703 读命令：
+   * bit15 = 1
+   * bit14~11 = addr
+   */
+  frame = 0x8000U | ((uint16_t)(addr & 0x0F) << 11);
+
+  tx[0] = (uint8_t)(frame >> 8);
+  tx[1] = (uint8_t)(frame & 0xFF);
+
+  rx[0] = 0;
+  rx[1] = 0;
+
+  HAL_GPIO_WritePin(CS1_GPIO_Port, CS1_Pin, GPIO_PIN_RESET);
+
+  HAL_SPI_TransmitReceive(&hspi1, tx, rx, 2, 100);
+
+  HAL_GPIO_WritePin(CS1_GPIO_Port, CS1_Pin, GPIO_PIN_SET);
+
+  /*
+   * 返回低 8 bit
+   */
+  return rx[1];
+}
+void DRV8703_WriteReg1(uint8_t addr, uint8_t data)
+{
+  uint8_t tx[2];
+  uint8_t rx[2];
+  uint16_t frame;
+
+  /*
+   * DRV8703 写命令：
+   * bit15 = 0
+   * bit14~11 = addr
+   * bit7~0 = data
+   */
+  frame = ((uint16_t)(addr & 0x0F) << 11) | data;
+
+  tx[0] = (uint8_t)(frame >> 8);
+  tx[1] = (uint8_t)(frame & 0xFF);
+
+  rx[0] = 0;
+  rx[1] = 0;
+
+  HAL_GPIO_WritePin(CS1_GPIO_Port, CS1_Pin, GPIO_PIN_RESET);
+
+  HAL_SPI_TransmitReceive(&hspi1, tx, rx, 2, 100);
+
+  HAL_GPIO_WritePin(CS1_GPIO_Port, CS1_Pin, GPIO_PIN_SET);
+}
 /* USER CODE END 0 */
 
 /**
@@ -114,21 +177,55 @@ int main(void)
   MX_USART1_UART_Init();
   MX_USART2_UART_Init();
   MX_SPI3_Init();
+  MX_TIM5_Init();
   /* USER CODE BEGIN 2 */
   HAL_DAC_Start(&hdac3, DAC_CHANNEL_1);
   HAL_DAC_SetValue(&hdac3, DAC_CHANNEL_1, DAC_ALIGN_12B_R,
                    (uint32_t)(1000.0f * 4095.0f / 3300.0f));
   HAL_OPAMP_Start(&hopamp1);
 
-  Bridge1_StartHoldTest(0.05f, 1000);
+  //  Bridge1_StartHoldTest(0.05f, 1000);
+
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
+  __HAL_TIM_SetCompare(&htim3, TIM_CHANNEL_2, 150);
+
+//  HAL_GPIO_WritePin(SLEEP1_GPIO_Port, SLEEP1_Pin, GPIO_PIN_SET);
+//  HAL_Delay(20);
+
+//  /* 所有其它 SPI 片选都拉高 */
+//  HAL_GPIO_WritePin(CS1_GPIO_Port, CS1_Pin, GPIO_PIN_SET);
+//  /* ADS1220_CS 也要拉高 */
+//  /* CS2/CS3/CS4/CS5 也要拉高 */
+
+//  /* 读默认寄存器 */
+//  g_reg0 = DRV8703_ReadReg1(0x00);
+//  g_reg1 = DRV8703_ReadReg1(0x01);
+//  g_reg2 = DRV8703_ReadReg1(0x02);
+//  g_reg3 = DRV8703_ReadReg1(0x03);
+//  g_reg4 = DRV8703_ReadReg1(0x04);
+//  g_reg5 = DRV8703_ReadReg1(0x05);
+
+//  /* 测试 Reg2 写入 */
+//  DRV8703_WriteReg1(0x02, 0x30);
+//  HAL_Delay(2);
+//  g_reg2_lock = DRV8703_ReadReg1(0x02);
+
+//  DRV8703_WriteReg1(0x02, 0x18);
+//  HAL_Delay(2);
+//  g_reg2_unlock = DRV8703_ReadReg1(0x02);
+
+//  /* 测试 Reg3 写入 */
+//  DRV8703_WriteReg1(0x03, 0xC7);
+//  HAL_Delay(2);
+//  g_reg3_after = DRV8703_ReadReg1(0x03);
   /* USER CODE END 2 */
 
   /* Init scheduler */
-  // osKernelInitialize(); /* Call init function for freertos objects (in cmsis_os2.c) */
-  // MX_FREERTOS_Init();
+  osKernelInitialize(); /* Call init function for freertos objects (in cmsis_os2.c) */
+  MX_FREERTOS_Init();
 
   /* Start scheduler */
-  // osKernelStart();
+  osKernelStart();
 
   /* We should never get here as control is now taken by the scheduler */
 
@@ -141,7 +238,7 @@ int main(void)
     /* USER CODE BEGIN 3 */
     if (HAL_GPIO_ReadPin(FAULT1_GPIO_Port, FAULT1_Pin) == GPIO_PIN_RESET)
     {
-      Bridge1_StopHoldTest();
+      // Bridge1_StopHoldTest();
     }
     HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
     HAL_Delay(100);
@@ -199,7 +296,7 @@ void SystemClock_Config(void)
 
 /**
  * @brief  Period elapsed callback in non blocking mode
- * @note   This function is called  when TIM5 interrupt took place, inside
+ * @note   This function is called  when TIM6 interrupt took place, inside
  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
  * a global variable "uwTick" used as application time base.
  * @param  htim : TIM handle
@@ -210,7 +307,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   /* USER CODE BEGIN Callback 0 */
 
   /* USER CODE END Callback 0 */
-  if (htim->Instance == TIM5)
+  if (htim->Instance == TIM6)
   {
     HAL_IncTick();
   }

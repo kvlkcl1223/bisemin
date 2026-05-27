@@ -60,3 +60,4 @@ bisemin\main.o: ../Core/Inc/spi.h
 bisemin\main.o: ../Core/Inc/tim.h
 bisemin\main.o: ../Core/Inc/usart.h
 bisemin\main.o: ../Core/Inc/gpio.h
+bisemin\main.o: ../My/bridge1_test.h
