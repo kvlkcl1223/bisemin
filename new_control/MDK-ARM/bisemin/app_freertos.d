@@ -52,7 +52,8 @@ bisemin\app_freertos.o: ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_uart.h
 bisemin\app_freertos.o: ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_uart_ex.h
 bisemin\app_freertos.o: ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os.h
 bisemin\app_freertos.o: ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os2.h
-bisemin\app_freertos.o: ../My/bridge1_test.h
+bisemin\app_freertos.o: ../My/drv8703_board.h
+bisemin\app_freertos.o: ../My/drv8703.h
 bisemin\app_freertos.o: ../Core/Inc/opamp.h
 bisemin\app_freertos.o: ../Core/Inc/adc.h
 bisemin\app_freertos.o: ../Core/Inc/dac.h
@@ -64,3 +65,6 @@ bisemin\app_freertos.o: E:\MDK\ARM\ARMCC\Bin\..\include\stdlib.h
 bisemin\app_freertos.o: E:\MDK\ARM\ARMCC\Bin\..\include\math.h
 bisemin\app_freertos.o: E:\MDK\ARM\ARMCC\Bin\..\include\stdbool.h
 bisemin\app_freertos.o: ../Core/Inc/tim.h
+bisemin\app_freertos.o: ../My/temp_panel.h
+bisemin\app_freertos.o: ../My/tm1638_board.h
+bisemin\app_freertos.o: ../My/sys_state.h

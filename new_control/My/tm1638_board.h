@@ -12,6 +12,7 @@ typedef enum
     KEY_UP,
     KEY_DOWN,
     KEY_ENTER,
+    KEY_SWITCH,
     KEY_MAX_NUM
 } TM1638_Key_t;
 
@@ -56,8 +57,8 @@ void TM1638_ClearDisplay(TM1638_HandleTypeDef *htmp);
 void TM1638_ShowFloat(TM1638_HandleTypeDef *htmp, float num, uint8_t decimal_places);
 void TM1638_ShowString(TM1638_HandleTypeDef *htmp, const char *str);
 /* 独立LED控制API */
-void TM1638_SetLED(TM1638_HandleTypeDef *htmp, uint8_t led_index, bool state); // led_index: 1~7
-void TM1638_SetAllLEDs(TM1638_HandleTypeDef *htmp, uint8_t led_mask);
+void TM1638_SetLED(TM1638_HandleTypeDef *htmp, uint8_t led_index, bool state); // led_index: 1~9
+void TM1638_SetAllLEDs(TM1638_HandleTypeDef *htmp, uint16_t led_mask);
 
 /* 按键扫描与回调API */
 void TM1638_RegisterKeyCallback(TM1638_HandleTypeDef *htmp, TM1638_Key_t key, TM1638_KeyCallback_t callback);

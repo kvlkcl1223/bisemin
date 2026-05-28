@@ -51,6 +51,13 @@
 "bisemin\heap_4.o"
 "bisemin\port.o"
 "bisemin\bridge1_test.o"
+"bisemin\adc1_voltage_current_test.o"
+"bisemin\drv8703.o"
+"bisemin\drv8703_board.o"
+"bisemin\sys_state.o"
+"bisemin\temp_panel.o"
+"bisemin\tm1638_board.o"
+"bisemin\pid_controller.o"
 --strict --scatter "stm32g474xx_flash.sct"
 --summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
 --info sizes --info totals --info unused --info veneers

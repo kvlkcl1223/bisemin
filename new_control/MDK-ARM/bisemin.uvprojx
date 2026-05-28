@@ -1758,6 +1758,41 @@
               <FileType>1</FileType>
               <FilePath>..\My\bridge1_test.c</FilePath>
             </File>
+            <File>
+              <FileName>adc1_voltage_current_test.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\My\adc1_voltage_current_test.c</FilePath>
+            </File>
+            <File>
+              <FileName>drv8703.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\My\drv8703.c</FilePath>
+            </File>
+            <File>
+              <FileName>drv8703_board.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\My\drv8703_board.c</FilePath>
+            </File>
+            <File>
+              <FileName>sys_state.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\My\sys_state.c</FilePath>
+            </File>
+            <File>
+              <FileName>temp_panel.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\My\temp_panel.c</FilePath>
+            </File>
+            <File>
+              <FileName>tm1638_board.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\My\tm1638_board.c</FilePath>
+            </File>
+            <File>
+              <FileName>pid_controller.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\My\pid_controller.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

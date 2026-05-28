@@ -1,0 +1,15 @@
+bisemin\sys_state.o: ..\My\sys_state.c
+bisemin\sys_state.o: ..\My\sys_state.h
+bisemin\sys_state.o: E:\MDK\ARM\ARMCC\Bin\..\include\stdint.h
+bisemin\sys_state.o: ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os.h
+bisemin\sys_state.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h
+bisemin\sys_state.o: E:\MDK\ARM\ARMCC\Bin\..\include\stddef.h
+bisemin\sys_state.o: ../Core/Inc/FreeRTOSConfig.h
+bisemin\sys_state.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/projdefs.h
+bisemin\sys_state.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/portable.h
+bisemin\sys_state.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/deprecated_definitions.h
+bisemin\sys_state.o: ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F/portmacro.h
+bisemin\sys_state.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/mpu_wrappers.h
+bisemin\sys_state.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/task.h
+bisemin\sys_state.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/list.h
+bisemin\sys_state.o: ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os2.h

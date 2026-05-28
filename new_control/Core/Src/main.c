@@ -31,6 +31,9 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "bridge1_test.h"
+#include "tm1638_board.h"
+#include "pid_controller.h"
+#include "temp_panel.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -59,7 +62,13 @@ uint8_t g_reg3_after = 0;
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+float Sys_Temperatures[4] = {0.0f};
+uint8_t Sys_Status[4] = {0};
+#define RX_BUFFER_SIZE 256
+uint8_t rx_buffer[RX_BUFFER_SIZE];
+uint16_t rx_length = 0;
+int8_t flag_temp_update = 0;
+PID_TypeDef temp_pid;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -71,6 +80,81 @@ void MX_FREERTOS_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+void Parse_Temperature_Buffer(uint8_t *pData, uint16_t Size);
+void Parse_Temperature_Byte(uint8_t rx_byte);
+/* ── 长按检测 ── */
+static uint32_t key_hold_start[KEY_MAX_NUM] = {0};
+static uint32_t key_last_repeat[KEY_MAX_NUM] = {0};
+static bool key_long_sent[KEY_MAX_NUM] = {false};
+
+/* 按键回调: 仅在按下瞬间触发 SHORT 事件, 同时记录 hold 起始时刻 */
+static void OnTM1638Key(TM1638_Key_t key)
+{
+  PanelKey_t pk = PanelKey_FromTM1638(key);
+  if (pk == PANEL_KEY_NONE)
+    return;
+
+  uint32_t now = osKernelGetTickCount();
+  key_hold_start[key] = now;
+  key_last_repeat[key] = 0;
+  key_long_sent[key] = false;
+  TempPanel_KeyEvent(&g_panel, pk, PANEL_KEY_EVT_SHORT, now);
+}
+
+/*
+ * 长按/连发检测: 需在主循环或 HMITask 中每 20ms 调用,
+ * 紧跟在 TM1638_ProcessKeys() 之后。
+ */
+void CheckKeyHoldEvents(void)
+{
+  uint32_t now = osKernelGetTickCount();
+  for (int i = 0; i < KEY_MAX_NUM; i++)
+  {
+    PanelKey_t pk = PanelKey_FromTM1638((TM1638_Key_t)i);
+    if (pk == PANEL_KEY_NONE)
+      continue;
+
+    if (htm1638.key_states[i])
+    {
+      if (key_hold_start[i] == 0)
+        continue;
+
+      uint32_t held = now - key_hold_start[i];
+
+      /* 按住 > 2s 触发一次 LONG */
+      if (held >= 2000)
+      {
+        if (!key_long_sent[i])
+        {
+          TempPanel_KeyEvent(&g_panel, pk, PANEL_KEY_EVT_LONG, now);
+          key_long_sent[i] = true;
+        }
+      }
+      /* 按住 > 500ms 开始连发, 每 150ms 一次 REPEAT */
+      else if (held >= 500)
+      {
+        if (key_last_repeat[i] == 0 || now - key_last_repeat[i] >= 150)
+        {
+          TempPanel_KeyEvent(&g_panel, pk, PANEL_KEY_EVT_REPEAT, now);
+          key_last_repeat[i] = now;
+        }
+      }
+    }
+    else
+    {
+      key_hold_start[i] = 0;
+      key_last_repeat[i] = 0;
+      key_long_sent[i] = false;
+    }
+  }
+}
+
+void OnModeKeyPressed(void) { OnTM1638Key(KEY_MODE); }
+void OnStartStopKeyPressed(void) { OnTM1638Key(KEY_START_STOP); }
+void OnUpKeyPressed(void) { OnTM1638Key(KEY_UP); }
+void OnDownKeyPressed(void) { OnTM1638Key(KEY_DOWN); }
+void OnEnterKeyPressed(void) { OnTM1638Key(KEY_ENTER); }
+void OnSwitchKeyPressed(void) { OnTM1638Key(KEY_SWITCH); }
 uint8_t DRV8703_ReadReg1(uint8_t addr)
 {
   uint8_t tx[2];
@@ -179,45 +263,67 @@ int main(void)
   MX_SPI3_Init();
   MX_TIM5_Init();
   /* USER CODE BEGIN 2 */
-  HAL_DAC_Start(&hdac3, DAC_CHANNEL_1);
-  HAL_DAC_SetValue(&hdac3, DAC_CHANNEL_1, DAC_ALIGN_12B_R,
-                   (uint32_t)(1000.0f * 4095.0f / 3300.0f));
-  HAL_OPAMP_Start(&hopamp1);
+  // 开启 TIM3 的 PWM 输出，开启水泵的电机
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
+  __HAL_TIM_SetCompare(&htim3, TIM_CHANNEL_1, 8499);
+  __HAL_TIM_SetCompare(&htim3, TIM_CHANNEL_2, 4000);
+
+  // 启动带有空闲检测的 DMA 接收
+  // 启动 USART2 带有空闲检测的 DMA 接收
+  HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rx_buffer, RX_BUFFER_SIZE);
+  // 直接通过 huart2 结构体内部的 hdmarx 指针来关闭过半中断
+  __HAL_DMA_DISABLE_IT(huart1.hdmarx, DMA_IT_HT);
+
+  /* 一键初始化: TM1638 + Panel + PID + 默认显示 */
+  Panel_Init();
+
+  /* 注册所有按键回调 */
+  TM1638_RegisterKeyCallback(&htm1638, KEY_MODE, OnModeKeyPressed);
+  TM1638_RegisterKeyCallback(&htm1638, KEY_START_STOP, OnStartStopKeyPressed);
+  TM1638_RegisterKeyCallback(&htm1638, KEY_UP, OnUpKeyPressed);
+  TM1638_RegisterKeyCallback(&htm1638, KEY_DOWN, OnDownKeyPressed);
+  TM1638_RegisterKeyCallback(&htm1638, KEY_ENTER, OnEnterKeyPressed);
+  TM1638_RegisterKeyCallback(&htm1638, KEY_SWITCH, OnSwitchKeyPressed);
+  // HAL_DAC_Start(&hdac3, DAC_CHANNEL_1);
+  // HAL_DAC_SetValue(&hdac3, DAC_CHANNEL_1, DAC_ALIGN_12B_R,
+  //                  (uint32_t)(1000.0f * 4095.0f / 3300.0f));
+  // HAL_OPAMP_Start(&hopamp1);
 
   //  Bridge1_StartHoldTest(0.05f, 1000);
 
-  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
-  __HAL_TIM_SetCompare(&htim3, TIM_CHANNEL_2, 150);
+  // HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
+  // __HAL_TIM_SetCompare(&htim3, TIM_CHANNEL_2, 150);
 
-//  HAL_GPIO_WritePin(SLEEP1_GPIO_Port, SLEEP1_Pin, GPIO_PIN_SET);
-//  HAL_Delay(20);
+  //  HAL_GPIO_WritePin(SLEEP1_GPIO_Port, SLEEP1_Pin, GPIO_PIN_SET);
+  //  HAL_Delay(20);
 
-//  /* 所有其它 SPI 片选都拉高 */
-//  HAL_GPIO_WritePin(CS1_GPIO_Port, CS1_Pin, GPIO_PIN_SET);
-//  /* ADS1220_CS 也要拉高 */
-//  /* CS2/CS3/CS4/CS5 也要拉高 */
+  //  /* 所有其它 SPI 片选都拉高 */
+  //  HAL_GPIO_WritePin(CS1_GPIO_Port, CS1_Pin, GPIO_PIN_SET);
+  //  /* ADS1220_CS 也要拉高 */
+  //  /* CS2/CS3/CS4/CS5 也要拉高 */
 
-//  /* 读默认寄存器 */
-//  g_reg0 = DRV8703_ReadReg1(0x00);
-//  g_reg1 = DRV8703_ReadReg1(0x01);
-//  g_reg2 = DRV8703_ReadReg1(0x02);
-//  g_reg3 = DRV8703_ReadReg1(0x03);
-//  g_reg4 = DRV8703_ReadReg1(0x04);
-//  g_reg5 = DRV8703_ReadReg1(0x05);
+  //  /* 读默认寄存器 */
+  //  g_reg0 = DRV8703_ReadReg1(0x00);
+  //  g_reg1 = DRV8703_ReadReg1(0x01);
+  //  g_reg2 = DRV8703_ReadReg1(0x02);
+  //  g_reg3 = DRV8703_ReadReg1(0x03);
+  //  g_reg4 = DRV8703_ReadReg1(0x04);
+  //  g_reg5 = DRV8703_ReadReg1(0x05);
 
-//  /* 测试 Reg2 写入 */
-//  DRV8703_WriteReg1(0x02, 0x30);
-//  HAL_Delay(2);
-//  g_reg2_lock = DRV8703_ReadReg1(0x02);
+  //  /* 测试 Reg2 写入 */
+  //  DRV8703_WriteReg1(0x02, 0x30);
+  //  HAL_Delay(2);
+  //  g_reg2_lock = DRV8703_ReadReg1(0x02);
 
-//  DRV8703_WriteReg1(0x02, 0x18);
-//  HAL_Delay(2);
-//  g_reg2_unlock = DRV8703_ReadReg1(0x02);
+  //  DRV8703_WriteReg1(0x02, 0x18);
+  //  HAL_Delay(2);
+  //  g_reg2_unlock = DRV8703_ReadReg1(0x02);
 
-//  /* 测试 Reg3 写入 */
-//  DRV8703_WriteReg1(0x03, 0xC7);
-//  HAL_Delay(2);
-//  g_reg3_after = DRV8703_ReadReg1(0x03);
+  //  /* 测试 Reg3 写入 */
+  //  DRV8703_WriteReg1(0x03, 0xC7);
+  //  HAL_Delay(2);
+  //  g_reg3_after = DRV8703_ReadReg1(0x03);
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -236,12 +342,6 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    if (HAL_GPIO_ReadPin(FAULT1_GPIO_Port, FAULT1_Pin) == GPIO_PIN_RESET)
-    {
-      // Bridge1_StopHoldTest();
-    }
-    HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
-    HAL_Delay(100);
   }
   /* USER CODE END 3 */
 }
@@ -291,7 +391,127 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
+{
+  // 判断是否是 USART2 触发的接收完成/空闲中断
+  if (huart->Instance == USART2)
+  {
+    // 2. 将这次 DMA 收到的数据块扔给解析器提取温度
+    Parse_Temperature_Buffer(rx_buffer, Size);
 
+    // 3. 必须重新开启 USART2 的 DMA 接收，否则只能收一次
+    HAL_UARTEx_ReceiveToIdle_DMA(&huart2, rx_buffer, RX_BUFFER_SIZE);
+
+    // 4. 再次关闭过半中断，防止接收一半时触发不必要的中断打断 CPU
+    __HAL_DMA_DISABLE_IT(huart->hdmarx, DMA_IT_HT);
+  }
+}
+
+/**
+ * @brief  字节级协议解析状态机 (自动处理粘包/断包)
+ * @param  rx_byte 接收到的单字节
+ */
+void Parse_Temperature_Byte(uint8_t rx_byte)
+{
+  static uint8_t state = 0;
+  static uint8_t frame_buf[9];
+  static uint8_t idx = 0;
+
+  switch (state)
+  {
+  case 0: // 寻找帧头 1
+    if (rx_byte == 0xAA)
+    {
+      frame_buf[0] = rx_byte;
+      state = 1;
+    }
+    break;
+
+  case 1: // 寻找帧头 2
+    if (rx_byte == 0x55)
+    {
+      frame_buf[1] = rx_byte;
+      idx = 2;
+      state = 2;
+    }
+    else if (rx_byte == 0xAA)
+    {
+      state = 1; // 容错：连续收到两个 AA
+    }
+    else
+    {
+      state = 0; // 帧头错误，状态机复位
+    }
+    break;
+
+  case 2: // 接收数据体与校验和
+    frame_buf[idx++] = rx_byte;
+
+    if (idx >= 9)
+    { // 收集满一帧 9 字节
+      // 1. 计算校验和
+      uint8_t sum = 0;
+      for (int i = 2; i <= 7; i++)
+      {
+        sum += frame_buf[i];
+      }
+
+      // 2. 验证校验和
+      if (sum == frame_buf[8])
+      {
+        uint8_t ch_id = frame_buf[2];  // 通道号 1~4
+        uint8_t status = frame_buf[3]; // 状态位
+
+        // 3. 提取并保存数据
+        if (ch_id >= 1 && ch_id <= 4)
+        {
+          Sys_Status[ch_id - 1] = status; // 保存状态
+
+          if (status == 0)
+          {
+            // 状态正常时，提取浮点温度数据
+            float temp_val;
+            uint8_t *pTemp = (uint8_t *)&temp_val;
+            pTemp[0] = frame_buf[4];
+            pTemp[1] = frame_buf[5];
+            pTemp[2] = frame_buf[6];
+            pTemp[3] = frame_buf[7];
+
+            // 存入全局温度数组
+            Sys_Temperatures[ch_id - 1] = temp_val;
+
+            // printf("CH%d OK: %.4f\r\n", ch_id, temp_val);
+            if (ch_id == 2) // 如果是 CH2 的温度更新了，设置标志让主循环计算 PID 输出
+            {
+              flag_temp_update = 1;
+            }
+          }
+          else
+          {
+            // 如果状态为 1 (断开/超时)，为了安全，可以把该通道温度设为一个异常值 (例如 -999.0)
+            // Sys_Temperatures[ch_id - 1] = -999.0f;
+          }
+        }
+      }
+      // 解析完毕，状态机归零，准备迎接下一帧
+      state = 0;
+    }
+    break;
+  }
+}
+
+/**
+ * @brief  数据块解析函数 (供空闲中断调用)
+ * @param  pData 接收到的数据首地址
+ * @param  Size  接收到的数据长度
+ */
+void Parse_Temperature_Buffer(uint8_t *pData, uint16_t Size)
+{
+  for (uint16_t i = 0; i < Size; i++)
+  {
+    Parse_Temperature_Byte(pData[i]); // 将数据块逐字节喂给状态机
+  }
+}
 /* USER CODE END 4 */
 
 /**
