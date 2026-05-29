@@ -3,7 +3,7 @@
 #include "cmsis_os.h"
 
 // 不用 extern！使用 static 让它变成当前文件的私有变量，别的任务无法直接摸到它
-static SystemState_t g_SysState = {25.0f, 25.0f, 0};
+SystemState_t g_SysState = {25.0f, 25.0f, 0};
 
 extern osMutexId_t SysStateMutexHandle;
 

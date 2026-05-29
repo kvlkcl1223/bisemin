@@ -93,12 +93,86 @@ extern "C"
      * 6. 错误代码定义
      * ============================================================ */
 
-    typedef enum
+        typedef enum
     {
         PANEL_ERR_NONE = 0,
+
+        /* E001: reserved water/cooling fault. Stops both cells when used. */
         PANEL_ERR_E1_WATER = 1,
+
+        /* E003: legacy per-cell peltier fault. Kept for compatibility. */
         PANEL_ERR_E3_PELTIER = 3,
-        PANEL_ERR_E132_SENSOR = 132
+
+        /* E121: temperature sensor CH1 fault.
+         * CH1 is the first temperature input and belongs to cell 1. The
+         * controller pulses NRST_OTHER several times first. If CH1 still has
+         * no valid fresh data, cell 1 is stopped and E121 is displayed.
+         */
+        PANEL_ERR_E121_TEMP_CH1 = 121,
+
+        /* E122: temperature sensor CH2 fault.
+         * CH2 is the second temperature input and belongs to cell 1. The
+         * controller pulses NRST_OTHER several times first. If CH2 still has
+         * no valid fresh data, cell 1 is stopped and E122 is displayed.
+         */
+        PANEL_ERR_E122_TEMP_CH2 = 122,
+
+        /* E123: temperature sensor CH3 fault.
+         * CH3 is the first temperature input belonging to cell 2. The
+         * controller pulses NRST_OTHER several times first. If CH3 still has
+         * no valid fresh data, cell 2 is stopped and E123 is displayed.
+         */
+        PANEL_ERR_E123_TEMP_CH3 = 123,
+
+        /* E124: temperature sensor CH4 fault.
+         * CH4 is the second temperature input belonging to cell 2. The
+         * controller pulses NRST_OTHER several times first. If CH4 still has
+         * no valid fresh data, cell 2 is stopped and E124 is displayed.
+         */
+        PANEL_ERR_E124_TEMP_CH4 = 124,
+
+        /* E132: legacy/generic temperature sensor fault.
+         * Kept for compatibility with older panel code and for unknown
+         * temperature faults. New control logic reports E121-E124 so the
+         * failed sensor route can be identified directly.
+         */
+        PANEL_ERR_E132_SENSOR = 132,
+
+        /* E301: cell 1 DRV8703 supply voltage fault.
+         * One of the DRV8703 supply voltage ADC channels belonging to cell 1
+         * is significantly below the 24 V rail threshold, so cell 1 is stopped.
+         */
+        PANEL_ERR_E301_CELL1_VOLTAGE = 301,
+
+        /* E302: cell 2 DRV8703 supply voltage fault.
+         * One of the DRV8703 supply voltage ADC channels belonging to cell 2
+         * is significantly below the 24 V rail threshold, so cell 2 is stopped.
+         */
+        PANEL_ERR_E302_CELL2_VOLTAGE = 302,
+
+        /* E305: shared CH5 DRV8703 supply voltage fault.
+         * CH5 is shared by both temperature cells. If its supply is bad,
+         * both cell 1 and cell 2 are stopped.
+         */
+        PANEL_ERR_E305_SHARED_VOLTAGE = 305,
+
+        /* E311: cell 1 DRV8703 communication/fault-pin/register fault.
+         * The controller retries DRV8703 startup several times before latching
+         * this error. Cell 1 is stopped when this error is active.
+         */
+        PANEL_ERR_E311_CELL1_DRV = 311,
+
+        /* E312: cell 2 DRV8703 communication/fault-pin/register fault.
+         * The controller retries DRV8703 startup several times before latching
+         * this error. Cell 2 is stopped when this error is active.
+         */
+        PANEL_ERR_E312_CELL2_DRV = 312,
+
+        /* E315: shared CH5 DRV8703 fault.
+         * CH5 is needed whenever either cell runs. If CH5 fails to initialize
+         * or reports a fault, both cell 1 and cell 2 are stopped.
+         */
+        PANEL_ERR_E315_SHARED_DRV = 315
     } PanelError_t;
 
     typedef enum
@@ -208,6 +282,9 @@ extern "C"
     void TempPanel_SetPeltierError(TempPanel_t *p,
                                    uint8_t cell,
                                    bool error);
+    void TempPanel_SetCellError(TempPanel_t *p,
+                                uint8_t cell,
+                                PanelError_t err);
 
     PanelKey_t PanelKey_FromTM1638(TM1638_Key_t key);
 
@@ -221,3 +298,6 @@ extern "C"
 #endif
 
 #endif
+
+
+

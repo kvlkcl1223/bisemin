@@ -1,0 +1,89 @@
+#ifndef APP_CONTROL_H
+#define APP_CONTROL_H
+
+#include "main.h"
+#include "drv8703.h"
+#include "temp_panel.h"
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define APP_CONTROL_CELL_COUNT 2U
+#define APP_CONTROL_DRV_COUNT 5U
+
+typedef enum
+{
+    APP_CONTROL_OK = 0,
+    APP_CONTROL_ERROR_QUEUE,
+    APP_CONTROL_ERROR_PARAM
+} AppControl_Status_t;
+
+typedef enum
+{
+    APP_CONTROL_CMD_START = 0,
+    APP_CONTROL_CMD_STOP
+} AppControlCommandType_t;
+
+typedef struct
+{
+    AppControlCommandType_t type;
+    uint8_t cell;
+} AppControlCommand_t;
+
+extern volatile uint8_t g_app_control_simulate_drv8703;
+extern volatile uint8_t g_app_control_simulate_voltage_ok;
+extern volatile AppControl_Status_t g_app_control_init_result;
+extern volatile uint32_t g_app_control_loop_count;
+extern volatile uint32_t g_app_control_cmd_drop_count;
+extern volatile uint8_t g_app_control_cell_running[APP_CONTROL_CELL_COUNT];
+extern volatile PanelError_t g_app_control_cell_error[APP_CONTROL_CELL_COUNT];
+extern volatile float g_app_control_cell_temp[APP_CONTROL_CELL_COUNT];
+extern volatile float g_app_control_cell_target[APP_CONTROL_CELL_COUNT];
+extern volatile float g_app_control_cell_duty[APP_CONTROL_CELL_COUNT];
+extern volatile uint8_t g_app_control_drv_init_attempts[APP_CONTROL_DRV_COUNT];
+extern volatile uint8_t g_app_control_drv_ready[APP_CONTROL_DRV_COUNT];
+extern volatile uint8_t g_app_control_drv_awake[APP_CONTROL_DRV_COUNT];
+extern volatile uint8_t g_app_control_drv_fault[APP_CONTROL_DRV_COUNT];
+extern volatile uint8_t g_app_control_drv_startup_dump_valid[APP_CONTROL_DRV_COUNT];
+extern volatile DRV8703_Status_t g_app_control_drv_startup_dump_status[APP_CONTROL_DRV_COUNT];
+extern volatile uint8_t g_app_control_drv_startup_reg_dump[APP_CONTROL_DRV_COUNT][DRV8703_REGISTER_COUNT];
+extern volatile uint8_t g_app_control_drv_startup_expected[DRV8703_REGISTER_COUNT];
+extern volatile uint8_t g_app_control_last_drv_fault;
+extern volatile DRV8703_Status_t g_app_control_last_drv_status;
+extern volatile uint8_t g_app_control_drv_fault_snapshot_valid[APP_CONTROL_DRV_COUNT];
+extern volatile uint32_t g_app_control_drv_fault_capture_count[APP_CONTROL_DRV_COUNT];
+extern volatile DRV8703_Status_t g_app_control_drv_fault_read_status[APP_CONTROL_DRV_COUNT];
+extern volatile DRV8703_Status_t g_app_control_drv_dump_status[APP_CONTROL_DRV_COUNT];
+extern volatile uint8_t g_app_control_drv_fault_status[APP_CONTROL_DRV_COUNT];
+extern volatile uint8_t g_app_control_drv_vds_gdf_status[APP_CONTROL_DRV_COUNT];
+extern volatile uint8_t g_app_control_drv_reg_dump[APP_CONTROL_DRV_COUNT][DRV8703_REGISTER_COUNT];
+extern volatile uint8_t g_app_control_drv_pin_fault_last;
+extern volatile uint32_t g_app_control_drv_pin_fault_count[APP_CONTROL_DRV_COUNT];
+extern volatile DRV8703_Status_t g_app_control_drv_pin_fault_status[APP_CONTROL_DRV_COUNT];
+extern volatile DRV8703_Status_t g_app_control_drv_pin_fault_read_status[APP_CONTROL_DRV_COUNT];
+extern volatile DRV8703_Status_t g_app_control_drv_pin_fault_dump_status[APP_CONTROL_DRV_COUNT];
+extern volatile uint8_t g_app_control_drv_pin_fault_fault_status[APP_CONTROL_DRV_COUNT];
+extern volatile uint8_t g_app_control_drv_pin_fault_vds_gdf_status[APP_CONTROL_DRV_COUNT];
+extern volatile uint8_t g_app_control_drv_pin_fault_stop_bits[APP_CONTROL_DRV_COUNT];
+extern volatile uint8_t g_app_control_drv_pin_fault_reg_dump[APP_CONTROL_DRV_COUNT][DRV8703_REGISTER_COUNT];
+extern volatile uint8_t g_app_control_temp_reset_count[APP_CONTROL_CELL_COUNT];
+extern volatile uint32_t g_app_control_temp_last_update_tick[4];
+extern volatile uint32_t g_app_control_temp_update_count[4];
+extern volatile uint8_t g_app_control_temp_fault_sensor[APP_CONTROL_CELL_COUNT];
+extern volatile uint8_t g_app_control_temp_reset_active;
+
+AppControl_Status_t AppControl_Init(void);
+void AppControl_Task(uint32_t now_ms);
+void AppControl_UpdatePanel(TempPanel_t *panel, uint32_t now_ms);
+
+void Control_StartPid(uint8_t cell);
+void Control_StopPid(uint8_t cell);
+void Control_SetTargetTemp(uint8_t cell, float target);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif

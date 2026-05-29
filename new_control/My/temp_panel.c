@@ -224,6 +224,16 @@ static void show_ui_error(TempPanel_t *p, PanelUiError_t err, uint32_t now_ms)
     p->ui_error_until_ms = now_ms + PANEL_UI_ERROR_DISPLAY_MS;
 }
 
+static bool panel_error_is_temp_sensor(PanelError_t err)
+{
+    return (err == PANEL_ERR_E121_TEMP_CH1) ||
+           (err == PANEL_ERR_E122_TEMP_CH2) ||
+           (err == PANEL_ERR_E123_TEMP_CH3) ||
+           (err == PANEL_ERR_E124_TEMP_CH4) ||
+           (err == PANEL_ERR_E132_SENSOR);
+}
+
+
 /* ============================================================
  * 3. LED 刷新逻辑
  * ============================================================ */
@@ -303,7 +313,6 @@ static void set_param_value(TempCell_t *c, ProgramParamIndex_t idx, float val)
 
 static float get_param_step(ProgramParamIndex_t idx)
 {
-    /* 温度类参数步�?0.1�? 速率步进 0.1�?min, 其他步进 1 */
     switch (idx)
     {
     case PROG_PARAM_START_TEMP:
@@ -321,7 +330,7 @@ static float get_param_max(ProgramParamIndex_t idx)
     {
     case PROG_PARAM_START_TEMP:
     case PROG_PARAM_NEXT_TEMP:
-        return PANEL_TEMP_MAX; /* 110.0 */
+        return PANEL_TEMP_MAX;
     case PROG_PARAM_START_HOLD:
     case PROG_PARAM_WAIT_TIME:
         return 9999.0f;
@@ -340,7 +349,7 @@ static float get_param_min(ProgramParamIndex_t idx)
     {
     case PROG_PARAM_START_TEMP:
     case PROG_PARAM_NEXT_TEMP:
-        return PANEL_TEMP_MIN; /* -10.0 */
+        return PANEL_TEMP_MIN;
     case PROG_PARAM_START_HOLD:
     case PROG_PARAM_WAIT_TIME:
     case PROG_PARAM_REPEAT_TIMES:
@@ -353,7 +362,7 @@ static float get_param_min(ProgramParamIndex_t idx)
 }
 
 /* ============================================================
- * 5. 显示刷新
+ * 5. Display refresh
  * ============================================================ */
 
 static void refresh_display(TempPanel_t *p)
@@ -410,7 +419,7 @@ static void refresh_display(TempPanel_t *p)
 }
 
 /* ============================================================
- * 6. 公开 API 实现
+ * 6. Public API
  * ============================================================ */
 
 TempPanel_t g_panel;
@@ -419,6 +428,8 @@ TempPanel_t g_panel;
 
 void TempPanel_Init(TempPanel_t *p)
 {
+    int i;
+
     if (p == NULL)
         return;
     p->mode = PANEL_MODE_NORMAL;
@@ -431,13 +442,13 @@ void TempPanel_Init(TempPanel_t *p)
     p->second_tick_ms = 0;
     p->param_show_cnt = 0;
     p->param_inactive_tick_ms = 0;
-
     p->ui_error = PANEL_UI_ERR_NONE;
     p->ui_error_until_ms = 0;
-    for (int i = 0; i < PANEL_CELL_NUM; i++)
+
+    for (i = 0; i < PANEL_CELL_NUM; i++)
     {
-        p->cell_mode[i] = PANEL_MODE_NORMAL;
         TempCell_t *c = &p->cell[i];
+        p->cell_mode[i] = PANEL_MODE_NORMAL;
         c->current_temp = 25.0f;
         c->target_temp = 25.0f;
         c->command_temp = 25.0f;
@@ -463,29 +474,24 @@ void TempPanel_Init(TempPanel_t *p)
 
 void TempPanel_Task(TempPanel_t *p, uint32_t now_ms)
 {
+    TempCell_t *c;
+
     if (p == NULL)
         return;
-    TempCell_t *c = cur_cell(p);
+    c = cur_cell(p);
 
-    /* 测温超时检�?*/
-    for (uint8_t i = 0; i < PANEL_CELL_NUM; i++)
-    {
-        TempCell_t *ci = &p->cell[i];
-        if (ci->run_mode != CELL_STOP && ci->error == PANEL_ERR_NONE)
-        {
-            if (ci->last_temp_update_ms != 0 &&
-                (now_ms - ci->last_temp_update_ms) > PANEL_SENSOR_TIMEOUT_MS)
-            {
-                set_error_and_stop(p, i, PANEL_ERR_E132_SENSOR);
-            }
-        }
-    }
+    /* Temperature timeout is owned by app_control.c now.
+     * The control layer can identify CH1/CH2/CH3/CH4 separately, retry
+     * NRST_OTHER, and then report E121-E124. Keeping a generic panel-side
+     * timeout here would hide the failed route behind E132.
+     */
 
-    /* 每秒任务: 斜坡控温 + 程序推进 */
     if (now_ms - p->second_tick_ms >= 1000)
     {
+        uint8_t i;
+
         p->second_tick_ms = now_ms;
-        for (uint8_t i = 0; i < PANEL_CELL_NUM; i++)
+        for (i = 0; i < PANEL_CELL_NUM; i++)
         {
             TempCell_t *ci = &p->cell[i];
             if (ci->run_mode == CELL_RUN_JUMP)
@@ -494,7 +500,7 @@ void TempPanel_Task(TempPanel_t *p, uint32_t now_ms)
                 update_program_control_1s(p, i);
         }
     }
-    /* Normal mode: stopped shows set temp; running alternates current/set temp. */
+
     if (p->mode == PANEL_MODE_NORMAL && !p->editing && c->error == PANEL_ERR_NONE)
     {
         if (!cell_is_running(c))
@@ -511,7 +517,6 @@ void TempPanel_Task(TempPanel_t *p, uint32_t now_ms)
         }
     }
 
-
     if (p->mode == PANEL_MODE_PARAM_SET && cell_is_running(c) && c->error == PANEL_ERR_NONE)
     {
         if (now_ms - p->display_tick_ms >= PANEL_DISPLAY_SWITCH_MS)
@@ -522,7 +527,7 @@ void TempPanel_Task(TempPanel_t *p, uint32_t now_ms)
                                : PANEL_SHOW_CURRENT;
         }
     }
-    /* 编辑超时 */
+
     if (p->editing && (now_ms - p->edit_tick_ms >= PANEL_EDIT_TIMEOUT_MS))
     {
         p->editing = false;
@@ -530,7 +535,6 @@ void TempPanel_Task(TempPanel_t *p, uint32_t now_ms)
                            ? PANEL_SHOW_TARGET
                            : PANEL_SHOW_CURRENT;
     }
-
 
     if (p->ui_error != PANEL_UI_ERR_NONE)
     {
@@ -545,7 +549,6 @@ void TempPanel_Task(TempPanel_t *p, uint32_t now_ms)
 
     refresh_display(p);
 }
-
 void TempPanel_KeyEvent(TempPanel_t *p,
                         PanelKey_t key,
                         PanelKeyEvent_t evt,
@@ -558,6 +561,14 @@ void TempPanel_KeyEvent(TempPanel_t *p,
     if (evt != PANEL_KEY_EVT_SHORT && key != PANEL_KEY_UP && key != PANEL_KEY_DOWN)
         return;
 
+    if ((c->error != PANEL_ERR_NONE) && (key != PANEL_KEY_SWITCH))
+    {
+        p->editing = false;
+        p->show_type = PANEL_SHOW_ERROR;
+        PanelHW_DisplayError(c->error);
+        refresh_leds(p);
+        return;
+    }
     if (p->mode == PANEL_MODE_PARAM_SET)
         p->param_inactive_tick_ms = now_ms;
 
@@ -734,7 +745,7 @@ void TempPanel_UpdateMeasuredTemp(TempPanel_t *p,
     TempCell_t *c = &p->cell[cell_idx];
     c->current_temp = temp;
     c->last_temp_update_ms = now_ms;
-    if (c->error == PANEL_ERR_E132_SENSOR)
+    if (panel_error_is_temp_sensor(c->error))
         c->error = PANEL_ERR_NONE;
 }
 
@@ -751,6 +762,13 @@ void TempPanel_SetPeltierError(TempPanel_t *p, uint8_t cell, bool error)
     if (p == NULL || cell >= PANEL_CELL_NUM)
         return;
     set_error_and_stop(p, cell, error ? PANEL_ERR_E3_PELTIER : PANEL_ERR_NONE);
+}
+
+void TempPanel_SetCellError(TempPanel_t *p, uint8_t cell, PanelError_t err)
+{
+    if (p == NULL || cell >= PANEL_CELL_NUM)
+        return;
+    set_error_and_stop(p, cell, err);
 }
 
 PanelKey_t PanelKey_FromTM1638(TM1638_Key_t key)
@@ -798,10 +816,10 @@ __attribute__((weak)) void PanelHW_DisplayError(PanelError_t err)
     TM1638_ClearDisplay(&htm1638);
     if (err == PANEL_ERR_NONE)
         return;
-    uint8_t code = (uint8_t)err;
-    uint8_t d3 = code / 100;
-    uint8_t d2 = (code / 10) % 10;
-    uint8_t d1 = code % 10;
+    uint16_t code = (uint16_t)err;
+    uint8_t d3 = (uint8_t)(code / 100U);
+    uint8_t d2 = (uint8_t)((code / 10U) % 10U);
+    uint8_t d1 = (uint8_t)(code % 10U);
     TM1638_ShowChar(&htm1638, 0, 'E', false);
     if (d3 > 0)
     {
@@ -860,6 +878,13 @@ void Panel_Init(void)
     PID_SetLimits(&temp_pid, 700.0f, 1699.0f, 700.0f, 1600.0f);
     refresh_display(&g_panel);
 }
+
+
+
+
+
+
+
 
 
 

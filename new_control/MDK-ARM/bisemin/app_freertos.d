@@ -68,3 +68,5 @@ bisemin\app_freertos.o: ../Core/Inc/tim.h
 bisemin\app_freertos.o: ../My/temp_panel.h
 bisemin\app_freertos.o: ../My/tm1638_board.h
 bisemin\app_freertos.o: ../My/sys_state.h
+bisemin\app_freertos.o: ../My/adc_measure.h
+bisemin\app_freertos.o: ../My/app_control.h

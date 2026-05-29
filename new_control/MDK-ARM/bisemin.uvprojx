@@ -1759,9 +1759,14 @@
               <FilePath>..\My\bridge1_test.c</FilePath>
             </File>
             <File>
-              <FileName>adc1_voltage_current_test.c</FileName>
+              <FileName>adc_measure.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\My\adc1_voltage_current_test.c</FilePath>
+              <FilePath>..\My\adc_measure.c</FilePath>
+            </File>
+            <File>
+              <FileName>app_control.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\My\app_control.c</FilePath>
             </File>
             <File>
               <FileName>drv8703.c</FileName>
