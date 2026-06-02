@@ -133,7 +133,7 @@ void CheckKeyHoldEvents(void)
         }
       }
       /* 按住 > 500ms 开始连发, 每 150ms 一次 REPEAT */
-      else if (held >= 500)
+      if (held >= 500)
       {
         if (key_last_repeat[i] == 0 || now - key_last_repeat[i] >= 150)
         {
@@ -274,9 +274,8 @@ int main(void)
 
   // 启动带有空闲检测的 DMA 接收
   // 启动 USART2 带有空闲检测的 DMA 接收
-  HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rx_buffer, RX_BUFFER_SIZE);
+  TemperatureUart_RestartReceive();
   // 直接通过 huart2 结构体内部的 hdmarx 指针来关闭过半中断
-  __HAL_DMA_DISABLE_IT(huart1.hdmarx, DMA_IT_HT);
   HAL_Delay(20);
   HAL_GPIO_WritePin(NRST_OTHER_GPIO_Port, NRST_OTHER_Pin, GPIO_PIN_SET);
 
@@ -397,6 +396,16 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+void TemperatureUart_RestartReceive(void)
+{
+  (void)HAL_UART_AbortReceive(&huart1);
+  (void)HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rx_buffer, RX_BUFFER_SIZE);
+  if (huart1.hdmarx != NULL)
+  {
+    __HAL_DMA_DISABLE_IT(huart1.hdmarx, DMA_IT_HT);
+  }
+}
+
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
   // 判断是否是 USART2 触发的接收完成/空闲中断
@@ -406,10 +415,9 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
     Parse_Temperature_Buffer(rx_buffer, Size);
 
     // 3. 必须重新开启 USART2 的 DMA 接收，否则只能收一次
-    HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rx_buffer, RX_BUFFER_SIZE);
+    TemperatureUart_RestartReceive();
 
     // 4. 再次关闭过半中断，防止接收一半时触发不必要的中断打断 CPU
-    __HAL_DMA_DISABLE_IT(huart->hdmarx, DMA_IT_HT);
   }
 }
 

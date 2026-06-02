@@ -4,7 +4,18 @@
 #include "spi.h"
 #include "tim.h"
 
+#define DRV8703_BOARD_WAKE_DELAY_MS 20U
+
 DRV8703_Handle_t g_drv8703_board[DRV8703_BOARD_CHANNEL_COUNT];
+
+static void DRV8703_BoardDeselectAll(void)
+{
+    HAL_GPIO_WritePin(CS1_GPIO_Port, CS1_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(CS2_GPIO_Port, CS2_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(CS3_GPIO_Port, CS3_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(CS4_GPIO_Port, CS4_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(CS5_GPIO_Port, CS5_Pin, GPIO_PIN_SET);
+}
 
 static const DRV8703_Config_t g_drv8703_board_config[DRV8703_BOARD_CHANNEL_COUNT] = {
     {
@@ -25,7 +36,7 @@ static const DRV8703_Config_t g_drv8703_board_config[DRV8703_BOARD_CHANNEL_COUNT
         WDFLT1_GPIO_Port,
         WDFLT1_Pin,
         10U,
-        2U,
+        DRV8703_BOARD_WAKE_DELAY_MS,
         3300U,
         0.50f,
         1U,
@@ -50,7 +61,7 @@ static const DRV8703_Config_t g_drv8703_board_config[DRV8703_BOARD_CHANNEL_COUNT
         WDFLT2_GPIO_Port,
         WDFLT2_Pin,
         10U,
-        2U,
+        DRV8703_BOARD_WAKE_DELAY_MS,
         1000U,
         0.50f,
         1U,
@@ -75,7 +86,7 @@ static const DRV8703_Config_t g_drv8703_board_config[DRV8703_BOARD_CHANNEL_COUNT
         WDFLT3_GPIO_Port,
         WDFLT3_Pin,
         10U,
-        2U,
+        DRV8703_BOARD_WAKE_DELAY_MS,
         3300U,
         0.50f,
         1U,
@@ -100,7 +111,7 @@ static const DRV8703_Config_t g_drv8703_board_config[DRV8703_BOARD_CHANNEL_COUNT
         WDFLT4_GPIO_Port,
         WDFLT4_Pin,
         10U,
-        2U,
+        DRV8703_BOARD_WAKE_DELAY_MS,
         3300U,
         0.50f,
         1U,
@@ -125,7 +136,7 @@ static const DRV8703_Config_t g_drv8703_board_config[DRV8703_BOARD_CHANNEL_COUNT
         WDFLT5_GPIO_Port,
         WDFLT5_Pin,
         10U,
-        2U,
+        DRV8703_BOARD_WAKE_DELAY_MS,
         3300U,
         0.50f,
         1U,
@@ -145,6 +156,8 @@ DRV8703_Status_t DRV8703_BoardInitOne(DRV8703_BoardChannel_t ch)
 {
     if ((uint8_t)ch >= DRV8703_BOARD_CHANNEL_COUNT)
         return DRV8703_ERROR_PARAM;
+
+    DRV8703_BoardDeselectAll();
 
     return DRV8703_Init(&g_drv8703_board[(uint8_t)ch],
                         &g_drv8703_board_config[(uint8_t)ch]);

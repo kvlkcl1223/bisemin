@@ -56,13 +56,17 @@ static DRV8703_Status_t DRV8703_Transfer16(DRV8703_Handle_t *dev, uint16_t tx, u
     rx_buf[0] = 0U;
     rx_buf[1] = 0U;
 
+    DRV8703_CsHigh(dev);
+    HAL_Delay(1U);
     DRV8703_CsLow(dev);
+    HAL_Delay(1U);
     hal_ret = HAL_SPI_TransmitReceive(dev->cfg.spi,
                                       tx_buf,
                                       rx_buf,
                                       2U,
                                       dev->cfg.spi_timeout_ms);
     DRV8703_CsHigh(dev);
+    HAL_Delay(1U);
 
     dev->last_tx = tx;
     dev->last_rx = ((uint16_t)rx_buf[0] << 8) | (uint16_t)rx_buf[1];
@@ -269,19 +273,22 @@ DRV8703_Status_t DRV8703_ReadFaultInfo(DRV8703_Handle_t *dev, DRV8703_FaultInfo_
 
 DRV8703_Status_t DRV8703_ClearFault(DRV8703_Handle_t *dev)
 {
-    uint8_t main_reg;
     DRV8703_Status_t ret;
 
-    ret = DRV8703_ReadReg(dev, DRV8703_REG_MAIN_CONTROL, &main_reg);
-    if (ret != DRV8703_OK)
-        return ret;
-
-    ret = DRV8703_WriteReg(dev, DRV8703_REG_MAIN_CONTROL, (uint8_t)(main_reg | DRV8703_MAIN_CLR_FLT));
+    /*
+     * Do not read-modify-write MAIN_CONTROL here. If SPI readback is invalid
+     * during wake-up/debug, using that value can overwrite the unlock command.
+     */
+    ret = DRV8703_WriteReg(dev,
+                           DRV8703_REG_MAIN_CONTROL,
+                           (uint8_t)(DRV8703_MAIN_LOCK_UNLOCK | DRV8703_MAIN_CLR_FLT));
     if (ret != DRV8703_OK)
         return ret;
 
     HAL_Delay(1U);
-    return DRV8703_WriteReg(dev, DRV8703_REG_MAIN_CONTROL, (uint8_t)(main_reg & (uint8_t)(~DRV8703_MAIN_CLR_FLT)));
+    return DRV8703_WriteReg(dev,
+                            DRV8703_REG_MAIN_CONTROL,
+                            DRV8703_MAIN_LOCK_UNLOCK);
 }
 
 DRV8703_Status_t DRV8703_CheckFaultPins(DRV8703_Handle_t *dev)
@@ -299,7 +306,7 @@ DRV8703_Status_t DRV8703_CheckFaultPins(DRV8703_Handle_t *dev)
             fault_active = (fault_active == GPIO_PIN_RESET) ? GPIO_PIN_SET : GPIO_PIN_RESET;
         if (fault_active == GPIO_PIN_SET)
         {
-            (void)DRV8703_SetDuty(dev, 0.0f);
+            // (void)DRV8703_SetDuty(dev, 0.0f);
             return DRV8703_ERROR_FAULT_PIN;
         }
     }
@@ -311,7 +318,7 @@ DRV8703_Status_t DRV8703_CheckFaultPins(DRV8703_Handle_t *dev)
             wdflt_active = (wdflt_active == GPIO_PIN_RESET) ? GPIO_PIN_SET : GPIO_PIN_RESET;
         if (wdflt_active == GPIO_PIN_SET)
         {
-            (void)DRV8703_SetDuty(dev, 0.0f);
+            // (void)DRV8703_SetDuty(dev, 0.0f);
             return DRV8703_ERROR_WDFLT_PIN;
         }
     }

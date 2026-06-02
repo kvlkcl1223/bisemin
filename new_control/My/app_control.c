@@ -16,6 +16,9 @@
 #define APP_CONTROL_MAX_ABS_DUTY 0.45f
 #define APP_CONTROL_SHARED_CH5_DUTY 0.20f
 #define APP_CONTROL_DRV_FAULT_POLL_MS 500U
+#define APP_CONTROL_DRV_REG_SNAPSHOT_MS 100U
+#define APP_CONTROL_DRV_FAULT_READ_RETRY_COUNT 8U
+#define APP_CONTROL_DRV_FAULT_STABLE_READ_COUNT 2U
 #define APP_CONTROL_TEMP_TIMEOUT_MS 1000U
 #define APP_CONTROL_TEMP_RESET_COOLDOWN_MS 1500U
 #define APP_CONTROL_TEMP_RESET_PULSE_MS 20U
@@ -32,8 +35,8 @@
  * error or stop the temperature cell by themselves.
  */
 #define APP_CONTROL_DRV_STOP_FAULT_MASK \
-    (DRV8703_FAULT_GDF |             \
-     DRV8703_FAULT_OCP |             \
+    (DRV8703_FAULT_GDF |                \
+     DRV8703_FAULT_OCP |                \
      DRV8703_FAULT_OTSD)
 
 typedef struct
@@ -59,85 +62,132 @@ volatile PanelError_t g_app_control_cell_error[APP_CONTROL_CELL_COUNT] = {PANEL_
 volatile float g_app_control_cell_temp[APP_CONTROL_CELL_COUNT] = {25.0f, 25.0f};
 volatile float g_app_control_cell_target[APP_CONTROL_CELL_COUNT] = {25.0f, 25.0f};
 volatile float g_app_control_cell_duty[APP_CONTROL_CELL_COUNT] = {0.0f, 0.0f};
+volatile float g_app_control_pid_temp[APP_CONTROL_CLOSED_LOOP_COUNT] = {25.0f, 25.0f, 25.0f, 25.0f};
+volatile float g_app_control_pid_duty[APP_CONTROL_CLOSED_LOOP_COUNT] = {0.0f, 0.0f, 0.0f, 0.0f};
+volatile uint8_t g_app_control_pid_update_pending[APP_CONTROL_CLOSED_LOOP_COUNT] = {0};
 volatile uint8_t g_app_control_drv_init_attempts[APP_CONTROL_DRV_COUNT] = {0};
 volatile uint8_t g_app_control_drv_ready[APP_CONTROL_DRV_COUNT] = {0};
 volatile uint8_t g_app_control_drv_awake[APP_CONTROL_DRV_COUNT] = {0};
 volatile uint8_t g_app_control_drv_fault[APP_CONTROL_DRV_COUNT] = {0};
 volatile uint8_t g_app_control_drv_startup_dump_valid[APP_CONTROL_DRV_COUNT] = {0};
 volatile DRV8703_Status_t g_app_control_drv_startup_dump_status[APP_CONTROL_DRV_COUNT] =
-{
-    DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK
-};
+    {
+        DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK};
 volatile uint8_t g_app_control_drv_startup_reg_dump[APP_CONTROL_DRV_COUNT][DRV8703_REGISTER_COUNT] =
-{
-    {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU},
-    {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU},
-    {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU},
-    {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU},
-    {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU}
-};
+    {
+        {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU},
+        {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU},
+        {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU},
+        {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU},
+        {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU}};
+volatile DRV8703_Status_t g_app_control_drv_startup_reg_status[APP_CONTROL_DRV_COUNT][DRV8703_REGISTER_COUNT] =
+    {
+        {DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK},
+        {DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK},
+        {DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK},
+        {DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK},
+        {DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK}};
+volatile uint16_t g_app_control_drv_startup_tx[APP_CONTROL_DRV_COUNT][DRV8703_REGISTER_COUNT] =
+    {
+        {0U, 0U, 0U, 0U, 0U, 0U},
+        {0U, 0U, 0U, 0U, 0U, 0U},
+        {0U, 0U, 0U, 0U, 0U, 0U},
+        {0U, 0U, 0U, 0U, 0U, 0U},
+        {0U, 0U, 0U, 0U, 0U, 0U}};
+volatile uint16_t g_app_control_drv_startup_rx[APP_CONTROL_DRV_COUNT][DRV8703_REGISTER_COUNT] =
+    {
+        {0U, 0U, 0U, 0U, 0U, 0U},
+        {0U, 0U, 0U, 0U, 0U, 0U},
+        {0U, 0U, 0U, 0U, 0U, 0U},
+        {0U, 0U, 0U, 0U, 0U, 0U},
+        {0U, 0U, 0U, 0U, 0U, 0U}};
 volatile uint8_t g_app_control_drv_startup_expected[DRV8703_REGISTER_COUNT] =
-{
-    0x00U, /* reg0 FAULT_STATUS: no active/latched fault after ClearFault */
-    0x00U, /* reg1 VDS_GDF_STATUS: no VDS/GDF event after ClearFault */
-    0x18U, /* reg2 MAIN_CONTROL: LOCK=unlock code, CLR_FLT=0 */
-    0x07U, /* reg3 IDRIVE_WD: watchdog off, 120 ns dead time, IDRIVE=7 */
-    0x70U, /* reg4 VDS_CONTROL: VDS threshold=960 mV, no VDS bits disabled */
-    0x01U  /* reg5 CONFIG: TOFF=25 us, VREF=100%, SH off, gain=19.8 V/V */
+    {
+        0x00U, /* reg0 FAULT_STATUS: no active/latched fault after ClearFault */
+        0x00U, /* reg1 VDS_GDF_STATUS: no VDS/GDF event after ClearFault */
+        0x18U, /* reg2 MAIN_CONTROL: LOCK=unlock code, CLR_FLT=0 */
+        0x07U, /* reg3 IDRIVE_WD: watchdog off, 120 ns dead time, IDRIVE=7 */
+        0x70U, /* reg4 VDS_CONTROL: VDS threshold=960 mV, no VDS bits disabled */
+        0x01U  /* reg5 CONFIG: TOFF=25 us, VREF=100%, SH off, gain=19.8 V/V */
 };
 volatile uint8_t g_app_control_last_drv_fault = 0xFFU;
 volatile DRV8703_Status_t g_app_control_last_drv_status = DRV8703_OK;
 volatile uint8_t g_app_control_drv_fault_snapshot_valid[APP_CONTROL_DRV_COUNT] = {0};
 volatile uint32_t g_app_control_drv_fault_capture_count[APP_CONTROL_DRV_COUNT] = {0};
 volatile DRV8703_Status_t g_app_control_drv_fault_read_status[APP_CONTROL_DRV_COUNT] =
-{
-    DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK
-};
+    {
+        DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK};
 volatile DRV8703_Status_t g_app_control_drv_dump_status[APP_CONTROL_DRV_COUNT] =
-{
-    DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK
-};
+    {
+        DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK};
 volatile uint8_t g_app_control_drv_fault_status[APP_CONTROL_DRV_COUNT] = {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU};
 volatile uint8_t g_app_control_drv_vds_gdf_status[APP_CONTROL_DRV_COUNT] = {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU};
 volatile uint8_t g_app_control_drv_reg_dump[APP_CONTROL_DRV_COUNT][DRV8703_REGISTER_COUNT] =
-{
-    {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU},
-    {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU},
-    {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU},
-    {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU},
-    {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU}
-};
+    {
+        {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU},
+        {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU},
+        {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU},
+        {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU},
+        {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU}};
+volatile DRV8703_Status_t g_app_control_drv_reg_read_status[APP_CONTROL_DRV_COUNT][DRV8703_REGISTER_COUNT] =
+    {
+        {DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK},
+        {DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK},
+        {DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK},
+        {DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK},
+        {DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK}};
+volatile uint8_t g_app_control_drv_reg_read_ok_mask[APP_CONTROL_DRV_COUNT] = {0};
 volatile uint8_t g_app_control_drv_pin_fault_last = 0xFFU;
 volatile uint32_t g_app_control_drv_pin_fault_count[APP_CONTROL_DRV_COUNT] = {0};
 volatile DRV8703_Status_t g_app_control_drv_pin_fault_status[APP_CONTROL_DRV_COUNT] =
-{
-    DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK
-};
+    {
+        DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK};
 volatile DRV8703_Status_t g_app_control_drv_pin_fault_read_status[APP_CONTROL_DRV_COUNT] =
-{
-    DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK
-};
+    {
+        DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK};
 volatile DRV8703_Status_t g_app_control_drv_pin_fault_dump_status[APP_CONTROL_DRV_COUNT] =
-{
-    DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK
-};
+    {
+        DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK};
 volatile uint8_t g_app_control_drv_pin_fault_fault_status[APP_CONTROL_DRV_COUNT] =
-{
-    0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU
-};
+    {
+        0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU};
 volatile uint8_t g_app_control_drv_pin_fault_vds_gdf_status[APP_CONTROL_DRV_COUNT] =
-{
-    0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU
-};
+    {
+        0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU};
 volatile uint8_t g_app_control_drv_pin_fault_stop_bits[APP_CONTROL_DRV_COUNT] = {0};
 volatile uint8_t g_app_control_drv_pin_fault_reg_dump[APP_CONTROL_DRV_COUNT][DRV8703_REGISTER_COUNT] =
-{
-    {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU},
-    {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU},
-    {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU},
-    {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU},
-    {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU}
-};
+    {
+        {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU},
+        {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU},
+        {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU},
+        {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU},
+        {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU}};
+volatile DRV8703_Status_t g_app_control_drv_pin_fault_reg_read_status[APP_CONTROL_DRV_COUNT][DRV8703_REGISTER_COUNT] =
+    {
+        {DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK},
+        {DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK},
+        {DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK},
+        {DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK},
+        {DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK}};
+volatile uint8_t g_app_control_drv_pin_fault_reg_read_ok_mask[APP_CONTROL_DRV_COUNT] = {0};
+volatile uint8_t g_app_control_drv_pin_fault_all_ff[APP_CONTROL_DRV_COUNT] = {0};
+volatile uint32_t g_app_control_drv_pin_fault_all_ff_count[APP_CONTROL_DRV_COUNT] = {0};
+volatile uint8_t g_app_control_drv_pin_fault_stable_count[APP_CONTROL_DRV_COUNT] = {0};
+volatile uint8_t g_app_control_sleep_reg_snapshot[APP_CONTROL_DRV_COUNT][DRV8703_REGISTER_COUNT + 1U] =
+    {
+        {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x00U},
+        {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x00U},
+        {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x00U},
+        {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x00U},
+        {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x00U}};
+volatile uint8_t g_app_control_periodic_reg_snapshot[APP_CONTROL_DRV_COUNT][DRV8703_REGISTER_COUNT + 1U] =
+    {
+        {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x00U},
+        {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x00U},
+        {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x00U},
+        {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x00U},
+        {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x00U}};
+volatile uint32_t g_app_control_periodic_reg_snapshot_count = 0U;
 volatile uint8_t g_app_control_temp_reset_count[APP_CONTROL_CELL_COUNT] = {0};
 volatile uint32_t g_app_control_temp_last_update_tick[4] = {0};
 volatile uint32_t g_app_control_temp_update_count[4] = {0};
@@ -146,10 +196,14 @@ volatile uint8_t g_app_control_temp_reset_active = 0U;
 
 static osMessageQueueId_t s_cmd_queue;
 static AppControlCell_t s_cell[APP_CONTROL_CELL_COUNT];
-static PID_TypeDef s_temp_pid[APP_CONTROL_CELL_COUNT];
+static PID_TypeDef s_temp_pid[APP_CONTROL_CLOSED_LOOP_COUNT];
 static uint32_t s_last_fault_poll_ms = 0U;
-static uint32_t s_temp_last_pid_count[APP_CONTROL_CELL_COUNT][2] = {{0U, 0U}, {0U, 0U}};
-static uint32_t s_temp_last_pid_ms[APP_CONTROL_CELL_COUNT] = {0U, 0U};
+static uint32_t s_last_reg_snapshot_ms = 0U;
+static uint8_t s_temp_pid_update_pending[APP_CONTROL_CLOSED_LOOP_COUNT] = {0};
+static float s_temp_channel_temp[APP_CONTROL_CLOSED_LOOP_COUNT] = {25.0f, 25.0f, 25.0f, 25.0f};
+static float s_temp_channel_duty[APP_CONTROL_CLOSED_LOOP_COUNT] = {0.0f, 0.0f, 0.0f, 0.0f};
+static uint32_t s_temp_last_pid_count[APP_CONTROL_CLOSED_LOOP_COUNT] = {0U, 0U, 0U, 0U};
+static uint32_t s_temp_last_pid_ms[APP_CONTROL_CLOSED_LOOP_COUNT] = {0U, 0U, 0U, 0U};
 static uint32_t s_temp_reset_release_ms = 0U;
 static uint32_t s_temp_last_reset_ms = 0U;
 
@@ -201,6 +255,7 @@ static uint8_t AppControl_RequestTempSensorReset(uint32_t now_ms)
         return 0U;
 
     HAL_GPIO_WritePin(NRST_OTHER_GPIO_Port, NRST_OTHER_Pin, GPIO_PIN_RESET);
+    TemperatureUart_RestartReceive();
     s_temp_reset_release_ms = now_ms + APP_CONTROL_TEMP_RESET_PULSE_MS;
     s_temp_last_reset_ms = now_ms;
     g_app_control_temp_reset_active = 1U;
@@ -224,34 +279,258 @@ static PanelError_t AppControl_CellVoltageError(uint8_t cell)
 
 static void AppControl_CaptureDrvStartupRegs(uint8_t drv, DRV8703_Handle_t *dev)
 {
-    uint8_t regs[DRV8703_REGISTER_COUNT];
     uint8_t i;
-    DRV8703_Status_t ret;
+    uint8_t mask = 0U;
 
     if ((drv >= APP_CONTROL_DRV_COUNT) || (dev == 0))
         return;
 
     for (i = 0U; i < DRV8703_REGISTER_COUNT; i++)
+    {
         g_app_control_drv_startup_reg_dump[drv][i] = 0xFFU;
+        g_app_control_drv_startup_reg_status[drv][i] = DRV8703_ERROR_SPI;
+        g_app_control_drv_startup_tx[drv][i] = 0U;
+        g_app_control_drv_startup_rx[drv][i] = 0U;
+    }
     g_app_control_drv_startup_dump_valid[drv] = 0U;
 
-    ret = DRV8703_DumpRegs(dev, regs, DRV8703_REGISTER_COUNT);
-    g_app_control_drv_startup_dump_status[drv] = ret;
-    if (ret == DRV8703_OK)
+    for (i = 0U; i < DRV8703_REGISTER_COUNT; i++)
     {
-        for (i = 0U; i < DRV8703_REGISTER_COUNT; i++)
-            g_app_control_drv_startup_reg_dump[drv][i] = regs[i];
-        g_app_control_drv_startup_dump_valid[drv] = 1U;
+        uint8_t value = 0xFFU;
+        DRV8703_Status_t ret = DRV8703_ReadReg(dev, i, &value);
+
+        g_app_control_drv_startup_reg_status[drv][i] = ret;
+        g_app_control_drv_startup_tx[drv][i] = dev->last_tx;
+        g_app_control_drv_startup_rx[drv][i] = dev->last_rx;
+        g_app_control_drv_startup_reg_dump[drv][i] = value;
+        if (ret == DRV8703_OK)
+            mask |= (uint8_t)(1U << i);
     }
+
+    g_app_control_drv_startup_dump_status[drv] = (mask == 0x3FU) ? DRV8703_OK : DRV8703_ERROR_SPI;
+    g_app_control_drv_startup_dump_valid[drv] = (mask == 0x3FU) ? 1U : 0U;
+}
+
+static uint8_t AppControl_ReadDrvRegsToDebug(uint8_t drv,
+                                             DRV8703_Handle_t *dev,
+                                             volatile uint8_t dump[APP_CONTROL_DRV_COUNT][DRV8703_REGISTER_COUNT],
+                                             volatile DRV8703_Status_t status[APP_CONTROL_DRV_COUNT][DRV8703_REGISTER_COUNT],
+                                             volatile uint8_t ok_mask[APP_CONTROL_DRV_COUNT])
+{
+    uint8_t reg;
+    uint8_t mask = 0U;
+
+    if ((drv >= APP_CONTROL_DRV_COUNT) || (dev == 0))
+        return 0U;
+
+    for (reg = 0U; reg < DRV8703_REGISTER_COUNT; reg++)
+    {
+        uint8_t value = 0xFFU;
+        DRV8703_Status_t ret = DRV8703_ReadReg(dev, reg, &value);
+
+        status[drv][reg] = ret;
+        dump[drv][reg] = value;
+        if (ret == DRV8703_OK)
+            mask |= (uint8_t)(1U << reg);
+    }
+
+    ok_mask[drv] = mask;
+    return mask;
+}
+
+static uint8_t AppControl_ReadDrvRegsLocal(DRV8703_Handle_t *dev,
+                                           uint8_t regs[DRV8703_REGISTER_COUNT],
+                                           DRV8703_Status_t status[DRV8703_REGISTER_COUNT])
+{
+    uint8_t reg;
+    uint8_t mask = 0U;
+
+    if (dev == 0)
+        return 0U;
+
+    for (reg = 0U; reg < DRV8703_REGISTER_COUNT; reg++)
+    {
+        uint8_t value = 0xFFU;
+        DRV8703_Status_t ret = DRV8703_ReadReg(dev, reg, &value);
+
+        regs[reg] = value;
+        status[reg] = ret;
+        if (ret == DRV8703_OK)
+            mask |= (uint8_t)(1U << reg);
+    }
+
+    return mask;
+}
+
+static void AppControl_CommitDrvRegsToDebug(uint8_t drv,
+                                            const uint8_t regs[DRV8703_REGISTER_COUNT],
+                                            const DRV8703_Status_t status[DRV8703_REGISTER_COUNT],
+                                            uint8_t mask,
+                                            volatile uint8_t dump[APP_CONTROL_DRV_COUNT][DRV8703_REGISTER_COUNT],
+                                            volatile DRV8703_Status_t debug_status[APP_CONTROL_DRV_COUNT][DRV8703_REGISTER_COUNT],
+                                            volatile uint8_t ok_mask[APP_CONTROL_DRV_COUNT])
+{
+    uint8_t reg;
+
+    if (drv >= APP_CONTROL_DRV_COUNT)
+        return;
+
+    for (reg = 0U; reg < DRV8703_REGISTER_COUNT; reg++)
+    {
+        dump[drv][reg] = regs[reg];
+        debug_status[drv][reg] = status[reg];
+    }
+
+    ok_mask[drv] = mask;
+}
+
+static uint8_t AppControl_DrvExpectedReg(uint8_t drv, uint8_t reg)
+{
+    if ((drv < APP_CONTROL_DRV_COUNT) &&
+        (g_app_control_drv_startup_dump_valid[drv] != 0U) &&
+        (g_app_control_drv_startup_reg_dump[drv][reg] != 0xFFU))
+    {
+        return g_app_control_drv_startup_reg_dump[drv][reg];
+    }
+
+    return g_app_control_drv_startup_expected[reg];
+}
+
+static uint8_t AppControl_DrvRegSampleIsInvalid(uint8_t drv,
+                                                const volatile uint8_t regs[DRV8703_REGISTER_COUNT],
+                                                uint8_t mask)
+{
+    uint8_t reg;
+    uint8_t fault_status;
+
+    if ((drv >= APP_CONTROL_DRV_COUNT) || (regs == 0))
+        return 1U;
+
+    if (mask != 0x3FU)
+        return 1U;
+
+    fault_status = regs[DRV8703_REG_FAULT_STATUS];
+    if (fault_status == 0xFFU)
+        return 1U;
+
+    /*
+     * The configuration registers must not change during a fault read. If they
+     * differ from the startup dump, the SPI frame is not trustworthy and must
+     * not be used for stop/no-stop decisions.
+     */
+    for (reg = DRV8703_REG_MAIN_CONTROL; reg <= DRV8703_REG_CONFIG_CONTROL; reg++)
+    {
+        if (regs[reg] != AppControl_DrvExpectedReg(drv, reg))
+            return 1U;
+    }
+
+    /*
+     * GDF/OCP should be accompanied by details in VDS_GDF_STATUS. If reg0 says
+     * severe bridge fault but reg1 is empty, this matches the bad-read pattern
+     * seen during debug rather than a usable DRV8703 fault report.
+     */
+    if (((fault_status & (DRV8703_FAULT_GDF | DRV8703_FAULT_OCP)) != 0U) &&
+        (regs[DRV8703_REG_VDS_GDF_STATUS] == 0x00U))
+    {
+        return 1U;
+    }
+
+    return 0U;
+}
+
+static uint8_t AppControl_DrvRegSamplesEqual(const uint8_t a[DRV8703_REGISTER_COUNT],
+                                             const uint8_t b[DRV8703_REGISTER_COUNT])
+{
+    uint8_t reg;
+
+    for (reg = 0U; reg < DRV8703_REGISTER_COUNT; reg++)
+    {
+        if (a[reg] != b[reg])
+            return 0U;
+    }
+
+    return 1U;
+}
+
+static uint8_t AppControl_ReadDrvRegsToDebugStableRetry(uint8_t drv,
+                                                        DRV8703_Handle_t *dev,
+                                                        volatile uint8_t dump[APP_CONTROL_DRV_COUNT][DRV8703_REGISTER_COUNT],
+                                                        volatile DRV8703_Status_t status[APP_CONTROL_DRV_COUNT][DRV8703_REGISTER_COUNT],
+                                                        volatile uint8_t ok_mask[APP_CONTROL_DRV_COUNT])
+{
+    uint8_t retry;
+    uint8_t mask = 0U;
+    uint8_t regs[DRV8703_REGISTER_COUNT] = {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU};
+    uint8_t last_valid_regs[DRV8703_REGISTER_COUNT] = {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU};
+    DRV8703_Status_t reg_status[DRV8703_REGISTER_COUNT] =
+        {
+            DRV8703_OK, DRV8703_OK, DRV8703_OK,
+            DRV8703_OK, DRV8703_OK, DRV8703_OK};
+    DRV8703_Status_t last_valid_status[DRV8703_REGISTER_COUNT] =
+        {
+            DRV8703_OK, DRV8703_OK, DRV8703_OK,
+            DRV8703_OK, DRV8703_OK, DRV8703_OK};
+    uint8_t have_valid = 0U;
+    uint8_t stable_count = 0U;
+    uint8_t stable_mask = 0U;
+
+    for (retry = 0U; retry < APP_CONTROL_DRV_FAULT_READ_RETRY_COUNT; retry++)
+    {
+        uint8_t invalid;
+
+        mask = AppControl_ReadDrvRegsLocal(dev, regs, reg_status);
+        invalid = AppControl_DrvRegSampleIsInvalid(drv, regs, mask);
+
+        if (invalid != 0U)
+        {
+            stable_count = 0U;
+            continue;
+        }
+
+        if ((have_valid != 0U) && (AppControl_DrvRegSamplesEqual(last_valid_regs, regs) != 0U))
+        {
+            stable_count++;
+        }
+        else
+        {
+            uint8_t reg;
+
+            for (reg = 0U; reg < DRV8703_REGISTER_COUNT; reg++)
+            {
+                last_valid_regs[reg] = regs[reg];
+                last_valid_status[reg] = reg_status[reg];
+            }
+            have_valid = 1U;
+            stable_count = 1U;
+            stable_mask = mask;
+        }
+
+        if (stable_count >= APP_CONTROL_DRV_FAULT_STABLE_READ_COUNT)
+        {
+            AppControl_CommitDrvRegsToDebug(drv,
+                                            last_valid_regs,
+                                            last_valid_status,
+                                            stable_mask,
+                                            dump,
+                                            status,
+                                            ok_mask);
+            if (drv < APP_CONTROL_DRV_COUNT)
+                g_app_control_drv_pin_fault_stable_count[drv] = stable_count;
+            return stable_mask;
+        }
+    }
+
+    AppControl_CommitDrvRegsToDebug(drv, regs, reg_status, mask, dump, status, ok_mask);
+    if (drv < APP_CONTROL_DRV_COUNT)
+        g_app_control_drv_pin_fault_stable_count[drv] = stable_count;
+
+    return mask;
 }
 
 static void AppControl_CaptureDrvFault(uint8_t drv, DRV8703_Status_t status)
 {
     DRV8703_Handle_t *dev;
-    DRV8703_FaultInfo_t info;
-    uint8_t regs[DRV8703_REGISTER_COUNT];
-    uint8_t i;
-    DRV8703_Status_t spi_ret;
+    uint8_t mask;
 
     if (drv >= APP_CONTROL_DRV_COUNT)
         return;
@@ -268,30 +547,19 @@ static void AppControl_CaptureDrvFault(uint8_t drv, DRV8703_Status_t status)
     if (dev == 0)
         return;
 
-    if (g_app_control_drv_fault_snapshot_valid[drv] != 0U)
-        return;
-
-    spi_ret = DRV8703_ReadFaultInfo(dev, &info);
-    g_app_control_drv_fault_read_status[drv] = spi_ret;
-    if (spi_ret == DRV8703_OK)
-    {
-        g_app_control_drv_fault_status[drv] = info.fault_status;
-        g_app_control_drv_vds_gdf_status[drv] = info.vds_gdf_status;
+    mask = AppControl_ReadDrvRegsToDebug(drv,
+                                         dev,
+                                         g_app_control_drv_reg_dump,
+                                         g_app_control_drv_reg_read_status,
+                                         g_app_control_drv_reg_read_ok_mask);
+    g_app_control_drv_fault_read_status[drv] =
+        ((mask & 0x03U) == 0x03U) ? DRV8703_OK : g_app_control_drv_reg_read_status[drv][0];
+    g_app_control_drv_dump_status[drv] =
+        ((mask & 0x3FU) == 0x3FU) ? DRV8703_OK : DRV8703_ERROR_SPI;
+    g_app_control_drv_fault_status[drv] = g_app_control_drv_reg_dump[drv][0];
+    g_app_control_drv_vds_gdf_status[drv] = g_app_control_drv_reg_dump[drv][1];
+    if (mask != 0U)
         g_app_control_drv_fault_snapshot_valid[drv] = 1U;
-    }
-    else
-    {
-        g_app_control_last_drv_status = spi_ret;
-    }
-
-    spi_ret = DRV8703_DumpRegs(dev, regs, DRV8703_REGISTER_COUNT);
-    g_app_control_drv_dump_status[drv] = spi_ret;
-    if (spi_ret == DRV8703_OK)
-    {
-        for (i = 0U; i < DRV8703_REGISTER_COUNT; i++)
-            g_app_control_drv_reg_dump[drv][i] = regs[i];
-        g_app_control_drv_fault_snapshot_valid[drv] = 1U;
-    }
 }
 
 static uint8_t AppControl_DrvFaultRequiresStop(uint8_t fault_status)
@@ -319,10 +587,8 @@ static uint8_t AppControl_DrvFaultRequiresStop(uint8_t fault_status)
 static uint8_t AppControl_CaptureDrvPinFaultMoment(uint8_t drv, DRV8703_Status_t pin_status)
 {
     DRV8703_Handle_t *dev;
-    DRV8703_FaultInfo_t info;
-    uint8_t regs[DRV8703_REGISTER_COUNT];
     uint8_t i;
-    DRV8703_Status_t spi_ret;
+    uint8_t mask;
     uint8_t should_stop = 0U;
 
     if (drv >= APP_CONTROL_DRV_COUNT)
@@ -335,6 +601,8 @@ static uint8_t AppControl_CaptureDrvPinFaultMoment(uint8_t drv, DRV8703_Status_t
     g_app_control_last_drv_status = pin_status;
     g_app_control_drv_fault[drv] = 1U;
     g_app_control_drv_pin_fault_stop_bits[drv] = 0U;
+    g_app_control_drv_pin_fault_all_ff[drv] = 0U;
+    g_app_control_drv_pin_fault_stable_count[drv] = 0U;
 
     g_app_control_drv_pin_fault_fault_status[drv] = 0xFFU;
     g_app_control_drv_pin_fault_vds_gdf_status[drv] = 0xFFU;
@@ -348,39 +616,77 @@ static uint8_t AppControl_CaptureDrvPinFaultMoment(uint8_t drv, DRV8703_Status_t
     if (dev == 0)
         return 0U;
 
-    spi_ret = DRV8703_ReadFaultInfo(dev, &info);
-    g_app_control_drv_pin_fault_read_status[drv] = spi_ret;
-    if (spi_ret == DRV8703_OK)
+    /*
+     * Read several times and only accept a stable snapshot. A usable snapshot
+     * must preserve the configuration registers captured at startup; otherwise
+     * the fault bitmap is treated as bad SPI data and ignored for stop/no-stop
+     * decisions.
+     */
+    mask = AppControl_ReadDrvRegsToDebugStableRetry(drv,
+                                                    dev,
+                                                    g_app_control_drv_pin_fault_reg_dump,
+                                                    g_app_control_drv_pin_fault_reg_read_status,
+                                                    g_app_control_drv_pin_fault_reg_read_ok_mask);
+    if (AppControl_DrvRegSampleIsInvalid(drv, g_app_control_drv_pin_fault_reg_dump[drv], mask) != 0U)
     {
-        g_app_control_drv_pin_fault_fault_status[drv] = info.fault_status;
-        g_app_control_drv_pin_fault_vds_gdf_status[drv] = info.vds_gdf_status;
-        g_app_control_drv_pin_fault_stop_bits[drv] =
-            (uint8_t)(info.fault_status & APP_CONTROL_DRV_STOP_FAULT_MASK);
-        should_stop = AppControl_DrvFaultRequiresStop(info.fault_status);
+        g_app_control_drv_pin_fault_all_ff[drv] = 1U;
+        g_app_control_drv_pin_fault_all_ff_count[drv]++;
+        g_app_control_drv_pin_fault_read_status[drv] = DRV8703_ERROR_SPI;
+        g_app_control_drv_pin_fault_dump_status[drv] = DRV8703_ERROR_SPI;
+        g_app_control_drv_dump_status[drv] = DRV8703_ERROR_SPI;
+        g_app_control_drv_reg_read_ok_mask[drv] = mask;
 
-        if (g_app_control_drv_fault_snapshot_valid[drv] == 0U)
+        for (i = 0U; i < DRV8703_REGISTER_COUNT; i++)
         {
-            g_app_control_drv_fault_read_status[drv] = spi_ret;
-            g_app_control_drv_fault_status[drv] = info.fault_status;
-            g_app_control_drv_vds_gdf_status[drv] = info.vds_gdf_status;
-            g_app_control_drv_fault_snapshot_valid[drv] = 1U;
+            g_app_control_drv_reg_dump[drv][i] = g_app_control_drv_pin_fault_reg_dump[drv][i];
+            g_app_control_drv_reg_read_status[drv][i] =
+                g_app_control_drv_pin_fault_reg_read_status[drv][i];
         }
+
+        return 0U;
     }
 
-    spi_ret = DRV8703_DumpRegs(dev, regs, DRV8703_REGISTER_COUNT);
-    g_app_control_drv_pin_fault_dump_status[drv] = spi_ret;
-    if (spi_ret == DRV8703_OK)
+    g_app_control_drv_pin_fault_read_status[drv] =
+        ((mask & 0x03U) == 0x03U) ? DRV8703_OK : g_app_control_drv_pin_fault_reg_read_status[drv][0];
+    g_app_control_drv_pin_fault_dump_status[drv] =
+        ((mask & 0x3FU) == 0x3FU) ? DRV8703_OK : DRV8703_ERROR_SPI;
+
+    if ((mask & 0x01U) != 0U)
+    {
+        uint8_t fault_status = g_app_control_drv_pin_fault_reg_dump[drv][0];
+
+        g_app_control_drv_pin_fault_fault_status[drv] = fault_status;
+        if ((mask & 0x02U) != 0U)
+            g_app_control_drv_pin_fault_vds_gdf_status[drv] =
+                g_app_control_drv_pin_fault_reg_dump[drv][1];
+        g_app_control_drv_pin_fault_stop_bits[drv] =
+            (uint8_t)(fault_status & APP_CONTROL_DRV_STOP_FAULT_MASK);
+        should_stop = AppControl_DrvFaultRequiresStop(fault_status);
+
+        /*
+         * Mirror the pin-fault moment registers into the older generic debug
+         * variables as well. These values are what most Keil watch windows
+         * already use, and they must not stay at 0xFF just because an earlier
+         * non-fault dump marked the snapshot valid.
+         */
+        g_app_control_drv_fault_read_status[drv] = g_app_control_drv_pin_fault_read_status[drv];
+        g_app_control_drv_fault_status[drv] = g_app_control_drv_pin_fault_fault_status[drv];
+        g_app_control_drv_vds_gdf_status[drv] = g_app_control_drv_pin_fault_vds_gdf_status[drv];
+        g_app_control_drv_fault_snapshot_valid[drv] = 1U;
+    }
+
+    if (mask != 0U)
     {
         for (i = 0U; i < DRV8703_REGISTER_COUNT; i++)
-            g_app_control_drv_pin_fault_reg_dump[drv][i] = regs[i];
-
-        if (g_app_control_drv_fault_snapshot_valid[drv] == 0U)
         {
-            g_app_control_drv_dump_status[drv] = spi_ret;
-            for (i = 0U; i < DRV8703_REGISTER_COUNT; i++)
-                g_app_control_drv_reg_dump[drv][i] = regs[i];
-            g_app_control_drv_fault_snapshot_valid[drv] = 1U;
+            g_app_control_drv_reg_dump[drv][i] = g_app_control_drv_pin_fault_reg_dump[drv][i];
+            g_app_control_drv_reg_read_status[drv][i] =
+                g_app_control_drv_pin_fault_reg_read_status[drv][i];
         }
+
+        g_app_control_drv_reg_read_ok_mask[drv] = mask;
+        g_app_control_drv_dump_status[drv] = g_app_control_drv_pin_fault_dump_status[drv];
+        g_app_control_drv_fault_snapshot_valid[drv] = 1U;
     }
 
     return should_stop;
@@ -461,7 +767,17 @@ static void AppControl_ServiceErrorDisplayTimeout(uint32_t now_ms)
             s_cell[cell].pid_update_pending = 0U;
             s_cell[cell].sensor_reset_count = 0U;
             s_cell[cell].duty = 0.0f;
-            PID_Reset(&s_temp_pid[cell]);
+            {
+                uint8_t first = AppControl_CellFirstDrv(cell);
+                uint8_t drv;
+
+                for (drv = first; drv <= (uint8_t)(first + 1U); drv++)
+                {
+                    PID_Reset(&s_temp_pid[drv]);
+                    s_temp_pid_update_pending[drv] = 0U;
+                    s_temp_channel_duty[drv] = 0.0f;
+                }
+            }
             AppControl_SetCellError(cell, PANEL_ERR_NONE);
         }
     }
@@ -478,6 +794,13 @@ static void AppControl_ApplyDebugState(void)
         g_app_control_cell_target[i] = s_cell[i].target_temp;
         g_app_control_cell_duty[i] = s_cell[i].duty;
         g_app_control_cell_error[i] = s_cell[i].error;
+    }
+
+    for (i = 0U; i < APP_CONTROL_CLOSED_LOOP_COUNT; i++)
+    {
+        g_app_control_pid_temp[i] = s_temp_channel_temp[i];
+        g_app_control_pid_duty[i] = s_temp_channel_duty[i];
+        g_app_control_pid_update_pending[i] = s_temp_pid_update_pending[i];
     }
 }
 
@@ -574,6 +897,79 @@ static DRV8703_Status_t AppControl_SetDrvDuty(uint8_t drv, float duty)
     return ret;
 }
 
+static void AppControl_CaptureDrvSleepRegs(uint8_t drv, DRV8703_Handle_t *dev)
+{
+    uint8_t reg;
+    uint8_t mask = 0U;
+
+    if ((drv >= APP_CONTROL_DRV_COUNT) || (dev == 0))
+        return;
+
+    for (reg = 0U; reg < DRV8703_REGISTER_COUNT; reg++)
+    {
+        uint8_t value = 0xFFU;
+        DRV8703_Status_t ret = DRV8703_ReadReg(dev, reg, &value);
+
+        g_app_control_sleep_reg_snapshot[drv][reg] = value;
+        if (ret == DRV8703_OK)
+            mask |= (uint8_t)(1U << reg);
+    }
+
+    g_app_control_sleep_reg_snapshot[drv][DRV8703_REGISTER_COUNT] = mask;
+}
+
+static void AppControl_CapturePeriodicDrvRegs(uint32_t now_ms)
+{
+    uint8_t drv;
+
+    if (g_app_control_simulate_drv8703 != 0U)
+        return;
+    if ((now_ms - s_last_reg_snapshot_ms) < APP_CONTROL_DRV_REG_SNAPSHOT_MS)
+        return;
+
+    s_last_reg_snapshot_ms = now_ms;
+
+    for (drv = 0U; drv < APP_CONTROL_DRV_COUNT; drv++)
+    {
+        DRV8703_Handle_t *dev;
+        uint8_t reg;
+        uint8_t mask = 0U;
+
+        for (reg = 0U; reg < DRV8703_REGISTER_COUNT; reg++)
+            g_app_control_periodic_reg_snapshot[drv][reg] = 0xFFU;
+        g_app_control_periodic_reg_snapshot[drv][DRV8703_REGISTER_COUNT] = 0U;
+
+        if (g_app_control_drv_ready[drv] == 0U)
+            continue;
+
+        /*
+         * SPI register values are meaningful only while DRV8703 is awake.
+         * A sleeping device can still make HAL_SPI_TransmitReceive return OK,
+         * so the mask may look valid even though MISO data is just bus residue.
+         */
+        if (g_app_control_drv_awake[drv] == 0U)
+            continue;
+
+        dev = DRV8703_BoardGet((DRV8703_BoardChannel_t)drv);
+        if (dev == 0)
+            continue;
+
+        for (reg = 0U; reg < DRV8703_REGISTER_COUNT; reg++)
+        {
+            uint8_t value = 0xFFU;
+            DRV8703_Status_t ret = DRV8703_ReadReg(dev, reg, &value);
+
+            g_app_control_periodic_reg_snapshot[drv][reg] = value;
+            if (ret == DRV8703_OK)
+                mask |= (uint8_t)(1U << reg);
+        }
+
+        g_app_control_periodic_reg_snapshot[drv][DRV8703_REGISTER_COUNT] = mask;
+    }
+
+    g_app_control_periodic_reg_snapshot_count++;
+}
+
 static void AppControl_SleepDrv(uint8_t drv)
 {
     DRV8703_Handle_t *dev;
@@ -585,6 +981,7 @@ static void AppControl_SleepDrv(uint8_t drv)
     if (dev != 0)
     {
         (void)DRV8703_SetDuty(dev, 0.0f);
+        AppControl_CaptureDrvSleepRegs(drv, dev);
         (void)DRV8703_Sleep(dev);
         g_app_control_drv_awake[drv] = 0U;
     }
@@ -607,7 +1004,12 @@ static void AppControl_StopCell(uint8_t cell)
     s_cell[cell].requested = 0U;
     s_cell[cell].pid_update_pending = 0U;
     s_cell[cell].duty = 0.0f;
-    PID_Reset(&s_temp_pid[cell]);
+    PID_Reset(&s_temp_pid[first]);
+    PID_Reset(&s_temp_pid[first + 1U]);
+    s_temp_pid_update_pending[first] = 0U;
+    s_temp_pid_update_pending[first + 1U] = 0U;
+    s_temp_channel_duty[first] = 0.0f;
+    s_temp_channel_duty[first + 1U] = 0.0f;
 
     (void)AppControl_SetDrvDuty(first, 0.0f);
     (void)AppControl_SetDrvDuty((uint8_t)(first + 1U), 0.0f);
@@ -678,11 +1080,18 @@ static void AppControl_StartCell(uint8_t cell)
         return;
     }
 
-    PID_Reset(&s_temp_pid[cell]);
-    PID_SetTarget(&s_temp_pid[cell], s_cell[cell].target_temp);
-    s_temp_last_pid_count[cell][0] = Sys_TempUpdateCount[cell * 2U];
-    s_temp_last_pid_count[cell][1] = Sys_TempUpdateCount[cell * 2U + 1U];
-    s_temp_last_pid_ms[cell] = osKernelGetTickCount();
+    PID_Reset(&s_temp_pid[first]);
+    PID_Reset(&s_temp_pid[first + 1U]);
+    PID_SetTarget(&s_temp_pid[first], s_cell[cell].target_temp);
+    PID_SetTarget(&s_temp_pid[first + 1U], s_cell[cell].target_temp);
+    s_temp_last_pid_count[first] = Sys_TempUpdateCount[first];
+    s_temp_last_pid_count[first + 1U] = Sys_TempUpdateCount[first + 1U];
+    s_temp_last_pid_ms[first] = osKernelGetTickCount();
+    s_temp_last_pid_ms[first + 1U] = s_temp_last_pid_ms[first];
+    s_temp_pid_update_pending[first] = 0U;
+    s_temp_pid_update_pending[first + 1U] = 0U;
+    s_temp_channel_duty[first] = 0.0f;
+    s_temp_channel_duty[first + 1U] = 0.0f;
     s_cell[cell].pid_update_pending = 0U;
     s_cell[cell].running = 1U;
     s_cell[cell].requested = 1U;
@@ -730,24 +1139,38 @@ static void AppControl_UpdateTemperatureInputs(uint32_t now_ms)
         uint8_t b = (uint8_t)(a + 1U);
         uint8_t a_fresh = AppControl_TempInputIsFresh(a, status, count, tick, now_ms);
         uint8_t b_fresh = AppControl_TempInputIsFresh(b, status, count, tick, now_ms);
-        uint8_t both_new = (count[a] != s_temp_last_pid_count[cell][0]) &&
-                           (count[b] != s_temp_last_pid_count[cell][1]);
 
         if ((a_fresh != 0U) && (b_fresh != 0U))
         {
             s_cell[cell].current_temp = (temp[a] + temp[b]) * 0.5f;
-            if (both_new)
+            if (AppControl_IsTempSensorError(s_cell[cell].error))
             {
-                s_temp_last_pid_count[cell][0] = count[a];
-                s_temp_last_pid_count[cell][1] = count[b];
+                g_app_control_temp_fault_sensor[cell] = 0xFFU;
+                AppControl_SetCellError(cell, PANEL_ERR_NONE);
+            }
+            s_cell[cell].sensor_reset_count = 0U;
+            g_app_control_temp_reset_count[cell] = 0U;
+        }
+
+        if (a_fresh != 0U)
+        {
+            s_temp_channel_temp[a] = temp[a];
+            if (count[a] != s_temp_last_pid_count[a])
+            {
+                s_temp_last_pid_count[a] = count[a];
+                s_temp_pid_update_pending[a] = 1U;
                 s_cell[cell].pid_update_pending = 1U;
-                s_cell[cell].sensor_reset_count = 0U;
-                g_app_control_temp_reset_count[cell] = 0U;
-                if (AppControl_IsTempSensorError(s_cell[cell].error))
-                {
-                    g_app_control_temp_fault_sensor[cell] = 0xFFU;
-                    AppControl_SetCellError(cell, PANEL_ERR_NONE);
-                }
+            }
+        }
+
+        if (b_fresh != 0U)
+        {
+            s_temp_channel_temp[b] = temp[b];
+            if (count[b] != s_temp_last_pid_count[b])
+            {
+                s_temp_last_pid_count[b] = count[b];
+                s_temp_pid_update_pending[b] = 1U;
+                s_cell[cell].pid_update_pending = 1U;
             }
         }
 
@@ -778,34 +1201,34 @@ static void AppControl_UpdateTemperatureInputs(uint32_t now_ms)
 
 static void AppControl_CheckVoltageFaults(void)
 {
-    float v[APP_CONTROL_DRV_COUNT];
-    uint8_t i;
+    // float v[APP_CONTROL_DRV_COUNT];
+    // uint8_t i;
 
-    if (g_app_control_simulate_voltage_ok != 0U)
-        return;
+    // if (g_app_control_simulate_voltage_ok != 0U)
+    //     return;
 
-    for (i = 0U; i < APP_CONTROL_DRV_COUNT; i++)
-        v[i] = g_adc_measure_v_input_v[i];
+    // for (i = 0U; i < APP_CONTROL_DRV_COUNT; i++)
+    //     v[i] = g_adc_measure_v_input_v[i];
 
-    if ((v[4] > 1.0f) && (v[4] < APP_CONTROL_VSUPPLY_MIN_V))
-    {
-        AppControl_SetCellError(0U, PANEL_ERR_E305_SHARED_VOLTAGE);
-        AppControl_SetCellError(1U, PANEL_ERR_E305_SHARED_VOLTAGE);
-        AppControl_StopCell(0U);
-        AppControl_StopCell(1U);
-        return;
-    }
+    // if ((v[4] > 1.0f) && (v[4] < APP_CONTROL_VSUPPLY_MIN_V))
+    // {
+    //     AppControl_SetCellError(0U, PANEL_ERR_E305_SHARED_VOLTAGE);
+    //     AppControl_SetCellError(1U, PANEL_ERR_E305_SHARED_VOLTAGE);
+    //     AppControl_StopCell(0U);
+    //     AppControl_StopCell(1U);
+    //     return;
+    // }
 
-    for (i = 0U; i < APP_CONTROL_CELL_COUNT; i++)
-    {
-        uint8_t first = AppControl_CellFirstDrv(i);
-        if (((v[first] > 1.0f) && (v[first] < APP_CONTROL_VSUPPLY_MIN_V)) ||
-            ((v[first + 1U] > 1.0f) && (v[first + 1U] < APP_CONTROL_VSUPPLY_MIN_V)))
-        {
-            AppControl_SetCellError(i, AppControl_CellVoltageError(i));
-            AppControl_StopCell(i);
-        }
-    }
+    // for (i = 0U; i < APP_CONTROL_CELL_COUNT; i++)
+    // {
+    //     uint8_t first = AppControl_CellFirstDrv(i);
+    //     if (((v[first] > 1.0f) && (v[first] < APP_CONTROL_VSUPPLY_MIN_V)) ||
+    //         ((v[first + 1U] > 1.0f) && (v[first + 1U] < APP_CONTROL_VSUPPLY_MIN_V)))
+    //     {
+    //         AppControl_SetCellError(i, AppControl_CellVoltageError(i));
+    //         AppControl_StopCell(i);
+    //     }
+    // }
 }
 
 static void AppControl_CheckDrvFaults(uint32_t now_ms)
@@ -868,7 +1291,7 @@ static void AppControl_RunClosedLoop(void)
     for (cell = 0U; cell < APP_CONTROL_CELL_COUNT; cell++)
     {
         uint8_t first = AppControl_CellFirstDrv(cell);
-        float duty;
+        uint8_t drv;
 
         if (s_cell[cell].running == 0U || s_cell[cell].error != PANEL_ERR_NONE)
         {
@@ -877,38 +1300,50 @@ static void AppControl_RunClosedLoop(void)
         }
 
         any_running = 1U;
-        if (s_cell[cell].pid_update_pending == 0U)
-            continue;
-
         s_cell[cell].pid_update_pending = 0U;
-        if (s_temp_last_pid_ms[cell] != 0U)
+        for (drv = first; drv <= (uint8_t)(first + 1U); drv++)
         {
-            float dt = (float)(osKernelGetTickCount() - s_temp_last_pid_ms[cell]) * 0.001f;
-            s_temp_pid[cell].dt = AppControl_Clamp(dt,
-                                                   APP_CONTROL_TEMP_PID_DT_MIN_S,
-                                                   APP_CONTROL_TEMP_PID_DT_MAX_S);
+            float duty;
+
+            if (s_temp_pid_update_pending[drv] == 0U)
+                continue;
+
+            s_temp_pid_update_pending[drv] = 0U;
+            if (s_temp_last_pid_ms[drv] != 0U)
+            {
+                float dt = (float)(osKernelGetTickCount() - s_temp_last_pid_ms[drv]) * 0.001f;
+                s_temp_pid[drv].dt = AppControl_Clamp(dt,
+                                                      APP_CONTROL_TEMP_PID_DT_MIN_S,
+                                                      APP_CONTROL_TEMP_PID_DT_MAX_S);
+            }
+            else
+            {
+                s_temp_pid[drv].dt = APP_CONTROL_TEMP_PID_DT_DEFAULT_S;
+            }
+            s_temp_last_pid_ms[drv] = osKernelGetTickCount();
+
+            PID_SetTarget(&s_temp_pid[drv], s_cell[cell].target_temp);
+            /*
+             * Temperature input n drives DRV8703 channel n. Peltier polarity:
+             * positive duty cools, negative duty heats. The generic PID returns
+             * positive when target > current, so invert it before driving.
+             */
+            duty = -PID_Compute(&s_temp_pid[drv], s_temp_channel_temp[drv]);
+            duty = AppControl_Clamp(duty, -APP_CONTROL_MAX_ABS_DUTY, APP_CONTROL_MAX_ABS_DUTY);
+
+            if (AppControl_Abs(duty) < 0.001f)
+                duty = 0.0f;
+
+            s_temp_channel_duty[drv] = duty;
+            if (AppControl_SetDrvDuty(drv, duty) != DRV8703_OK)
+            {
+                AppControl_SetCellError(cell, AppControl_CellDrvError(cell));
+                AppControl_StopCell(cell);
+                break;
+            }
         }
-        else
-        {
-            s_temp_pid[cell].dt = APP_CONTROL_TEMP_PID_DT_DEFAULT_S;
-        }
-        s_temp_last_pid_ms[cell] = osKernelGetTickCount();
 
-        PID_SetTarget(&s_temp_pid[cell], s_cell[cell].target_temp);
-        duty = PID_Compute(&s_temp_pid[cell], s_cell[cell].current_temp);
-        duty = AppControl_Clamp(duty, -APP_CONTROL_MAX_ABS_DUTY, APP_CONTROL_MAX_ABS_DUTY);
-
-        s_cell[cell].duty = duty;
-
-        if (AppControl_Abs(duty) < 0.001f)
-            duty = 0.0f;
-
-        if ((AppControl_SetDrvDuty(first, duty) != DRV8703_OK) ||
-            (AppControl_SetDrvDuty((uint8_t)(first + 1U), duty) != DRV8703_OK))
-        {
-            AppControl_SetCellError(cell, AppControl_CellDrvError(cell));
-            AppControl_StopCell(cell);
-        }
+        s_cell[cell].duty = (s_temp_channel_duty[first] + s_temp_channel_duty[first + 1U]) * 0.5f;
     }
 
     if (any_running != 0U)
@@ -947,6 +1382,15 @@ AppControl_Status_t AppControl_Init(void)
         s_cell[i].duty = 0.0f;
         s_cell[i].error = PANEL_ERR_NONE;
         s_cell[i].error_set_ms = 0U;
+    }
+
+    for (i = 0U; i < APP_CONTROL_CLOSED_LOOP_COUNT; i++)
+    {
+        s_temp_pid_update_pending[i] = 0U;
+        s_temp_channel_temp[i] = 25.0f;
+        s_temp_channel_duty[i] = 0.0f;
+        s_temp_last_pid_count[i] = 0U;
+        s_temp_last_pid_ms[i] = 0U;
         PID_Init(&s_temp_pid[i],
                  APP_CONTROL_TEMP_PID_KP,
                  APP_CONTROL_TEMP_PID_KI,
@@ -957,9 +1401,6 @@ AppControl_Status_t AppControl_Init(void)
                       APP_CONTROL_MAX_ABS_DUTY,
                       -APP_CONTROL_MAX_ABS_DUTY,
                       APP_CONTROL_MAX_ABS_DUTY);
-        s_temp_last_pid_count[i][0] = 0U;
-        s_temp_last_pid_count[i][1] = 0U;
-        s_temp_last_pid_ms[i] = 0U;
     }
 
     for (i = 0U; i < APP_CONTROL_DRV_COUNT; i++)
@@ -973,13 +1414,22 @@ AppControl_Status_t AppControl_Init(void)
         g_app_control_drv_awake[i] = 0U;
         g_app_control_drv_fault_status[i] = 0xFFU;
         g_app_control_drv_vds_gdf_status[i] = 0xFFU;
+        g_app_control_drv_reg_read_ok_mask[i] = 0U;
         for (reg = 0U; reg < DRV8703_REGISTER_COUNT; reg++)
+        {
             g_app_control_drv_reg_dump[i][reg] = 0xFFU;
+            g_app_control_drv_reg_read_status[i][reg] = DRV8703_OK;
+        }
 
         g_app_control_drv_startup_dump_valid[i] = 0U;
         g_app_control_drv_startup_dump_status[i] = DRV8703_OK;
         for (reg = 0U; reg < DRV8703_REGISTER_COUNT; reg++)
+        {
             g_app_control_drv_startup_reg_dump[i][reg] = 0xFFU;
+            g_app_control_drv_startup_reg_status[i][reg] = DRV8703_OK;
+            g_app_control_drv_startup_tx[i][reg] = 0U;
+            g_app_control_drv_startup_rx[i][reg] = 0U;
+        }
 
         g_app_control_drv_pin_fault_count[i] = 0U;
         g_app_control_drv_pin_fault_status[i] = DRV8703_OK;
@@ -988,10 +1438,23 @@ AppControl_Status_t AppControl_Init(void)
         g_app_control_drv_pin_fault_fault_status[i] = 0xFFU;
         g_app_control_drv_pin_fault_vds_gdf_status[i] = 0xFFU;
         g_app_control_drv_pin_fault_stop_bits[i] = 0U;
+        g_app_control_drv_pin_fault_reg_read_ok_mask[i] = 0U;
+        g_app_control_drv_pin_fault_all_ff[i] = 0U;
+        g_app_control_drv_pin_fault_all_ff_count[i] = 0U;
+        g_app_control_drv_pin_fault_stable_count[i] = 0U;
         for (reg = 0U; reg < DRV8703_REGISTER_COUNT; reg++)
+        {
             g_app_control_drv_pin_fault_reg_dump[i][reg] = 0xFFU;
+            g_app_control_drv_pin_fault_reg_read_status[i][reg] = DRV8703_OK;
+            g_app_control_sleep_reg_snapshot[i][reg] = 0xFFU;
+            g_app_control_periodic_reg_snapshot[i][reg] = 0xFFU;
+        }
+        g_app_control_sleep_reg_snapshot[i][DRV8703_REGISTER_COUNT] = 0U;
+        g_app_control_periodic_reg_snapshot[i][DRV8703_REGISTER_COUNT] = 0U;
     }
 
+    s_last_reg_snapshot_ms = 0U;
+    g_app_control_periodic_reg_snapshot_count = 0U;
     AppControl_ApplyDebugState();
     g_app_control_init_result = APP_CONTROL_OK;
     return APP_CONTROL_OK;
@@ -1005,6 +1468,7 @@ void AppControl_Task(uint32_t now_ms)
     AppControl_UpdateTemperatureInputs(now_ms);
     AppControl_CheckVoltageFaults();
     AppControl_CheckDrvFaults(now_ms);
+    AppControl_CapturePeriodicDrvRegs(now_ms);
     AppControl_ServiceErrorDisplayTimeout(now_ms);
     AppControl_RunClosedLoop();
     AppControl_ApplyDebugState();
