@@ -57,16 +57,16 @@ static DRV8703_Status_t DRV8703_Transfer16(DRV8703_Handle_t *dev, uint16_t tx, u
     rx_buf[1] = 0U;
 
     DRV8703_CsHigh(dev);
-    HAL_Delay(1U);
+    HAL_Delay(0U);
     DRV8703_CsLow(dev);
-    HAL_Delay(1U);
+    HAL_Delay(0U);
     hal_ret = HAL_SPI_TransmitReceive(dev->cfg.spi,
                                       tx_buf,
                                       rx_buf,
                                       2U,
                                       dev->cfg.spi_timeout_ms);
     DRV8703_CsHigh(dev);
-    HAL_Delay(1U);
+    HAL_Delay(0U);
 
     dev->last_tx = tx;
     dev->last_rx = ((uint16_t)rx_buf[0] << 8) | (uint16_t)rx_buf[1];

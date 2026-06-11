@@ -194,6 +194,20 @@ volatile uint32_t g_app_control_temp_update_count[4] = {0};
 volatile uint8_t g_app_control_temp_fault_sensor[APP_CONTROL_CELL_COUNT] = {0xFFU, 0xFFU};
 volatile uint8_t g_app_control_temp_reset_active = 0U;
 
+/* DRV8703 raw register polling (independent, polls all chips every raw poll) */
+volatile uint32_t g_app_control_drv_raw_poll_count = 0U;
+volatile uint8_t g_app_control_drv_raw_dump[APP_CONTROL_DRV_COUNT][DRV8703_REGISTER_COUNT] =
+    {
+        {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU},
+        {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU},
+        {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU},
+        {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU},
+        {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU}};
+volatile uint8_t g_app_control_drv_raw_mask[APP_CONTROL_DRV_COUNT] = {0U, 0U, 0U, 0U, 0U};
+volatile DRV8703_Status_t g_app_control_drv_raw_status[APP_CONTROL_DRV_COUNT] =
+    {
+        DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK};
+
 static osMessageQueueId_t s_cmd_queue;
 static AppControlCell_t s_cell[APP_CONTROL_CELL_COUNT];
 static PID_TypeDef s_temp_pid[APP_CONTROL_CLOSED_LOOP_COUNT];
@@ -206,6 +220,7 @@ static uint32_t s_temp_last_pid_count[APP_CONTROL_CLOSED_LOOP_COUNT] = {0U, 0U, 
 static uint32_t s_temp_last_pid_ms[APP_CONTROL_CLOSED_LOOP_COUNT] = {0U, 0U, 0U, 0U};
 static uint32_t s_temp_reset_release_ms = 0U;
 static uint32_t s_temp_last_reset_ms = 0U;
+static uint32_t s_last_raw_poll_ms = 0U;
 
 extern osMutexId_t SysStateMutexHandle;
 extern volatile float Sys_Temperatures[4];
@@ -1231,6 +1246,70 @@ static void AppControl_CheckVoltageFaults(void)
     // }
 }
 
+/*
+ * Read all 6 registers of all 5 DRV8703 chips unconditionally.
+ * This is independent of the existing periodic snapshot and fault-capture
+ * variables. It polls every chip regardless of ready/awake state.
+ * The SPI transfers are sequential and each chip has its own CS, so there
+ * is no risk of bus contention from this function alone.
+ *
+ * The results go into g_app_control_drv_raw_dump[drv][reg].
+ */
+static void AppControl_ReadAllDrvRegsRaw(uint32_t now_ms)
+{
+    uint8_t drv;
+
+    if (g_app_control_simulate_drv8703 != 0U)
+        return;
+    if ((now_ms - s_last_raw_poll_ms) < APP_CONTROL_DRV_RAW_POLL_MS)
+        return;
+
+    s_last_raw_poll_ms = now_ms;
+
+    for (drv = 0U; drv < APP_CONTROL_DRV_COUNT; drv++)
+    {
+        DRV8703_Handle_t *dev;
+        uint8_t reg;
+        uint8_t mask = 0U;
+
+        /*
+         * Clear this chip's raw dump before reading so that any register
+         * that fails to read stays at 0xFF.
+         */
+        for (reg = 0U; reg < DRV8703_REGISTER_COUNT; reg++)
+            g_app_control_drv_raw_dump[drv][reg] = 0xFFU;
+        g_app_control_drv_raw_mask[drv] = 0U;
+        g_app_control_drv_raw_status[drv] = DRV8703_ERROR_PARAM;
+
+        dev = DRV8703_BoardGet((DRV8703_BoardChannel_t)drv);
+        if (dev == 0)
+            continue;
+
+        /*
+         * Read all 6 registers sequentially. Use DRV8703_ReadReg which
+         * manages the CS pin per frame. Each read is one 16-bit SPI frame.
+         */
+        for (reg = 0U; reg < DRV8703_REGISTER_COUNT; reg++)
+        {
+            uint8_t value = 0xFFU;
+            DRV8703_Status_t ret = DRV8703_ReadReg(dev, reg, &value);
+
+            g_app_control_drv_raw_dump[drv][reg] = value;
+            if (ret == DRV8703_OK)
+                mask |= (uint8_t)(1U << reg);
+            else if (g_app_control_drv_raw_status[drv] == DRV8703_ERROR_PARAM)
+                g_app_control_drv_raw_status[drv] = ret;
+        }
+
+        g_app_control_drv_raw_mask[drv] = mask;
+        if (mask != 0U)
+            g_app_control_drv_raw_status[drv] =
+                (mask == 0x3FU) ? DRV8703_OK : DRV8703_ERROR_SPI;
+    }
+
+    g_app_control_drv_raw_poll_count++;
+}
+
 static void AppControl_CheckDrvFaults(uint32_t now_ms)
 {
     uint8_t drv;
@@ -1469,6 +1548,7 @@ void AppControl_Task(uint32_t now_ms)
     AppControl_CheckVoltageFaults();
     AppControl_CheckDrvFaults(now_ms);
     AppControl_CapturePeriodicDrvRegs(now_ms);
+    AppControl_ReadAllDrvRegsRaw(now_ms);
     AppControl_ServiceErrorDisplayTimeout(now_ms);
     AppControl_RunClosedLoop();
     AppControl_ApplyDebugState();

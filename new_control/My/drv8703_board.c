@@ -4,8 +4,6 @@
 #include "spi.h"
 #include "tim.h"
 
-#define DRV8703_BOARD_WAKE_DELAY_MS 20U
-
 DRV8703_Handle_t g_drv8703_board[DRV8703_BOARD_CHANNEL_COUNT];
 
 static void DRV8703_BoardDeselectAll(void)
@@ -36,7 +34,7 @@ static const DRV8703_Config_t g_drv8703_board_config[DRV8703_BOARD_CHANNEL_COUNT
         WDFLT1_GPIO_Port,
         WDFLT1_Pin,
         10U,
-        DRV8703_BOARD_WAKE_DELAY_MS,
+        2U,
         3300U,
         0.50f,
         1U,
@@ -61,8 +59,8 @@ static const DRV8703_Config_t g_drv8703_board_config[DRV8703_BOARD_CHANNEL_COUNT
         WDFLT2_GPIO_Port,
         WDFLT2_Pin,
         10U,
-        DRV8703_BOARD_WAKE_DELAY_MS,
-        1000U,
+        2U,
+        3300U,
         0.50f,
         1U,
         1U,
@@ -86,7 +84,7 @@ static const DRV8703_Config_t g_drv8703_board_config[DRV8703_BOARD_CHANNEL_COUNT
         WDFLT3_GPIO_Port,
         WDFLT3_Pin,
         10U,
-        DRV8703_BOARD_WAKE_DELAY_MS,
+        2U,
         3300U,
         0.50f,
         1U,
@@ -111,7 +109,7 @@ static const DRV8703_Config_t g_drv8703_board_config[DRV8703_BOARD_CHANNEL_COUNT
         WDFLT4_GPIO_Port,
         WDFLT4_Pin,
         10U,
-        DRV8703_BOARD_WAKE_DELAY_MS,
+        2U,
         3300U,
         0.50f,
         1U,
@@ -136,7 +134,7 @@ static const DRV8703_Config_t g_drv8703_board_config[DRV8703_BOARD_CHANNEL_COUNT
         WDFLT5_GPIO_Port,
         WDFLT5_Pin,
         10U,
-        DRV8703_BOARD_WAKE_DELAY_MS,
+        2U,
         3300U,
         0.50f,
         1U,

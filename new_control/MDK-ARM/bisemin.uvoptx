@@ -178,17 +178,17 @@
         <Ww>
           <count>5</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_adc_i1_a</ItemText>
+          <ItemText>g_adc_il1_a</ItemText>
         </Ww>
         <Ww>
           <count>6</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_adc_i2_a</ItemText>
+          <ItemText>g_adc_il2_a</ItemText>
         </Ww>
         <Ww>
           <count>7</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_adc_il1_a</ItemText>
+          <ItemText>g_adc_il5_a</ItemText>
         </Ww>
         <Ww>
           <count>8</count>
@@ -313,62 +313,52 @@
         <Ww>
           <count>32</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_app_control_drv_pin_fault_all_ff_count</ItemText>
+          <ItemText>g_app_control_drv_pin_fault_reg_dump</ItemText>
         </Ww>
         <Ww>
           <count>33</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_app_control_drv_pin_fault_reg_dump</ItemText>
+          <ItemText>g_app_control_drv_pin_fault_fault_status</ItemText>
         </Ww>
         <Ww>
           <count>34</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_app_control_drv_pin_fault_fault_status</ItemText>
+          <ItemText>g_app_control_drv_pin_fault_all_ff</ItemText>
         </Ww>
         <Ww>
           <count>35</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_app_control_drv_pin_fault_all_ff</ItemText>
+          <ItemText>g_app_control_drv_init_attempts</ItemText>
         </Ww>
         <Ww>
           <count>36</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_app_control_drv_pin_fault_reg_dump</ItemText>
+          <ItemText>g_app_control_drv_ready</ItemText>
         </Ww>
         <Ww>
           <count>37</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_app_control_drv_init_attempts</ItemText>
+          <ItemText>g_app_control_drv_startup_dump_status</ItemText>
         </Ww>
         <Ww>
           <count>38</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_app_control_drv_ready</ItemText>
+          <ItemText>g_app_control_sleep_reg_snapshot</ItemText>
         </Ww>
         <Ww>
           <count>39</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_app_control_drv_startup_dump_status</ItemText>
+          <ItemText>g_app_control_drv_fault</ItemText>
         </Ww>
         <Ww>
           <count>40</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_app_control_sleep_reg_snapshot</ItemText>
+          <ItemText>g_app_control_drv_pin_fault_stop_bits</ItemText>
         </Ww>
         <Ww>
           <count>41</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_app_control_periodic_reg_snapshot[1]</ItemText>
-        </Ww>
-        <Ww>
-          <count>42</count>
-          <WinNumber>1</WinNumber>
-          <ItemText>g_app_control_drv_startup_dump_status</ItemText>
-        </Ww>
-        <Ww>
-          <count>43</count>
-          <WinNumber>1</WinNumber>
-          <ItemText>g_app_control_drv_startup_reg_dump</ItemText>
+          <ItemText>g_app_control_drv_raw_dump</ItemText>
         </Ww>
       </WatchWindow1>
       <WatchWindow2>

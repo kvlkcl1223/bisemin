@@ -3,7 +3,7 @@
 <title>Static Call Graph - [bisemin\bisemin.axf]</title></head>
 <body><HR>
 <H1>Static Call Graph for image bisemin\bisemin.axf</H1><HR>
-<BR><P>#&#060CALLGRAPH&#062# ARM Linker, 5060750: Last Updated: Fri May 29 18:00:43 2026
+<BR><P>#&#060CALLGRAPH&#062# ARM Linker, 5060750: Last Updated: Thu Jun 11 17:32:40 2026
 <BR><P>
 <H3>Maximum Stack Usage =        448 bytes + Unknown(Functions without stacksize, Cycles, Untraceable Function Pointers)</H3><H3>
 Call chain for Maximum Stack Depth:</H3>
@@ -832,18 +832,18 @@ Global Symbols
 <BR>[Called By]<UL><LI><a href="#[78]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;StartControlTask
 </UL>
 
-<P><STRONG><a name="[d6]"></a>AppControl_Init</STRONG> (Thumb, 576 bytes, Stack size 8 bytes, app_control.o(i.AppControl_Init))
+<P><STRONG><a name="[d5]"></a>AppControl_Init</STRONG> (Thumb, 618 bytes, Stack size 8 bytes, app_control.o(i.AppControl_Init))
 <BR><BR>[Stack]<UL><LI>Max Depth = 136<LI>Call Chain = AppControl_Init &rArr; osMessageQueueNew &rArr; xQueueGenericCreate &rArr; pvPortMalloc &rArr; xTaskResumeAll &rArr; xTaskIncrementTick
 </UL>
-<BR>[Calls]<UL><LI><a href="#[d9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;PID_SetLimits
-<LI><a href="#[d8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;PID_Init
-<LI><a href="#[da]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_ApplyDebugState
-<LI><a href="#[d7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osMessageQueueNew
+<BR>[Calls]<UL><LI><a href="#[d8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;PID_SetLimits
+<LI><a href="#[d7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;PID_Init
+<LI><a href="#[d9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_ApplyDebugState
+<LI><a href="#[d6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osMessageQueueNew
 </UL>
 <BR>[Called By]<UL><LI><a href="#[78]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;StartControlTask
 </UL>
 
-<P><STRONG><a name="[100]"></a>AppControl_Task</STRONG> (Thumb, 70 bytes, Stack size 8 bytes, app_control.o(i.AppControl_Task))
+<P><STRONG><a name="[100]"></a>AppControl_Task</STRONG> (Thumb, 76 bytes, Stack size 8 bytes, app_control.o(i.AppControl_Task))
 <BR><BR>[Stack]<UL><LI>Max Depth = 448<LI>Call Chain = AppControl_Task &rArr; AppControl_UpdateTemperatureInputs &rArr; AppControl_StopCell &rArr; AppControl_SetDrvDuty &rArr; AppControl_PrepareDrv &rArr; DRV8703_BoardApplyDefaultConfig &rArr; DRV8703_Configure &rArr; DRV8703_ClearFault &rArr; DRV8703_WriteReg &rArr; DRV8703_Transfer16 &rArr; HAL_SPI_TransmitReceive &rArr; SPI_EndRxTxTransaction &rArr; SPI_WaitFifoStateUntilTimeout
 </UL>
 <BR>[Calls]<UL><LI><a href="#[101]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_UpdateTemperatureInputs
@@ -851,12 +851,13 @@ Global Symbols
 <LI><a href="#[f9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_ServiceTempSensorReset
 <LI><a href="#[f7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_ServiceErrorDisplayTimeout
 <LI><a href="#[ee]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_RunClosedLoop
-<LI><a href="#[e5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_ProcessCommands
-<LI><a href="#[db]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_Lock
+<LI><a href="#[e7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_ReadAllDrvRegsRaw
+<LI><a href="#[e4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_ProcessCommands
+<LI><a href="#[da]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_Lock
 <LI><a href="#[102]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_CheckVoltageFaults
-<LI><a href="#[d1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_CheckDrvFaults
-<LI><a href="#[d0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_CapturePeriodicDrvRegs
-<LI><a href="#[da]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_ApplyDebugState
+<LI><a href="#[d0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_CheckDrvFaults
+<LI><a href="#[cf]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_CapturePeriodicDrvRegs
+<LI><a href="#[d9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_ApplyDebugState
 </UL>
 <BR>[Called By]<UL><LI><a href="#[78]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;StartControlTask
 </UL>
@@ -867,7 +868,7 @@ Global Symbols
 <BR>[Calls]<UL><LI><a href="#[106]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;TempPanel_UpdateMeasuredTemp
 <LI><a href="#[107]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;TempPanel_SetCellError
 <LI><a href="#[103]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_Unlock
-<LI><a href="#[db]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_Lock
+<LI><a href="#[da]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_Lock
 </UL>
 <BR>[Called By]<UL><LI><a href="#[79]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;StartHMITask
 </UL>
@@ -889,7 +890,7 @@ Global Symbols
 <BR><BR>[Stack]<UL><LI>Max Depth = 168<LI>Call Chain = Control_SetTargetTemp &rArr; AppControl_Unlock &rArr; osMutexRelease &rArr; xQueueGiveMutexRecursive &rArr; xQueueGenericSend &rArr; vTaskPlaceOnEventList &rArr; prvAddCurrentTaskToDelayedList &rArr; vListInsert
 </UL>
 <BR>[Calls]<UL><LI><a href="#[103]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_Unlock
-<LI><a href="#[db]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_Lock
+<LI><a href="#[da]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_Lock
 </UL>
 <BR>[Called By]<UL><LI><a href="#[1e6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;update_program_control_1s
 <LI><a href="#[1e5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;update_jump_control
@@ -900,7 +901,7 @@ Global Symbols
 <P><STRONG><a name="[110]"></a>Control_StartPid</STRONG> (Thumb, 14 bytes, Stack size 8 bytes, app_control.o(i.Control_StartPid))
 <BR><BR>[Stack]<UL><LI>Max Depth = 160<LI>Call Chain = Control_StartPid &rArr; AppControl_PostCommand &rArr; osMessageQueuePut &rArr; xQueueGenericSend &rArr; vTaskPlaceOnEventList &rArr; prvAddCurrentTaskToDelayedList &rArr; vListInsert
 </UL>
-<BR>[Calls]<UL><LI><a href="#[dd]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_PostCommand
+<BR>[Calls]<UL><LI><a href="#[dc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_PostCommand
 </UL>
 <BR>[Called By]<UL><LI><a href="#[1dc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;cell_start_program
 <LI><a href="#[1db]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;cell_start_jump
@@ -909,7 +910,7 @@ Global Symbols
 <P><STRONG><a name="[111]"></a>Control_StopPid</STRONG> (Thumb, 14 bytes, Stack size 8 bytes, app_control.o(i.Control_StopPid))
 <BR><BR>[Stack]<UL><LI>Max Depth = 160<LI>Call Chain = Control_StopPid &rArr; AppControl_PostCommand &rArr; osMessageQueuePut &rArr; xQueueGenericSend &rArr; vTaskPlaceOnEventList &rArr; prvAddCurrentTaskToDelayedList &rArr; vListInsert
 </UL>
-<BR>[Calls]<UL><LI><a href="#[dd]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_PostCommand
+<BR>[Calls]<UL><LI><a href="#[dc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_PostCommand
 </UL>
 <BR>[Called By]<UL><LI><a href="#[1dd]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;cell_stop
 </UL>
@@ -935,7 +936,7 @@ Global Symbols
 </UL>
 <BR>[Address Reference Count : 1]<UL><LI> startup_stm32g474xx.o(RESET)
 </UL>
-<P><STRONG><a name="[e1]"></a>DRV8703_BoardApplyDefaultConfig</STRONG> (Thumb, 60 bytes, Stack size 40 bytes, drv8703_board.o(i.DRV8703_BoardApplyDefaultConfig))
+<P><STRONG><a name="[e0]"></a>DRV8703_BoardApplyDefaultConfig</STRONG> (Thumb, 60 bytes, Stack size 40 bytes, drv8703_board.o(i.DRV8703_BoardApplyDefaultConfig))
 <BR><BR>[Stack]<UL><LI>Max Depth = 280<LI>Call Chain = DRV8703_BoardApplyDefaultConfig &rArr; DRV8703_Configure &rArr; DRV8703_ClearFault &rArr; DRV8703_WriteReg &rArr; DRV8703_Transfer16 &rArr; HAL_SPI_TransmitReceive &rArr; SPI_EndRxTxTransaction &rArr; SPI_WaitFifoStateUntilTimeout
 </UL>
 <BR>[Calls]<UL><LI><a href="#[113]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_DefaultDeviceConfig
@@ -943,46 +944,47 @@ Global Symbols
 <LI><a href="#[fb]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_Wake
 <LI><a href="#[c6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_BoardGet
 </UL>
-<BR>[Called By]<UL><LI><a href="#[df]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_PrepareDrv
+<BR>[Called By]<UL><LI><a href="#[de]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_PrepareDrv
 </UL>
 
 <P><STRONG><a name="[c6]"></a>DRV8703_BoardGet</STRONG> (Thumb, 26 bytes, Stack size 0 bytes, drv8703_board.o(i.DRV8703_BoardGet))
-<BR><BR>[Called By]<UL><LI><a href="#[e1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_BoardApplyDefaultConfig
+<BR><BR>[Called By]<UL><LI><a href="#[e0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_BoardApplyDefaultConfig
 <LI><a href="#[fd]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_SleepDrv
 <LI><a href="#[f5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_SetDrvDuty
-<LI><a href="#[df]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_PrepareDrv
-<LI><a href="#[d1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_CheckDrvFaults
-<LI><a href="#[d0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_CapturePeriodicDrvRegs
+<LI><a href="#[e7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_ReadAllDrvRegsRaw
+<LI><a href="#[de]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_PrepareDrv
+<LI><a href="#[d0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_CheckDrvFaults
+<LI><a href="#[cf]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_CapturePeriodicDrvRegs
 <LI><a href="#[c8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_CaptureDrvPinFaultMoment
 <LI><a href="#[c5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_CaptureDrvFault
 </UL>
 
-<P><STRONG><a name="[e0]"></a>DRV8703_BoardInitOne</STRONG> (Thumb, 50 bytes, Stack size 8 bytes, drv8703_board.o(i.DRV8703_BoardInitOne))
+<P><STRONG><a name="[df]"></a>DRV8703_BoardInitOne</STRONG> (Thumb, 50 bytes, Stack size 8 bytes, drv8703_board.o(i.DRV8703_BoardInitOne))
 <BR><BR>[Stack]<UL><LI>Max Depth = 68<LI>Call Chain = DRV8703_BoardInitOne &rArr; DRV8703_Init &rArr; DRV8703_InitSafeState &rArr; DRV8703_SetVrefMv &rArr; HAL_DAC_SetValue
 </UL>
 <BR>[Calls]<UL><LI><a href="#[115]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_BoardDeselectAll
 <LI><a href="#[116]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_Init
 </UL>
-<BR>[Called By]<UL><LI><a href="#[df]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_PrepareDrv
+<BR>[Called By]<UL><LI><a href="#[de]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_PrepareDrv
 </UL>
 
-<P><STRONG><a name="[d2]"></a>DRV8703_CheckFaultPins</STRONG> (Thumb, 96 bytes, Stack size 16 bytes, drv8703.o(i.DRV8703_CheckFaultPins))
+<P><STRONG><a name="[d1]"></a>DRV8703_CheckFaultPins</STRONG> (Thumb, 96 bytes, Stack size 16 bytes, drv8703.o(i.DRV8703_CheckFaultPins))
 <BR><BR>[Stack]<UL><LI>Max Depth = 16<LI>Call Chain = DRV8703_CheckFaultPins
 </UL>
 <BR>[Calls]<UL><LI><a href="#[118]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_GPIO_ReadPin
 <LI><a href="#[117]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_IsValidDevice
 </UL>
-<BR>[Called By]<UL><LI><a href="#[d1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_CheckDrvFaults
+<BR>[Called By]<UL><LI><a href="#[d0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_CheckDrvFaults
 </UL>
 
-<P><STRONG><a name="[e3]"></a>DRV8703_ClearFault</STRONG> (Thumb, 40 bytes, Stack size 16 bytes, drv8703.o(i.DRV8703_ClearFault))
+<P><STRONG><a name="[e2]"></a>DRV8703_ClearFault</STRONG> (Thumb, 40 bytes, Stack size 16 bytes, drv8703.o(i.DRV8703_ClearFault))
 <BR><BR>[Stack]<UL><LI>Max Depth = 208<LI>Call Chain = DRV8703_ClearFault &rArr; DRV8703_WriteReg &rArr; DRV8703_Transfer16 &rArr; HAL_SPI_TransmitReceive &rArr; SPI_EndRxTxTransaction &rArr; SPI_WaitFifoStateUntilTimeout
 </UL>
 <BR>[Calls]<UL><LI><a href="#[11a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_Delay
 <LI><a href="#[119]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_WriteReg
 </UL>
 <BR>[Called By]<UL><LI><a href="#[114]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_Configure
-<LI><a href="#[df]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_PrepareDrv
+<LI><a href="#[de]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_PrepareDrv
 </UL>
 
 <P><STRONG><a name="[114]"></a>DRV8703_Configure</STRONG> (Thumb, 190 bytes, Stack size 32 bytes, drv8703.o(i.DRV8703_Configure))
@@ -990,23 +992,15 @@ Global Symbols
 </UL>
 <BR>[Calls]<UL><LI><a href="#[119]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_WriteReg
 <LI><a href="#[11b]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_Unlock
-<LI><a href="#[e3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_ClearFault
+<LI><a href="#[e2]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_ClearFault
 </UL>
-<BR>[Called By]<UL><LI><a href="#[e1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_BoardApplyDefaultConfig
+<BR>[Called By]<UL><LI><a href="#[e0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_BoardApplyDefaultConfig
 </UL>
 
 <P><STRONG><a name="[113]"></a>DRV8703_DefaultDeviceConfig</STRONG> (Thumb, 72 bytes, Stack size 16 bytes, drv8703.o(i.DRV8703_DefaultDeviceConfig))
 <BR><BR>[Stack]<UL><LI>Max Depth = 16<LI>Call Chain = DRV8703_DefaultDeviceConfig
 </UL>
-<BR>[Called By]<UL><LI><a href="#[e1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_BoardApplyDefaultConfig
-</UL>
-
-<P><STRONG><a name="[cf]"></a>DRV8703_DumpRegs</STRONG> (Thumb, 60 bytes, Stack size 32 bytes, drv8703.o(i.DRV8703_DumpRegs))
-<BR><BR>[Stack]<UL><LI>Max Depth = 224<LI>Call Chain = DRV8703_DumpRegs &rArr; DRV8703_ReadReg &rArr; DRV8703_Transfer16 &rArr; HAL_SPI_TransmitReceive &rArr; SPI_EndRxTxTransaction &rArr; SPI_WaitFifoStateUntilTimeout
-</UL>
-<BR>[Calls]<UL><LI><a href="#[cd]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_ReadReg
-</UL>
-<BR>[Called By]<UL><LI><a href="#[ce]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_CaptureDrvStartupRegs
+<BR>[Called By]<UL><LI><a href="#[e0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_BoardApplyDefaultConfig
 </UL>
 
 <P><STRONG><a name="[116]"></a>DRV8703_Init</STRONG> (Thumb, 114 bytes, Stack size 16 bytes, drv8703.o(i.DRV8703_Init))
@@ -1017,7 +1011,7 @@ Global Symbols
 <LI><a href="#[120]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_InitSafeState
 <LI><a href="#[117]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_IsValidDevice
 </UL>
-<BR>[Called By]<UL><LI><a href="#[e0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_BoardInitOne
+<BR>[Called By]<UL><LI><a href="#[df]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_BoardInitOne
 </UL>
 
 <P><STRONG><a name="[120]"></a>DRV8703_InitSafeState</STRONG> (Thumb, 136 bytes, Stack size 8 bytes, drv8703.o(i.DRV8703_InitSafeState))
@@ -1030,7 +1024,7 @@ Global Symbols
 <LI><a href="#[122]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_SetPwmRaw
 <LI><a href="#[117]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_IsValidDevice
 <LI><a href="#[11c]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_CsHigh
-<LI><a href="#[e2]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_SetVrefMv
+<LI><a href="#[e1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_SetVrefMv
 </UL>
 <BR>[Called By]<UL><LI><a href="#[116]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_Init
 </UL>
@@ -1040,10 +1034,11 @@ Global Symbols
 </UL>
 <BR>[Calls]<UL><LI><a href="#[125]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_Transfer16
 </UL>
-<BR>[Called By]<UL><LI><a href="#[cf]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_DumpRegs
-<LI><a href="#[c7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_ReadDrvRegsToDebug
+<BR>[Called By]<UL><LI><a href="#[c7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_ReadDrvRegsToDebug
 <LI><a href="#[e8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_ReadDrvRegsLocal
-<LI><a href="#[d0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_CapturePeriodicDrvRegs
+<LI><a href="#[e7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_ReadAllDrvRegsRaw
+<LI><a href="#[cf]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_CapturePeriodicDrvRegs
+<LI><a href="#[ce]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_CaptureDrvStartupRegs
 <LI><a href="#[cc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_CaptureDrvSleepRegs
 </UL>
 
@@ -1060,17 +1055,17 @@ Global Symbols
 <LI><a href="#[f5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_SetDrvDuty
 </UL>
 
-<P><STRONG><a name="[e2]"></a>DRV8703_SetVrefMv</STRONG> (Thumb, 88 bytes, Stack size 16 bytes, drv8703.o(i.DRV8703_SetVrefMv))
+<P><STRONG><a name="[e1]"></a>DRV8703_SetVrefMv</STRONG> (Thumb, 88 bytes, Stack size 16 bytes, drv8703.o(i.DRV8703_SetVrefMv))
 <BR><BR>[Stack]<UL><LI>Max Depth = 36<LI>Call Chain = DRV8703_SetVrefMv &rArr; HAL_DAC_SetValue
 </UL>
 <BR>[Calls]<UL><LI><a href="#[126]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_DAC_SetValue
 <LI><a href="#[117]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_IsValidDevice
 </UL>
 <BR>[Called By]<UL><LI><a href="#[120]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_InitSafeState
-<LI><a href="#[df]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_PrepareDrv
+<LI><a href="#[de]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_PrepareDrv
 </UL>
 
-<P><STRONG><a name="[e4]"></a>DRV8703_Sleep</STRONG> (Thumb, 38 bytes, Stack size 8 bytes, drv8703.o(i.DRV8703_Sleep))
+<P><STRONG><a name="[e3]"></a>DRV8703_Sleep</STRONG> (Thumb, 38 bytes, Stack size 8 bytes, drv8703.o(i.DRV8703_Sleep))
 <BR><BR>[Stack]<UL><LI>Max Depth = 8<LI>Call Chain = DRV8703_Sleep
 </UL>
 <BR>[Calls]<UL><LI><a href="#[ec]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_GPIO_WritePin
@@ -1078,7 +1073,7 @@ Global Symbols
 <LI><a href="#[117]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_IsValidDevice
 </UL>
 <BR>[Called By]<UL><LI><a href="#[fd]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_SleepDrv
-<LI><a href="#[df]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_PrepareDrv
+<LI><a href="#[de]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_PrepareDrv
 </UL>
 
 <P><STRONG><a name="[11b]"></a>DRV8703_Unlock</STRONG> (Thumb, 16 bytes, Stack size 8 bytes, drv8703.o(i.DRV8703_Unlock))
@@ -1097,7 +1092,7 @@ Global Symbols
 <LI><a href="#[122]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_SetPwmRaw
 <LI><a href="#[117]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_IsValidDevice
 </UL>
-<BR>[Called By]<UL><LI><a href="#[e1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_BoardApplyDefaultConfig
+<BR>[Called By]<UL><LI><a href="#[e0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_BoardApplyDefaultConfig
 <LI><a href="#[f5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_SetDrvDuty
 </UL>
 
@@ -1108,7 +1103,7 @@ Global Symbols
 </UL>
 <BR>[Called By]<UL><LI><a href="#[11b]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_Unlock
 <LI><a href="#[114]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_Configure
-<LI><a href="#[e3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_ClearFault
+<LI><a href="#[e2]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_ClearFault
 </UL>
 
 <P><STRONG><a name="[a]"></a>DebugMon_Handler</STRONG> (Thumb, 2 bytes, Stack size 0 bytes, stm32g4xx_it.o(i.DebugMon_Handler))
@@ -1296,7 +1291,7 @@ Global Symbols
 <P><STRONG><a name="[126]"></a>HAL_DAC_SetValue</STRONG> (Thumb, 70 bytes, Stack size 20 bytes, stm32g4xx_hal_dac.o(i.HAL_DAC_SetValue))
 <BR><BR>[Stack]<UL><LI>Max Depth = 20<LI>Call Chain = HAL_DAC_SetValue
 </UL>
-<BR>[Called By]<UL><LI><a href="#[e2]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_SetVrefMv
+<BR>[Called By]<UL><LI><a href="#[e1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_SetVrefMv
 </UL>
 
 <P><STRONG><a name="[123]"></a>HAL_DAC_Start</STRONG> (Thumb, 154 bytes, Stack size 12 bytes, stm32g4xx_hal_dac.o(i.HAL_DAC_Start))
@@ -1358,7 +1353,7 @@ Global Symbols
 <LI><a href="#[1bf]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;TM1638_HW_Init
 <LI><a href="#[125]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_Transfer16
 <LI><a href="#[fb]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_Wake
-<LI><a href="#[e3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_ClearFault
+<LI><a href="#[e2]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_ClearFault
 </UL>
 
 <P><STRONG><a name="[137]"></a>HAL_GPIO_Init</STRONG> (Thumb, 428 bytes, Stack size 20 bytes, stm32g4xx_hal_gpio.o(i.HAL_GPIO_Init))
@@ -1376,7 +1371,7 @@ Global Symbols
 
 <P><STRONG><a name="[118]"></a>HAL_GPIO_ReadPin</STRONG> (Thumb, 16 bytes, Stack size 0 bytes, stm32g4xx_hal_gpio.o(i.HAL_GPIO_ReadPin))
 <BR><BR>[Called By]<UL><LI><a href="#[89]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HW_GetDIO
-<LI><a href="#[d2]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_CheckFaultPins
+<LI><a href="#[d1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_CheckFaultPins
 </UL>
 
 <P><STRONG><a name="[1c7]"></a>HAL_GPIO_TogglePin</STRONG> (Thumb, 20 bytes, Stack size 8 bytes, stm32g4xx_hal_gpio.o(i.HAL_GPIO_TogglePin))
@@ -1396,7 +1391,7 @@ Global Symbols
 <LI><a href="#[11d]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_CsLow
 <LI><a href="#[11c]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_CsHigh
 <LI><a href="#[fb]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_Wake
-<LI><a href="#[e4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_Sleep
+<LI><a href="#[e3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_Sleep
 <LI><a href="#[fc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_SetDuty
 <LI><a href="#[f9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_ServiceTempSensorReset
 <LI><a href="#[eb]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_RequestTempSensorReset
@@ -2069,7 +2064,7 @@ Global Symbols
 <BR>[Called By]<UL><LI><a href="#[96]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
 </UL>
 
-<P><STRONG><a name="[1a6]"></a>MX_SPI1_Init</STRONG> (Thumb, 74 bytes, Stack size 8 bytes, spi.o(i.MX_SPI1_Init))
+<P><STRONG><a name="[1a6]"></a>MX_SPI1_Init</STRONG> (Thumb, 72 bytes, Stack size 8 bytes, spi.o(i.MX_SPI1_Init))
 <BR><BR>[Stack]<UL><LI>Max Depth = 76<LI>Call Chain = MX_SPI1_Init &rArr; HAL_SPI_Init &rArr; HAL_SPI_MspInit &rArr; HAL_GPIO_Init
 </UL>
 <BR>[Calls]<UL><LI><a href="#[136]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Error_Handler
@@ -2251,29 +2246,29 @@ Global Symbols
 <BR><BR>[Called By]<UL><LI><a href="#[ee]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_RunClosedLoop
 </UL>
 
-<P><STRONG><a name="[d8]"></a>PID_Init</STRONG> (Thumb, 70 bytes, Stack size 4 bytes, pid_controller.o(i.PID_Init))
+<P><STRONG><a name="[d7]"></a>PID_Init</STRONG> (Thumb, 70 bytes, Stack size 4 bytes, pid_controller.o(i.PID_Init))
 <BR><BR>[Stack]<UL><LI>Max Depth = 4<LI>Call Chain = PID_Init
 </UL>
 <BR>[Calls]<UL><LI><a href="#[f8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;PID_Reset
 </UL>
-<BR>[Called By]<UL><LI><a href="#[d6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_Init
+<BR>[Called By]<UL><LI><a href="#[d5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_Init
 <LI><a href="#[1be]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Panel_Init
 </UL>
 
 <P><STRONG><a name="[f8]"></a>PID_Reset</STRONG> (Thumb, 32 bytes, Stack size 0 bytes, pid_controller.o(i.PID_Reset))
-<BR><BR>[Called By]<UL><LI><a href="#[d8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;PID_Init
-<LI><a href="#[d4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_StopCell
-<LI><a href="#[e6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_StartCell
+<BR><BR>[Called By]<UL><LI><a href="#[d7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;PID_Init
+<LI><a href="#[d3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_StopCell
+<LI><a href="#[e5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_StartCell
 <LI><a href="#[f7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_ServiceErrorDisplayTimeout
 </UL>
 
-<P><STRONG><a name="[d9]"></a>PID_SetLimits</STRONG> (Thumb, 24 bytes, Stack size 0 bytes, pid_controller.o(i.PID_SetLimits))
-<BR><BR>[Called By]<UL><LI><a href="#[d6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_Init
+<P><STRONG><a name="[d8]"></a>PID_SetLimits</STRONG> (Thumb, 24 bytes, Stack size 0 bytes, pid_controller.o(i.PID_SetLimits))
+<BR><BR>[Called By]<UL><LI><a href="#[d5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_Init
 <LI><a href="#[1be]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Panel_Init
 </UL>
 
 <P><STRONG><a name="[f2]"></a>PID_SetTarget</STRONG> (Thumb, 12 bytes, Stack size 0 bytes, pid_controller.o(i.PID_SetTarget))
-<BR><BR>[Called By]<UL><LI><a href="#[e6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_StartCell
+<BR><BR>[Called By]<UL><LI><a href="#[e5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_StartCell
 <LI><a href="#[ee]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_RunClosedLoop
 </UL>
 
@@ -2333,8 +2328,8 @@ Global Symbols
 <BR>[Calls]<UL><LI><a href="#[1bf]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;TM1638_HW_Init
 <LI><a href="#[1c0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;TempPanel_Init
 <LI><a href="#[1c1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;refresh_display
-<LI><a href="#[d9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;PID_SetLimits
-<LI><a href="#[d8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;PID_Init
+<LI><a href="#[d8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;PID_SetLimits
+<LI><a href="#[d7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;PID_Init
 </UL>
 <BR>[Called By]<UL><LI><a href="#[96]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
 </UL>
@@ -2360,7 +2355,7 @@ Global Symbols
 </UL>
 <BR>[Calls]<UL><LI><a href="#[b6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osDelay
 <LI><a href="#[100]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_Task
-<LI><a href="#[d6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_Init
+<LI><a href="#[d5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_Init
 <LI><a href="#[bd]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AdcMeasure_Start
 <LI><a href="#[bb]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AdcMeasure_Process
 <LI><a href="#[b4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AdcMeasure_CalibrateCurrentZero
@@ -2733,7 +2728,7 @@ Global Symbols
 <BR>[Called By]<UL><LI><a href="#[b4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AdcMeasure_CalibrateCurrentZero
 <LI><a href="#[79]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;StartHMITask
 <LI><a href="#[78]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;StartControlTask
-<LI><a href="#[df]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_PrepareDrv
+<LI><a href="#[de]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_PrepareDrv
 </UL>
 
 <P><STRONG><a name="[f0]"></a>osKernelGetTickCount</STRONG> (Thumb, 26 bytes, Stack size 8 bytes, cmsis_os2.o(i.osKernelGetTickCount))
@@ -2747,8 +2742,8 @@ Global Symbols
 <LI><a href="#[78]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;StartControlTask
 <LI><a href="#[10c]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;CheckKeyHoldEvents
 <LI><a href="#[1b3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;OnTM1638Key
-<LI><a href="#[e6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_StartCell
-<LI><a href="#[d3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_SetCellError
+<LI><a href="#[e5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_StartCell
+<LI><a href="#[d2]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_SetCellError
 <LI><a href="#[ee]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_RunClosedLoop
 </UL>
 
@@ -2770,17 +2765,17 @@ Global Symbols
 <BR>[Called By]<UL><LI><a href="#[96]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
 </UL>
 
-<P><STRONG><a name="[e7]"></a>osMessageQueueGet</STRONG> (Thumb, 124 bytes, Stack size 32 bytes, cmsis_os2.o(i.osMessageQueueGet))
+<P><STRONG><a name="[e6]"></a>osMessageQueueGet</STRONG> (Thumb, 124 bytes, Stack size 32 bytes, cmsis_os2.o(i.osMessageQueueGet))
 <BR><BR>[Stack]<UL><LI>Max Depth = 128<LI>Call Chain = osMessageQueueGet &rArr; xQueueReceive &rArr; vTaskPlaceOnEventList &rArr; prvAddCurrentTaskToDelayedList &rArr; vListInsert
 </UL>
 <BR>[Calls]<UL><LI><a href="#[1f1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__get_IPSR
 <LI><a href="#[1f6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;xQueueReceiveFromISR
 <LI><a href="#[1f7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;xQueueReceive
 </UL>
-<BR>[Called By]<UL><LI><a href="#[e5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_ProcessCommands
+<BR>[Called By]<UL><LI><a href="#[e4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_ProcessCommands
 </UL>
 
-<P><STRONG><a name="[d7]"></a>osMessageQueueNew</STRONG> (Thumb, 154 bytes, Stack size 32 bytes, cmsis_os2.o(i.osMessageQueueNew))
+<P><STRONG><a name="[d6]"></a>osMessageQueueNew</STRONG> (Thumb, 154 bytes, Stack size 32 bytes, cmsis_os2.o(i.osMessageQueueNew))
 <BR><BR>[Stack]<UL><LI>Max Depth = 128<LI>Call Chain = osMessageQueueNew &rArr; xQueueGenericCreate &rArr; pvPortMalloc &rArr; xTaskResumeAll &rArr; xTaskIncrementTick
 </UL>
 <BR>[Calls]<UL><LI><a href="#[1f1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__get_IPSR
@@ -2788,27 +2783,27 @@ Global Symbols
 <LI><a href="#[1f9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;xQueueGenericCreate
 <LI><a href="#[1fa]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;vQueueAddToRegistry
 </UL>
-<BR>[Called By]<UL><LI><a href="#[d6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_Init
+<BR>[Called By]<UL><LI><a href="#[d5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_Init
 </UL>
 
-<P><STRONG><a name="[de]"></a>osMessageQueuePut</STRONG> (Thumb, 128 bytes, Stack size 32 bytes, cmsis_os2.o(i.osMessageQueuePut))
+<P><STRONG><a name="[dd]"></a>osMessageQueuePut</STRONG> (Thumb, 128 bytes, Stack size 32 bytes, cmsis_os2.o(i.osMessageQueuePut))
 <BR><BR>[Stack]<UL><LI>Max Depth = 136<LI>Call Chain = osMessageQueuePut &rArr; xQueueGenericSend &rArr; vTaskPlaceOnEventList &rArr; prvAddCurrentTaskToDelayedList &rArr; vListInsert
 </UL>
 <BR>[Calls]<UL><LI><a href="#[1f1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__get_IPSR
 <LI><a href="#[1fb]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;xQueueGenericSendFromISR
 <LI><a href="#[1fc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;xQueueGenericSend
 </UL>
-<BR>[Called By]<UL><LI><a href="#[dd]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_PostCommand
+<BR>[Called By]<UL><LI><a href="#[dc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_PostCommand
 </UL>
 
-<P><STRONG><a name="[dc]"></a>osMutexAcquire</STRONG> (Thumb, 98 bytes, Stack size 24 bytes, cmsis_os2.o(i.osMutexAcquire))
+<P><STRONG><a name="[db]"></a>osMutexAcquire</STRONG> (Thumb, 98 bytes, Stack size 24 bytes, cmsis_os2.o(i.osMutexAcquire))
 <BR><BR>[Stack]<UL><LI>Max Depth = 136<LI>Call Chain = osMutexAcquire &rArr; xQueueTakeMutexRecursive &rArr; xQueueSemaphoreTake &rArr; vTaskPlaceOnEventList &rArr; prvAddCurrentTaskToDelayedList &rArr; vListInsert
 </UL>
 <BR>[Calls]<UL><LI><a href="#[1f1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__get_IPSR
 <LI><a href="#[1fd]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;xQueueTakeMutexRecursive
 <LI><a href="#[1fe]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;xQueueSemaphoreTake
 </UL>
-<BR>[Called By]<UL><LI><a href="#[db]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_Lock
+<BR>[Called By]<UL><LI><a href="#[da]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_Lock
 </UL>
 
 <P><STRONG><a name="[19e]"></a>osMutexNew</STRONG> (Thumb, 178 bytes, Stack size 32 bytes, cmsis_os2.o(i.osMutexNew))
@@ -2977,7 +2972,7 @@ Global Symbols
 <P><STRONG><a name="[1fa]"></a>vQueueAddToRegistry</STRONG> (Thumb, 38 bytes, Stack size 0 bytes, queue.o(i.vQueueAddToRegistry))
 <BR><BR>[Called By]<UL><LI><a href="#[19e]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osMutexNew
 <LI><a href="#[20c]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;prvCheckForValidListAndQueue
-<LI><a href="#[d7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osMessageQueueNew
+<LI><a href="#[d6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osMessageQueueNew
 </UL>
 
 <P><STRONG><a name="[225]"></a>vQueueWaitForMessageRestricted</STRONG> (Thumb, 74 bytes, Stack size 24 bytes, queue.o(i.vQueueWaitForMessageRestricted))
@@ -3110,7 +3105,7 @@ Global Symbols
 <LI><a href="#[22b]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;pvPortMalloc
 </UL>
 <BR>[Called By]<UL><LI><a href="#[200]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;xQueueCreateMutex
-<LI><a href="#[d7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osMessageQueueNew
+<LI><a href="#[d6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osMessageQueueNew
 </UL>
 
 <P><STRONG><a name="[1f8]"></a>xQueueGenericCreateStatic</STRONG> (Thumb, 224 bytes, Stack size 32 bytes, queue.o(i.xQueueGenericCreateStatic))
@@ -3120,7 +3115,7 @@ Global Symbols
 </UL>
 <BR>[Called By]<UL><LI><a href="#[20c]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;prvCheckForValidListAndQueue
 <LI><a href="#[1ff]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;xQueueCreateMutexStatic
-<LI><a href="#[d7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osMessageQueueNew
+<LI><a href="#[d6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osMessageQueueNew
 </UL>
 
 <P><STRONG><a name="[217]"></a>xQueueGenericReset</STRONG> (Thumb, 146 bytes, Stack size 16 bytes, queue.o(i.xQueueGenericReset))
@@ -3154,7 +3149,7 @@ Global Symbols
 <LI><a href="#[201]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;xQueueGiveMutexRecursive
 <LI><a href="#[215]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;prvInitialiseMutex
 <LI><a href="#[104]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osMutexRelease
-<LI><a href="#[de]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osMessageQueuePut
+<LI><a href="#[dd]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osMessageQueuePut
 </UL>
 
 <P><STRONG><a name="[1fb]"></a>xQueueGenericSendFromISR</STRONG> (Thumb, 252 bytes, Stack size 40 bytes, queue.o(i.xQueueGenericSendFromISR))
@@ -3165,7 +3160,7 @@ Global Symbols
 <LI><a href="#[212]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;prvCopyDataToQueue
 </UL>
 <BR>[Called By]<UL><LI><a href="#[21f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;xTimerGenericCommand
-<LI><a href="#[de]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osMessageQueuePut
+<LI><a href="#[dd]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osMessageQueuePut
 </UL>
 
 <P><STRONG><a name="[201]"></a>xQueueGiveMutexRecursive</STRONG> (Thumb, 72 bytes, Stack size 16 bytes, queue.o(i.xQueueGiveMutexRecursive))
@@ -3194,7 +3189,7 @@ Global Symbols
 <LI><a href="#[209]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;vPortEnterCritical
 </UL>
 <BR>[Called By]<UL><LI><a href="#[220]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;prvProcessReceivedCommands
-<LI><a href="#[e7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osMessageQueueGet
+<LI><a href="#[e6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osMessageQueueGet
 </UL>
 
 <P><STRONG><a name="[1f6]"></a>xQueueReceiveFromISR</STRONG> (Thumb, 202 bytes, Stack size 40 bytes, queue.o(i.xQueueReceiveFromISR))
@@ -3204,7 +3199,7 @@ Global Symbols
 <LI><a href="#[22f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;vPortValidateInterruptPriority
 <LI><a href="#[210]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;prvCopyDataFromQueue
 </UL>
-<BR>[Called By]<UL><LI><a href="#[e7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osMessageQueueGet
+<BR>[Called By]<UL><LI><a href="#[e6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osMessageQueueGet
 </UL>
 
 <P><STRONG><a name="[1fe]"></a>xQueueSemaphoreTake</STRONG> (Thumb, 434 bytes, Stack size 40 bytes, queue.o(i.xQueueSemaphoreTake))
@@ -3227,7 +3222,7 @@ Global Symbols
 <LI><a href="#[209]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;vPortEnterCritical
 </UL>
 <BR>[Called By]<UL><LI><a href="#[1fd]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;xQueueTakeMutexRecursive
-<LI><a href="#[dc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osMutexAcquire
+<LI><a href="#[db]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osMutexAcquire
 </UL>
 
 <P><STRONG><a name="[1fd]"></a>xQueueTakeMutexRecursive</STRONG> (Thumb, 78 bytes, Stack size 24 bytes, queue.o(i.xQueueTakeMutexRecursive))
@@ -3236,7 +3231,7 @@ Global Symbols
 <BR>[Calls]<UL><LI><a href="#[23d]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;xTaskGetCurrentTaskHandle
 <LI><a href="#[1fe]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;xQueueSemaphoreTake
 </UL>
-<BR>[Called By]<UL><LI><a href="#[dc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osMutexAcquire
+<BR>[Called By]<UL><LI><a href="#[db]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osMutexAcquire
 </UL>
 
 <P><STRONG><a name="[23c]"></a>xTaskCheckForTimeOut</STRONG> (Thumb, 132 bytes, Stack size 16 bytes, tasks.o(i.xTaskCheckForTimeOut))
@@ -3929,10 +3924,10 @@ Local Symbols
 <LI><a href="#[1ef]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osKernelInitialize
 <LI><a href="#[f0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osKernelGetTickCount
 <LI><a href="#[104]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osMutexRelease
-<LI><a href="#[dc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osMutexAcquire
-<LI><a href="#[de]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osMessageQueuePut
-<LI><a href="#[d7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osMessageQueueNew
-<LI><a href="#[e7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osMessageQueueGet
+<LI><a href="#[db]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osMutexAcquire
+<LI><a href="#[dd]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osMessageQueuePut
+<LI><a href="#[d6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osMessageQueueNew
+<LI><a href="#[e6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osMessageQueueGet
 </UL>
 
 <P><STRONG><a name="[22c]"></a>prvHeapInit</STRONG> (Thumb, 98 bytes, Stack size 12 bytes, heap_4.o(i.prvHeapInit))
@@ -4021,9 +4016,9 @@ Local Symbols
 <LI><a href="#[ee]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_RunClosedLoop
 </UL>
 
-<P><STRONG><a name="[da]"></a>AppControl_ApplyDebugState</STRONG> (Thumb, 172 bytes, Stack size 0 bytes, app_control.o(i.AppControl_ApplyDebugState))
+<P><STRONG><a name="[d9]"></a>AppControl_ApplyDebugState</STRONG> (Thumb, 172 bytes, Stack size 0 bytes, app_control.o(i.AppControl_ApplyDebugState))
 <BR><BR>[Called By]<UL><LI><a href="#[100]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_Task
-<LI><a href="#[d6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_Init
+<LI><a href="#[d5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_Init
 </UL>
 
 <P><STRONG><a name="[c5]"></a>AppControl_CaptureDrvFault</STRONG> (Thumb, 164 bytes, Stack size 24 bytes, app_control.o(i.AppControl_CaptureDrvFault))
@@ -4033,7 +4028,7 @@ Local Symbols
 <LI><a href="#[c7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_ReadDrvRegsToDebug
 </UL>
 <BR>[Called By]<UL><LI><a href="#[f5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_SetDrvDuty
-<LI><a href="#[df]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_PrepareDrv
+<LI><a href="#[de]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_PrepareDrv
 </UL>
 
 <P><STRONG><a name="[c8]"></a>AppControl_CaptureDrvPinFaultMoment</STRONG> (Thumb, 496 bytes, Stack size 40 bytes, app_control.o(i.AppControl_CaptureDrvPinFaultMoment))
@@ -4044,7 +4039,7 @@ Local Symbols
 <LI><a href="#[ca]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_DrvRegSampleIsInvalid
 <LI><a href="#[cb]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_DrvFaultRequiresStop
 </UL>
-<BR>[Called By]<UL><LI><a href="#[d1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_CheckDrvFaults
+<BR>[Called By]<UL><LI><a href="#[d0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_CheckDrvFaults
 </UL>
 
 <P><STRONG><a name="[cc]"></a>AppControl_CaptureDrvSleepRegs</STRONG> (Thumb, 90 bytes, Stack size 32 bytes, app_control.o(i.AppControl_CaptureDrvSleepRegs))
@@ -4055,15 +4050,15 @@ Local Symbols
 <BR>[Called By]<UL><LI><a href="#[fd]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_SleepDrv
 </UL>
 
-<P><STRONG><a name="[ce]"></a>AppControl_CaptureDrvStartupRegs</STRONG> (Thumb, 106 bytes, Stack size 32 bytes, app_control.o(i.AppControl_CaptureDrvStartupRegs))
-<BR><BR>[Stack]<UL><LI>Max Depth = 256<LI>Call Chain = AppControl_CaptureDrvStartupRegs &rArr; DRV8703_DumpRegs &rArr; DRV8703_ReadReg &rArr; DRV8703_Transfer16 &rArr; HAL_SPI_TransmitReceive &rArr; SPI_EndRxTxTransaction &rArr; SPI_WaitFifoStateUntilTimeout
+<P><STRONG><a name="[ce]"></a>AppControl_CaptureDrvStartupRegs</STRONG> (Thumb, 236 bytes, Stack size 32 bytes, app_control.o(i.AppControl_CaptureDrvStartupRegs))
+<BR><BR>[Stack]<UL><LI>Max Depth = 224<LI>Call Chain = AppControl_CaptureDrvStartupRegs &rArr; DRV8703_ReadReg &rArr; DRV8703_Transfer16 &rArr; HAL_SPI_TransmitReceive &rArr; SPI_EndRxTxTransaction &rArr; SPI_WaitFifoStateUntilTimeout
 </UL>
-<BR>[Calls]<UL><LI><a href="#[cf]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_DumpRegs
+<BR>[Calls]<UL><LI><a href="#[cd]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_ReadReg
 </UL>
-<BR>[Called By]<UL><LI><a href="#[df]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_PrepareDrv
+<BR>[Called By]<UL><LI><a href="#[de]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_PrepareDrv
 </UL>
 
-<P><STRONG><a name="[d0]"></a>AppControl_CapturePeriodicDrvRegs</STRONG> (Thumb, 198 bytes, Stack size 32 bytes, app_control.o(i.AppControl_CapturePeriodicDrvRegs))
+<P><STRONG><a name="[cf]"></a>AppControl_CapturePeriodicDrvRegs</STRONG> (Thumb, 198 bytes, Stack size 32 bytes, app_control.o(i.AppControl_CapturePeriodicDrvRegs))
 <BR><BR>[Stack]<UL><LI>Max Depth = 224<LI>Call Chain = AppControl_CapturePeriodicDrvRegs &rArr; DRV8703_ReadReg &rArr; DRV8703_Transfer16 &rArr; HAL_SPI_TransmitReceive &rArr; SPI_EndRxTxTransaction &rArr; SPI_WaitFifoStateUntilTimeout
 </UL>
 <BR>[Calls]<UL><LI><a href="#[cd]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_ReadReg
@@ -4073,28 +4068,28 @@ Local Symbols
 </UL>
 
 <P><STRONG><a name="[f6]"></a>AppControl_CellDrvError</STRONG> (Thumb, 16 bytes, Stack size 0 bytes, app_control.o(i.AppControl_CellDrvError))
-<BR><BR>[Called By]<UL><LI><a href="#[e6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_StartCell
+<BR><BR>[Called By]<UL><LI><a href="#[e5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_StartCell
 <LI><a href="#[ee]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_RunClosedLoop
 </UL>
 
 <P><STRONG><a name="[ef]"></a>AppControl_CellFirstDrv</STRONG> (Thumb, 12 bytes, Stack size 0 bytes, app_control.o(i.AppControl_CellFirstDrv))
-<BR><BR>[Called By]<UL><LI><a href="#[d4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_StopCell
-<LI><a href="#[e6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_StartCell
+<BR><BR>[Called By]<UL><LI><a href="#[d3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_StopCell
+<LI><a href="#[e5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_StartCell
 <LI><a href="#[f7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_ServiceErrorDisplayTimeout
 <LI><a href="#[ee]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_RunClosedLoop
 </UL>
 
 <P><STRONG><a name="[fe]"></a>AppControl_CellHardwareOk</STRONG> (Thumb, 32 bytes, Stack size 0 bytes, app_control.o(i.AppControl_CellHardwareOk))
-<BR><BR>[Called By]<UL><LI><a href="#[e6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_StartCell
+<BR><BR>[Called By]<UL><LI><a href="#[e5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_StartCell
 </UL>
 
-<P><STRONG><a name="[d1]"></a>AppControl_CheckDrvFaults</STRONG> (Thumb, 178 bytes, Stack size 24 bytes, app_control.o(i.AppControl_CheckDrvFaults))
+<P><STRONG><a name="[d0]"></a>AppControl_CheckDrvFaults</STRONG> (Thumb, 178 bytes, Stack size 24 bytes, app_control.o(i.AppControl_CheckDrvFaults))
 <BR><BR>[Stack]<UL><LI>Max Depth = 384<LI>Call Chain = AppControl_CheckDrvFaults &rArr; AppControl_CaptureDrvPinFaultMoment &rArr; AppControl_ReadDrvRegsToDebugStableRetry &rArr; AppControl_ReadDrvRegsLocal &rArr; DRV8703_ReadReg &rArr; DRV8703_Transfer16 &rArr; HAL_SPI_TransmitReceive &rArr; SPI_EndRxTxTransaction &rArr; SPI_WaitFifoStateUntilTimeout
 </UL>
-<BR>[Calls]<UL><LI><a href="#[d2]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_CheckFaultPins
+<BR>[Calls]<UL><LI><a href="#[d1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_CheckFaultPins
 <LI><a href="#[c6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_BoardGet
-<LI><a href="#[d4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_StopCell
-<LI><a href="#[d3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_SetCellError
+<LI><a href="#[d3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_StopCell
+<LI><a href="#[d2]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_SetCellError
 <LI><a href="#[c8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_CaptureDrvPinFaultMoment
 </UL>
 <BR>[Called By]<UL><LI><a href="#[100]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_Task
@@ -4114,7 +4109,7 @@ Local Symbols
 <BR>[Called By]<UL><LI><a href="#[c9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_ReadDrvRegsToDebugStableRetry
 </UL>
 
-<P><STRONG><a name="[d5]"></a>AppControl_DrvExpectedReg</STRONG> (Thumb, 46 bytes, Stack size 0 bytes, app_control.o(i.AppControl_DrvExpectedReg))
+<P><STRONG><a name="[d4]"></a>AppControl_DrvExpectedReg</STRONG> (Thumb, 46 bytes, Stack size 0 bytes, app_control.o(i.AppControl_DrvExpectedReg))
 <BR><BR>[Called By]<UL><LI><a href="#[ca]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_DrvRegSampleIsInvalid
 </UL>
 
@@ -4125,7 +4120,7 @@ Local Symbols
 <P><STRONG><a name="[ca]"></a>AppControl_DrvRegSampleIsInvalid</STRONG> (Thumb, 90 bytes, Stack size 24 bytes, app_control.o(i.AppControl_DrvRegSampleIsInvalid))
 <BR><BR>[Stack]<UL><LI>Max Depth = 24<LI>Call Chain = AppControl_DrvRegSampleIsInvalid
 </UL>
-<BR>[Calls]<UL><LI><a href="#[d5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_DrvExpectedReg
+<BR>[Calls]<UL><LI><a href="#[d4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_DrvExpectedReg
 </UL>
 <BR>[Called By]<UL><LI><a href="#[c9]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_ReadDrvRegsToDebugStableRetry
 <LI><a href="#[c8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_CaptureDrvPinFaultMoment
@@ -4139,51 +4134,60 @@ Local Symbols
 
 <P><STRONG><a name="[fa]"></a>AppControl_IsTempSensorError</STRONG> (Thumb, 30 bytes, Stack size 0 bytes, app_control.o(i.AppControl_IsTempSensorError))
 <BR><BR>[Called By]<UL><LI><a href="#[101]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_UpdateTemperatureInputs
-<LI><a href="#[d3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_SetCellError
+<LI><a href="#[d2]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_SetCellError
 </UL>
 
-<P><STRONG><a name="[db]"></a>AppControl_Lock</STRONG> (Thumb, 16 bytes, Stack size 8 bytes, app_control.o(i.AppControl_Lock))
+<P><STRONG><a name="[da]"></a>AppControl_Lock</STRONG> (Thumb, 16 bytes, Stack size 8 bytes, app_control.o(i.AppControl_Lock))
 <BR><BR>[Stack]<UL><LI>Max Depth = 144<LI>Call Chain = AppControl_Lock &rArr; osMutexAcquire &rArr; xQueueTakeMutexRecursive &rArr; xQueueSemaphoreTake &rArr; vTaskPlaceOnEventList &rArr; prvAddCurrentTaskToDelayedList &rArr; vListInsert
 </UL>
-<BR>[Calls]<UL><LI><a href="#[dc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osMutexAcquire
+<BR>[Calls]<UL><LI><a href="#[db]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osMutexAcquire
 </UL>
 <BR>[Called By]<UL><LI><a href="#[105]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_UpdatePanel
 <LI><a href="#[100]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_Task
 <LI><a href="#[10f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Control_SetTargetTemp
 </UL>
 
-<P><STRONG><a name="[dd]"></a>AppControl_PostCommand</STRONG> (Thumb, 68 bytes, Stack size 16 bytes, app_control.o(i.AppControl_PostCommand))
+<P><STRONG><a name="[dc]"></a>AppControl_PostCommand</STRONG> (Thumb, 68 bytes, Stack size 16 bytes, app_control.o(i.AppControl_PostCommand))
 <BR><BR>[Stack]<UL><LI>Max Depth = 152<LI>Call Chain = AppControl_PostCommand &rArr; osMessageQueuePut &rArr; xQueueGenericSend &rArr; vTaskPlaceOnEventList &rArr; prvAddCurrentTaskToDelayedList &rArr; vListInsert
 </UL>
-<BR>[Calls]<UL><LI><a href="#[de]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osMessageQueuePut
+<BR>[Calls]<UL><LI><a href="#[dd]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osMessageQueuePut
 </UL>
 <BR>[Called By]<UL><LI><a href="#[111]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Control_StopPid
 <LI><a href="#[110]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Control_StartPid
 </UL>
 
-<P><STRONG><a name="[df]"></a>AppControl_PrepareDrv</STRONG> (Thumb, 198 bytes, Stack size 24 bytes, app_control.o(i.AppControl_PrepareDrv))
+<P><STRONG><a name="[de]"></a>AppControl_PrepareDrv</STRONG> (Thumb, 198 bytes, Stack size 24 bytes, app_control.o(i.AppControl_PrepareDrv))
 <BR><BR>[Stack]<UL><LI>Max Depth = 304<LI>Call Chain = AppControl_PrepareDrv &rArr; DRV8703_BoardApplyDefaultConfig &rArr; DRV8703_Configure &rArr; DRV8703_ClearFault &rArr; DRV8703_WriteReg &rArr; DRV8703_Transfer16 &rArr; HAL_SPI_TransmitReceive &rArr; SPI_EndRxTxTransaction &rArr; SPI_WaitFifoStateUntilTimeout
 </UL>
 <BR>[Calls]<UL><LI><a href="#[b6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osDelay
-<LI><a href="#[e4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_Sleep
-<LI><a href="#[e2]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_SetVrefMv
-<LI><a href="#[e3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_ClearFault
-<LI><a href="#[e0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_BoardInitOne
+<LI><a href="#[e3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_Sleep
+<LI><a href="#[e1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_SetVrefMv
+<LI><a href="#[e2]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_ClearFault
+<LI><a href="#[df]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_BoardInitOne
 <LI><a href="#[c6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_BoardGet
-<LI><a href="#[e1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_BoardApplyDefaultConfig
+<LI><a href="#[e0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_BoardApplyDefaultConfig
 <LI><a href="#[ce]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_CaptureDrvStartupRegs
 <LI><a href="#[c5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_CaptureDrvFault
 </UL>
-<BR>[Called By]<UL><LI><a href="#[e6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_StartCell
+<BR>[Called By]<UL><LI><a href="#[e5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_StartCell
 <LI><a href="#[f5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_SetDrvDuty
 </UL>
 
-<P><STRONG><a name="[e5]"></a>AppControl_ProcessCommands</STRONG> (Thumb, 74 bytes, Stack size 8 bytes, app_control.o(i.AppControl_ProcessCommands))
+<P><STRONG><a name="[e4]"></a>AppControl_ProcessCommands</STRONG> (Thumb, 74 bytes, Stack size 8 bytes, app_control.o(i.AppControl_ProcessCommands))
 <BR><BR>[Stack]<UL><LI>Max Depth = 376<LI>Call Chain = AppControl_ProcessCommands &rArr; AppControl_StartCell &rArr; AppControl_StopCell &rArr; AppControl_SetDrvDuty &rArr; AppControl_PrepareDrv &rArr; DRV8703_BoardApplyDefaultConfig &rArr; DRV8703_Configure &rArr; DRV8703_ClearFault &rArr; DRV8703_WriteReg &rArr; DRV8703_Transfer16 &rArr; HAL_SPI_TransmitReceive &rArr; SPI_EndRxTxTransaction &rArr; SPI_WaitFifoStateUntilTimeout
 </UL>
-<BR>[Calls]<UL><LI><a href="#[d4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_StopCell
-<LI><a href="#[e6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_StartCell
-<LI><a href="#[e7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osMessageQueueGet
+<BR>[Calls]<UL><LI><a href="#[d3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_StopCell
+<LI><a href="#[e5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_StartCell
+<LI><a href="#[e6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osMessageQueueGet
+</UL>
+<BR>[Called By]<UL><LI><a href="#[100]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_Task
+</UL>
+
+<P><STRONG><a name="[e7]"></a>AppControl_ReadAllDrvRegsRaw</STRONG> (Thumb, 210 bytes, Stack size 32 bytes, app_control.o(i.AppControl_ReadAllDrvRegsRaw))
+<BR><BR>[Stack]<UL><LI>Max Depth = 224<LI>Call Chain = AppControl_ReadAllDrvRegsRaw &rArr; DRV8703_ReadReg &rArr; DRV8703_Transfer16 &rArr; HAL_SPI_TransmitReceive &rArr; SPI_EndRxTxTransaction &rArr; SPI_WaitFifoStateUntilTimeout
+</UL>
+<BR>[Calls]<UL><LI><a href="#[cd]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_ReadReg
+<LI><a href="#[c6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_BoardGet
 </UL>
 <BR>[Called By]<UL><LI><a href="#[100]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_Task
 </UL>
@@ -4230,9 +4234,9 @@ Local Symbols
 <BR>[Calls]<UL><LI><a href="#[f0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osKernelGetTickCount
 <LI><a href="#[f2]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;PID_SetTarget
 <LI><a href="#[f3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;PID_Compute
-<LI><a href="#[d4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_StopCell
+<LI><a href="#[d3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_StopCell
 <LI><a href="#[f5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_SetDrvDuty
-<LI><a href="#[d3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_SetCellError
+<LI><a href="#[d2]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_SetCellError
 <LI><a href="#[f1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_Clamp
 <LI><a href="#[ef]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_CellFirstDrv
 <LI><a href="#[f6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_CellDrvError
@@ -4245,7 +4249,7 @@ Local Symbols
 <BR><BR>[Stack]<UL><LI>Max Depth = 80<LI>Call Chain = AppControl_ServiceErrorDisplayTimeout &rArr; AppControl_SetCellError &rArr; osKernelGetTickCount &rArr; xTaskGetTickCountFromISR &rArr; vPortValidateInterruptPriority
 </UL>
 <BR>[Calls]<UL><LI><a href="#[f8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;PID_Reset
-<LI><a href="#[d3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_SetCellError
+<LI><a href="#[d2]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_SetCellError
 <LI><a href="#[ef]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_CellFirstDrv
 </UL>
 <BR>[Called By]<UL><LI><a href="#[100]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_Task
@@ -4259,17 +4263,17 @@ Local Symbols
 <BR>[Called By]<UL><LI><a href="#[100]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_Task
 </UL>
 
-<P><STRONG><a name="[d3]"></a>AppControl_SetCellError</STRONG> (Thumb, 100 bytes, Stack size 16 bytes, app_control.o(i.AppControl_SetCellError))
+<P><STRONG><a name="[d2]"></a>AppControl_SetCellError</STRONG> (Thumb, 100 bytes, Stack size 16 bytes, app_control.o(i.AppControl_SetCellError))
 <BR><BR>[Stack]<UL><LI>Max Depth = 56<LI>Call Chain = AppControl_SetCellError &rArr; osKernelGetTickCount &rArr; xTaskGetTickCountFromISR &rArr; vPortValidateInterruptPriority
 </UL>
 <BR>[Calls]<UL><LI><a href="#[f0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osKernelGetTickCount
 <LI><a href="#[fa]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_IsTempSensorError
 </UL>
 <BR>[Called By]<UL><LI><a href="#[101]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_UpdateTemperatureInputs
-<LI><a href="#[e6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_StartCell
+<LI><a href="#[e5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_StartCell
 <LI><a href="#[f7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_ServiceErrorDisplayTimeout
 <LI><a href="#[ee]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_RunClosedLoop
-<LI><a href="#[d1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_CheckDrvFaults
+<LI><a href="#[d0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_CheckDrvFaults
 </UL>
 
 <P><STRONG><a name="[f5]"></a>AppControl_SetDrvDuty</STRONG> (Thumb, 160 bytes, Stack size 24 bytes, app_control.o(i.AppControl_SetDrvDuty))
@@ -4278,46 +4282,46 @@ Local Symbols
 <BR>[Calls]<UL><LI><a href="#[fb]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_Wake
 <LI><a href="#[fc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_SetDuty
 <LI><a href="#[c6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_BoardGet
-<LI><a href="#[df]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_PrepareDrv
+<LI><a href="#[de]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_PrepareDrv
 <LI><a href="#[c5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_CaptureDrvFault
 <LI><a href="#[f4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_Abs
 </UL>
-<BR>[Called By]<UL><LI><a href="#[d4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_StopCell
+<BR>[Called By]<UL><LI><a href="#[d3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_StopCell
 <LI><a href="#[ee]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_RunClosedLoop
 </UL>
 
 <P><STRONG><a name="[ff]"></a>AppControl_SharedDrvNeeded</STRONG> (Thumb, 20 bytes, Stack size 0 bytes, app_control.o(i.AppControl_SharedDrvNeeded))
-<BR><BR>[Called By]<UL><LI><a href="#[d4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_StopCell
+<BR><BR>[Called By]<UL><LI><a href="#[d3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_StopCell
 </UL>
 
 <P><STRONG><a name="[fd]"></a>AppControl_SleepDrv</STRONG> (Thumb, 60 bytes, Stack size 16 bytes, app_control.o(i.AppControl_SleepDrv))
 <BR><BR>[Stack]<UL><LI>Max Depth = 240<LI>Call Chain = AppControl_SleepDrv &rArr; AppControl_CaptureDrvSleepRegs &rArr; DRV8703_ReadReg &rArr; DRV8703_Transfer16 &rArr; HAL_SPI_TransmitReceive &rArr; SPI_EndRxTxTransaction &rArr; SPI_WaitFifoStateUntilTimeout
 </UL>
-<BR>[Calls]<UL><LI><a href="#[e4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_Sleep
+<BR>[Calls]<UL><LI><a href="#[e3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_Sleep
 <LI><a href="#[fc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_SetDuty
 <LI><a href="#[c6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_BoardGet
 <LI><a href="#[cc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_CaptureDrvSleepRegs
 </UL>
-<BR>[Called By]<UL><LI><a href="#[d4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_StopCell
+<BR>[Called By]<UL><LI><a href="#[d3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_StopCell
 </UL>
 
-<P><STRONG><a name="[e6]"></a>AppControl_StartCell</STRONG> (Thumb, 384 bytes, Stack size 24 bytes, app_control.o(i.AppControl_StartCell))
+<P><STRONG><a name="[e5]"></a>AppControl_StartCell</STRONG> (Thumb, 384 bytes, Stack size 24 bytes, app_control.o(i.AppControl_StartCell))
 <BR><BR>[Stack]<UL><LI>Max Depth = 368<LI>Call Chain = AppControl_StartCell &rArr; AppControl_StopCell &rArr; AppControl_SetDrvDuty &rArr; AppControl_PrepareDrv &rArr; DRV8703_BoardApplyDefaultConfig &rArr; DRV8703_Configure &rArr; DRV8703_ClearFault &rArr; DRV8703_WriteReg &rArr; DRV8703_Transfer16 &rArr; HAL_SPI_TransmitReceive &rArr; SPI_EndRxTxTransaction &rArr; SPI_WaitFifoStateUntilTimeout
 </UL>
 <BR>[Calls]<UL><LI><a href="#[f0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osKernelGetTickCount
 <LI><a href="#[f2]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;PID_SetTarget
 <LI><a href="#[f8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;PID_Reset
-<LI><a href="#[d4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_StopCell
-<LI><a href="#[d3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_SetCellError
-<LI><a href="#[df]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_PrepareDrv
+<LI><a href="#[d3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_StopCell
+<LI><a href="#[d2]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_SetCellError
+<LI><a href="#[de]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_PrepareDrv
 <LI><a href="#[fe]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_CellHardwareOk
 <LI><a href="#[ef]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_CellFirstDrv
 <LI><a href="#[f6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_CellDrvError
 </UL>
-<BR>[Called By]<UL><LI><a href="#[e5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_ProcessCommands
+<BR>[Called By]<UL><LI><a href="#[e4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_ProcessCommands
 </UL>
 
-<P><STRONG><a name="[d4]"></a>AppControl_StopCell</STRONG> (Thumb, 212 bytes, Stack size 16 bytes, app_control.o(i.AppControl_StopCell))
+<P><STRONG><a name="[d3]"></a>AppControl_StopCell</STRONG> (Thumb, 212 bytes, Stack size 16 bytes, app_control.o(i.AppControl_StopCell))
 <BR><BR>[Stack]<UL><LI>Max Depth = 344<LI>Call Chain = AppControl_StopCell &rArr; AppControl_SetDrvDuty &rArr; AppControl_PrepareDrv &rArr; DRV8703_BoardApplyDefaultConfig &rArr; DRV8703_Configure &rArr; DRV8703_ClearFault &rArr; DRV8703_WriteReg &rArr; DRV8703_Transfer16 &rArr; HAL_SPI_TransmitReceive &rArr; SPI_EndRxTxTransaction &rArr; SPI_WaitFifoStateUntilTimeout
 </UL>
 <BR>[Calls]<UL><LI><a href="#[f8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;PID_Reset
@@ -4327,10 +4331,10 @@ Local Symbols
 <LI><a href="#[ef]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_CellFirstDrv
 </UL>
 <BR>[Called By]<UL><LI><a href="#[101]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_UpdateTemperatureInputs
-<LI><a href="#[e6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_StartCell
+<LI><a href="#[e5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_StartCell
 <LI><a href="#[ee]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_RunClosedLoop
-<LI><a href="#[e5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_ProcessCommands
-<LI><a href="#[d1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_CheckDrvFaults
+<LI><a href="#[e4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_ProcessCommands
+<LI><a href="#[d0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_CheckDrvFaults
 </UL>
 
 <P><STRONG><a name="[108]"></a>AppControl_TempInputIsFresh</STRONG> (Thumb, 52 bytes, Stack size 12 bytes, app_control.o(i.AppControl_TempInputIsFresh))
@@ -4358,8 +4362,8 @@ Local Symbols
 </UL>
 <BR>[Calls]<UL><LI><a href="#[109]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_TempSensorError
 <LI><a href="#[108]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_TempInputIsFresh
-<LI><a href="#[d4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_StopCell
-<LI><a href="#[d3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_SetCellError
+<LI><a href="#[d3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_StopCell
+<LI><a href="#[d2]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_SetCellError
 <LI><a href="#[eb]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_RequestTempSensorReset
 <LI><a href="#[fa]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppControl_IsTempSensorError
 </UL>
@@ -4396,10 +4400,10 @@ Local Symbols
 <LI><a href="#[116]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_Init
 <LI><a href="#[125]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_Transfer16
 <LI><a href="#[fb]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_Wake
-<LI><a href="#[e4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_Sleep
-<LI><a href="#[e2]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_SetVrefMv
+<LI><a href="#[e3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_Sleep
+<LI><a href="#[e1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_SetVrefMv
 <LI><a href="#[fc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_SetDuty
-<LI><a href="#[d2]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_CheckFaultPins
+<LI><a href="#[d1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_CheckFaultPins
 </UL>
 
 <P><STRONG><a name="[11f]"></a>DRV8703_LimitFloat</STRONG> (Thumb, 42 bytes, Stack size 0 bytes, drv8703.o(i.DRV8703_LimitFloat))
@@ -4410,7 +4414,7 @@ Local Symbols
 <P><STRONG><a name="[122]"></a>DRV8703_SetPwmRaw</STRONG> (Thumb, 76 bytes, Stack size 0 bytes, drv8703.o(i.DRV8703_SetPwmRaw))
 <BR><BR>[Called By]<UL><LI><a href="#[120]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_InitSafeState
 <LI><a href="#[fb]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_Wake
-<LI><a href="#[e4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_Sleep
+<LI><a href="#[e3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_Sleep
 <LI><a href="#[fc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_SetDuty
 </UL>
 
@@ -4427,12 +4431,12 @@ Local Symbols
 <LI><a href="#[cd]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_ReadReg
 </UL>
 
-<P><STRONG><a name="[115]"></a>DRV8703_BoardDeselectAll</STRONG> (Thumb, 64 bytes, Stack size 8 bytes, drv8703_board.o(i.DRV8703_BoardDeselectAll))
+<P><STRONG><a name="[115]"></a>DRV8703_BoardDeselectAll</STRONG> (Thumb, 54 bytes, Stack size 8 bytes, drv8703_board.o(i.DRV8703_BoardDeselectAll))
 <BR><BR>[Stack]<UL><LI>Max Depth = 8<LI>Call Chain = DRV8703_BoardDeselectAll
 </UL>
 <BR>[Calls]<UL><LI><a href="#[ec]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_GPIO_WritePin
 </UL>
-<BR>[Called By]<UL><LI><a href="#[e0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_BoardInitOne
+<BR>[Called By]<UL><LI><a href="#[df]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_BoardInitOne
 </UL>
 
 <P><STRONG><a name="[1da]"></a>active</STRONG> (Thumb, 6 bytes, Stack size 0 bytes, temp_panel.o(i.active))
