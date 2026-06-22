@@ -1,0 +1,15 @@
+bisemin\queue.o: ../Middlewares/Third_Party/FreeRTOS/Source/queue.c
+bisemin\queue.o: E:\MDK\ARM\ARMCC\Bin\..\include\stdlib.h
+bisemin\queue.o: E:\MDK\ARM\ARMCC\Bin\..\include\string.h
+bisemin\queue.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h
+bisemin\queue.o: E:\MDK\ARM\ARMCC\Bin\..\include\stddef.h
+bisemin\queue.o: E:\MDK\ARM\ARMCC\Bin\..\include\stdint.h
+bisemin\queue.o: ../Core/Inc/FreeRTOSConfig.h
+bisemin\queue.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/projdefs.h
+bisemin\queue.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/portable.h
+bisemin\queue.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/deprecated_definitions.h
+bisemin\queue.o: ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F/portmacro.h
+bisemin\queue.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/mpu_wrappers.h
+bisemin\queue.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/task.h
+bisemin\queue.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/list.h
+bisemin\queue.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/queue.h

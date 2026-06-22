@@ -148,7 +148,24 @@
           <Name>-U-O142 -O2254 -SF10000 -C0 -A0 -I0 -HNlocalhost -HP7184 -P1 -N00("ARM CoreSight SW-DP (ARM Core") -D00(2BA01477) -L00(0) -TO131090 -TC10000000 -TT10000000 -TP21 -TDS8007 -TDT0 -TDC1F -TIEFFFFFFFF -TIP8 -FO7 -FD20000000 -FC1000 -FN1 -FF0STM32G47x-8x_256.FLM -FS08000000 -FL040000 -FP0($$Device:STM32G474VCTx$CMSIS\Flash\STM32G47x-8x_256.FLM)</Name>
         </SetRegEntry>
       </TargetDriverDllRegistry>
-      <Breakpoint/>
+      <Breakpoint>
+        <Bp>
+          <Number>0</Number>
+          <Type>0</Type>
+          <LineNumber>290</LineNumber>
+          <EnabledFlag>1</EnabledFlag>
+          <Address>134227390</Address>
+          <ByteObject>0</ByteObject>
+          <HtxType>0</HtxType>
+          <ManyObjects>0</ManyObjects>
+          <SizeOfObject>0</SizeOfObject>
+          <BreakByAccess>0</BreakByAccess>
+          <BreakIfRCount>1</BreakIfRCount>
+          <Filename>..\My\app_control.c</Filename>
+          <ExecCommand></ExecCommand>
+          <Expression>\\bisemin\../My/app_control.c\290</Expression>
+        </Bp>
+      </Breakpoint>
       <WatchWindow1>
         <Ww>
           <count>0</count>
@@ -243,122 +260,117 @@
         <Ww>
           <count>18</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_app_control_drv_vds_gdf_status</ItemText>
+          <ItemText>g_app_control_drv_pin_fault_count</ItemText>
         </Ww>
         <Ww>
           <count>19</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_app_control_drv_reg_dump</ItemText>
+          <ItemText>g_app_control_drv_startup_reg_dump</ItemText>
         </Ww>
         <Ww>
           <count>20</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_app_control_drv_pin_fault_count</ItemText>
+          <ItemText>g_app_control_drv_pin_fault_reg_dump</ItemText>
         </Ww>
         <Ww>
           <count>21</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_app_control_drv_startup_reg_dump</ItemText>
+          <ItemText>g_app_control_drv_pin_fault_fault_status</ItemText>
         </Ww>
         <Ww>
           <count>22</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_app_control_drv_pin_fault_</ItemText>
+          <ItemText>g_app_control_drv_pin_fault_all_ff</ItemText>
         </Ww>
         <Ww>
           <count>23</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_app_control_drv_pin_fault_read_status</ItemText>
+          <ItemText>g_app_control_drv_init_attempts</ItemText>
         </Ww>
         <Ww>
           <count>24</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_app_control_drv_pin_fault_fault_status</ItemText>
+          <ItemText>g_app_control_sleep_reg_snapshot</ItemText>
         </Ww>
         <Ww>
           <count>25</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_app_control_drv_pin_fault_fault_status</ItemText>
+          <ItemText>g_app_control_drv_fault</ItemText>
         </Ww>
         <Ww>
           <count>26</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_app_control_drv_fault_read_status</ItemText>
+          <ItemText>g_app_control_drv_raw_dump</ItemText>
         </Ww>
         <Ww>
           <count>27</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_app_control_drv_pin_fault_reg_dump[3]</ItemText>
+          <ItemText>Sys_TempUpdateCount</ItemText>
         </Ww>
         <Ww>
           <count>28</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_app_control_drv_pin_fault_fault_status</ItemText>
+          <ItemText>g_app_control_test_duty</ItemText>
         </Ww>
         <Ww>
           <count>29</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_app_control_drv_pin_fault_reg_read_ok_mask[3]</ItemText>
+          <ItemText>g_app_control_drv_pin_fault_reg_dump</ItemText>
         </Ww>
         <Ww>
           <count>30</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_app_control_drv_pin_fault_reg_dump[3]</ItemText>
+          <ItemText>g_app_control_drv_pin_fault_count</ItemText>
         </Ww>
         <Ww>
           <count>31</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_app_control_drv_startup_reg_dump[3]</ItemText>
+          <ItemText>g_app_control_drv_raw_dump</ItemText>
         </Ww>
         <Ww>
           <count>32</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_app_control_drv_pin_fault_reg_dump</ItemText>
+          <ItemText>g_app_control_pid_duty</ItemText>
         </Ww>
         <Ww>
           <count>33</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_app_control_drv_pin_fault_fault_status</ItemText>
+          <ItemText>g_app_control_temp_freq_hz</ItemText>
         </Ww>
         <Ww>
           <count>34</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_app_control_drv_pin_fault_all_ff</ItemText>
+          <ItemText>g_app_control_pid_freq_hz</ItemText>
         </Ww>
         <Ww>
           <count>35</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_app_control_drv_init_attempts</ItemText>
+          <ItemText>g_app_control_loop_count</ItemText>
         </Ww>
         <Ww>
           <count>36</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_app_control_drv_ready</ItemText>
+          <ItemText>Sys_TempUpdateTick</ItemText>
         </Ww>
         <Ww>
           <count>37</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_app_control_drv_startup_dump_status</ItemText>
+          <ItemText>s_temp_stale_cycles</ItemText>
         </Ww>
         <Ww>
           <count>38</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_app_control_sleep_reg_snapshot</ItemText>
+          <ItemText>g_app_control_temp_reset_count</ItemText>
         </Ww>
         <Ww>
           <count>39</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_app_control_drv_fault</ItemText>
+          <ItemText>s_temp_stale_cycles</ItemText>
         </Ww>
         <Ww>
           <count>40</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_app_control_drv_pin_fault_stop_bits</ItemText>
-        </Ww>
-        <Ww>
-          <count>41</count>
-          <WinNumber>1</WinNumber>
-          <ItemText>g_app_control_drv_raw_dump</ItemText>
+          <ItemText>count</ItemText>
         </Ww>
       </WatchWindow1>
       <WatchWindow2>

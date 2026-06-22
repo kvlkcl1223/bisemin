@@ -179,7 +179,7 @@ void StartControlTask(void *argument)
      * g_adc_measure_adc1_update_count / g_adc_measure_adc2_update_count
      */
     g_app_drv8703_loop_counter++;
-    osDelay(200);
+    osDelay(20);
   }
   /* USER CODE END StartControlTask */
 }

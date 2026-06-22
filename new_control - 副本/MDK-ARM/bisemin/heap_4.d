@@ -1,0 +1,13 @@
+bisemin\heap_4.o: ../Middlewares/Third_Party/FreeRTOS/Source/portable/MemMang/heap_4.c
+bisemin\heap_4.o: E:\MDK\ARM\ARMCC\Bin\..\include\stdlib.h
+bisemin\heap_4.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h
+bisemin\heap_4.o: E:\MDK\ARM\ARMCC\Bin\..\include\stddef.h
+bisemin\heap_4.o: E:\MDK\ARM\ARMCC\Bin\..\include\stdint.h
+bisemin\heap_4.o: ../Core/Inc/FreeRTOSConfig.h
+bisemin\heap_4.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/projdefs.h
+bisemin\heap_4.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/portable.h
+bisemin\heap_4.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/deprecated_definitions.h
+bisemin\heap_4.o: ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F/portmacro.h
+bisemin\heap_4.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/mpu_wrappers.h
+bisemin\heap_4.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/task.h
+bisemin\heap_4.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/list.h
