@@ -1,8 +1,8 @@
 bisemin\timers.o: ../Middlewares/Third_Party/FreeRTOS/Source/timers.c
-bisemin\timers.o: E:\MDK\ARM\ARMCC\Bin\..\include\stdlib.h
+bisemin\timers.o: D:\Keil_v5\ARM\v5\Bin\..\include\stdlib.h
 bisemin\timers.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h
-bisemin\timers.o: E:\MDK\ARM\ARMCC\Bin\..\include\stddef.h
-bisemin\timers.o: E:\MDK\ARM\ARMCC\Bin\..\include\stdint.h
+bisemin\timers.o: D:\Keil_v5\ARM\v5\Bin\..\include\stddef.h
+bisemin\timers.o: D:\Keil_v5\ARM\v5\Bin\..\include\stdint.h
 bisemin\timers.o: ../Core/Inc/FreeRTOSConfig.h
 bisemin\timers.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/projdefs.h
 bisemin\timers.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/portable.h

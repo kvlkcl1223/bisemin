@@ -59,6 +59,8 @@
 "bisemin\temp_panel.o"
 "bisemin\tm1638_board.o"
 "bisemin\pid_controller.o"
+"bisemin\calib_mode.o"
+"bisemin\flash_storage.o"
 --strict --scatter "stm32g474xx_flash.sct"
 --summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
 --info sizes --info totals --info unused --info veneers

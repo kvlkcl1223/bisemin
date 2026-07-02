@@ -3,38 +3,40 @@
 <pre>
 <h1>礦ision Build Log</h1>
 <h2>Tool Versions:</h2>
-IDE-Version: μVision V5.37.0.0
+IDE-Version: μVision V5.38.0.0
 Copyright (C) 2022 ARM Ltd and ARM Germany GmbH. All rights reserved.
-License Information: 1 张文波, HP Inc., LIC=R4HV2-9BK62-YDWK5-GZ7IG-Q66J5-2PQTI
+License Information: wenbozhang admin, wenbozhang, LIC=03C6R-K2VFB-GKUBG-VH4DV-G39TE-NVMHN
  
 Tool Versions:
-Toolchain:       MDK-ARM Professional  Version: 5.37.0.0
-Toolchain Path:  E:\MDK\ARM\ARMCC\Bin
-C Compiler:      Armcc.exe V5.06 update 6 (build 750)
-Assembler:       Armasm.exe V5.06 update 6 (build 750)
-Linker/Locator:  ArmLink.exe V5.06 update 6 (build 750)
-Library Manager: ArmAr.exe V5.06 update 6 (build 750)
-Hex Converter:   FromElf.exe V5.06 update 6 (build 750)
-CPU DLL:         SARMCM3.DLL V5.37.0.0
+Toolchain:       MDK-ARM Plus  Version: 5.38.0.0
+Toolchain Path:  D:\Keil_v5\ARM\v5\Bin
+C Compiler:      Armcc.exe V5.06 update 7 (build 960)
+Assembler:       Armasm.exe V5.06 update 7 (build 960)
+Linker/Locator:  ArmLink.exe V5.06 update 7 (build 960)
+Library Manager: ArmAr.exe V5.06 update 7 (build 960)
+Hex Converter:   FromElf.exe V5.06 update 7 (build 960)
+CPU DLL:         SARMCM3.DLL V5.38.0.0
 Dialog DLL:      DCM.DLL V1.17.5.0
-Target DLL:      STLink\ST-LINKIII-KEIL_SWO.dll V3.0.9.0
-Dialog DLL:      TCM.DLL V1.56.1.0
+Target DLL:      STLink\ST-LINKIII-KEIL_SWO.dll V3.1.0.0
+Dialog DLL:      TCM.DLL V1.56.4.0
  
 <h2>Project:</h2>
-E:\jianzhi\bisemin\new_control - 副本\MDK-ARM\bisemin.uvprojx
-Project File Date:  06/21/2026
+D:\bisemin\bisemin\new_control_v2\MDK-ARM\bisemin.uvprojx
+Project File Date:  07/02/2026
 
 <h2>Output:</h2>
-*** Using Compiler 'V5.06 update 6 (build 750)', folder: 'E:\MDK\ARM\ARMCC\Bin'
+*** Using Compiler 'V5.06 update 7 (build 960)', folder: 'D:\Keil_v5\ARM\v5\Bin'
 Build target 'bisemin'
 compiling app_freertos.c...
-../My/app_control.h(136): warning:  #1-D: last line of file ends without a newline
+../My/app_control.h(142): warning:  #1-D: last line of file ends without a newline
   #endif
-../Core/Src/app_freertos.c: 1 warning, 0 errors
+../My/calib_mode.h(176): warning:  #1-D: last line of file ends without a newline
+  #endif /* __CALIB_MODE_H */
+../Core/Src/app_freertos.c: 2 warnings, 0 errors
 linking...
-Program Size: Code=59100 RO-data=1380 RW-data=952 ZI-data=56344  
+Program Size: Code=52396 RO-data=1868 RW-data=1008 ZI-data=58568  
 FromELF: creating hex file...
-"bisemin\bisemin.axf" - 0 Error(s), 1 Warning(s).
+"bisemin\bisemin.axf" - 0 Error(s), 2 Warning(s).
 
 <h2>Software Packages used:</h2>
 
@@ -45,20 +47,19 @@ Package Vendor: ARM
    * Component: CORE Version: 5.6.0
 
 Package Vendor: Keil
-                https://www.keil.com/pack/Keil.STM32G4xx_DFP.1.5.0.pack
-                Keil.STM32G4xx_DFP.1.5.0
-                STMicroelectronics STM32G4 Series Device Support, Drivers and Examples
+                https://www.keil.com/pack/Keil.STM32G4xx_DFP.2.2.0.pack
+                Keil.STM32G4xx_DFP.2.2.0
+                STMicroelectronics STM32G4 Series Device Support
 
 <h2>Collection of Component include folders:</h2>
   ./RTE/_bisemin
-  E:/MDK/ARM/CMSIS/5.9.0/CMSIS/Core/Include
-  E:/MDK/Keil/STM32G4xx_DFP/1.5.0/Drivers/CMSIS/Device/ST/STM32G4xx/Include
+  D:/Users/wenbo.zhang/AppData/Local/Arm/Packs/ARM/CMSIS/5.9.0/CMSIS/Core/Include
 
 <h2>Collection of Component Files used:</h2>
 
    * Component: ARM::CMSIS:CORE:5.6.0
       Include file:  CMSIS/Core/Include/tz_context.h
-Build Time Elapsed:  00:00:03
+Build Time Elapsed:  00:00:04
 </pre>
 </body>
 </html>

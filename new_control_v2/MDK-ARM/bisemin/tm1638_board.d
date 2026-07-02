@@ -1,7 +1,7 @@
 bisemin\tm1638_board.o: ..\My\tm1638_board.c
 bisemin\tm1638_board.o: ..\My\tm1638_board.h
-bisemin\tm1638_board.o: E:\MDK\ARM\ARMCC\Bin\..\include\stdint.h
-bisemin\tm1638_board.o: E:\MDK\ARM\ARMCC\Bin\..\include\stdbool.h
+bisemin\tm1638_board.o: D:\Keil_v5\ARM\v5\Bin\..\include\stdint.h
+bisemin\tm1638_board.o: D:\Keil_v5\ARM\v5\Bin\..\include\stdbool.h
 bisemin\tm1638_board.o: ../Core/Inc/main.h
 bisemin\tm1638_board.o: ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal.h
 bisemin\tm1638_board.o: ../Core/Inc/stm32g4xx_hal_conf.h
@@ -17,7 +17,7 @@ bisemin\tm1638_board.o: ../Drivers/CMSIS/Include/mpu_armv7.h
 bisemin\tm1638_board.o: ../Drivers/CMSIS/Device/ST/STM32G4xx/Include/system_stm32g4xx.h
 bisemin\tm1638_board.o: ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal.h
 bisemin\tm1638_board.o: ../Drivers/STM32G4xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h
-bisemin\tm1638_board.o: E:\MDK\ARM\ARMCC\Bin\..\include\stddef.h
+bisemin\tm1638_board.o: D:\Keil_v5\ARM\v5\Bin\..\include\stddef.h
 bisemin\tm1638_board.o: ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_rcc_ex.h
 bisemin\tm1638_board.o: ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_gpio.h
 bisemin\tm1638_board.o: ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_gpio_ex.h

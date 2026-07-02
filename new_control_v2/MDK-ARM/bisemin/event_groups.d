@@ -1,8 +1,8 @@
 bisemin\event_groups.o: ../Middlewares/Third_Party/FreeRTOS/Source/event_groups.c
-bisemin\event_groups.o: E:\MDK\ARM\ARMCC\Bin\..\include\stdlib.h
+bisemin\event_groups.o: D:\Keil_v5\ARM\v5\Bin\..\include\stdlib.h
 bisemin\event_groups.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h
-bisemin\event_groups.o: E:\MDK\ARM\ARMCC\Bin\..\include\stddef.h
-bisemin\event_groups.o: E:\MDK\ARM\ARMCC\Bin\..\include\stdint.h
+bisemin\event_groups.o: D:\Keil_v5\ARM\v5\Bin\..\include\stddef.h
+bisemin\event_groups.o: D:\Keil_v5\ARM\v5\Bin\..\include\stdint.h
 bisemin\event_groups.o: ../Core/Inc/FreeRTOSConfig.h
 bisemin\event_groups.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/projdefs.h
 bisemin\event_groups.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/portable.h

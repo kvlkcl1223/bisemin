@@ -32,6 +32,7 @@
 #include "sys_state.h"
 #include "adc_measure.h"
 #include "app_control.h"
+#include "calib_mode.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -163,6 +164,7 @@ void StartControlTask(void *argument)
     AdcMeasure_CalibrateCurrentZero(APP_ADC_MEASURE_ZERO_SAMPLES);
   }
   g_app_control_start_result = AppControl_Init();
+  CalibMode_Start(0);
 
   /* Infinite loop */
   for (;;)
@@ -217,10 +219,61 @@ void StartHMITask(void *argument)
     if (now - last_tick >= 20)
     {
       last_tick = now;
-      TM1638_ProcessKeys(&htm1638);
-      CheckKeyHoldEvents();
-      AppControl_UpdatePanel(&g_panel, now);
-      TempPanel_Task(&g_panel, now);
+
+      if (g_calib_mode_active != 0U)
+      {
+        uint16_t led_mask = 0U;
+        if (g_calib_state == CALIB_IDLE || g_calib_state == CALIB_RUN)
+          led_mask = 0x00;
+        else if (g_calib_state == CALIB_INIT)
+          led_mask = 0x01;
+        else if (g_calib_state == CALIB_WAIT_STABLE)
+          led_mask = 0x03;
+        else if (g_calib_state == CALIB_DONE)
+          led_mask = 0x1FF;
+        else if (g_calib_state == CALIB_FAULT)
+          led_mask = 0x155;
+        TM1638_SetAllLEDs(&htm1638, led_mask);
+
+        TM1638_ClearDisplay(&htm1638);
+        if (g_calib_state == CALIB_DONE)
+        {
+        }
+        else if (g_calib_state == CALIB_FAULT)
+        {
+          TM1638_ShowString(&htm1638, "Err");
+        }
+        else
+        {
+          TM1638_ShowChar(&htm1638, 0U, 'C', false);
+          TM1638_ShowDigit(&htm1638, 1U, g_calib_cell, false);
+          TM1638_ShowDigit(&htm1638, 3U, g_calib_step_idx / 10U, false);
+          TM1638_ShowDigit(&htm1638, 4U, g_calib_step_idx % 10U, false);
+          if (g_calib_show_duty != 0U)
+          {
+            float duty = CalibMode_StepDuty(g_calib_step_idx);
+            TM1638_ShowChar(&htm1638, 5U, 'd', false);
+            TM1638_ShowFloat(&htm1638, duty, 2);
+          }
+          else
+          {
+            float temp;
+            if (g_calib_cell == 0U)
+              temp = g_calib_temp_ch0;
+            else
+              temp = g_calib_temp_ch1;
+            TM1638_ShowChar(&htm1638, 5U, 't', false);
+            TM1638_ShowFloat(&htm1638, temp, 1);
+          }
+        }
+      }
+      else
+      {
+        TM1638_ProcessKeys(&htm1638);
+        CheckKeyHoldEvents();
+        AppControl_UpdatePanel(&g_panel, now);
+        TempPanel_Task(&g_panel, now);
+      }
 
       static uint32_t last_blink = 0;
       if (now - last_blink >= 500)

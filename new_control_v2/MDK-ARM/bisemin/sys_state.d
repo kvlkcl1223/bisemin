@@ -1,9 +1,9 @@
 bisemin\sys_state.o: ..\My\sys_state.c
 bisemin\sys_state.o: ..\My\sys_state.h
-bisemin\sys_state.o: E:\MDK\ARM\ARMCC\Bin\..\include\stdint.h
+bisemin\sys_state.o: D:\Keil_v5\ARM\v5\Bin\..\include\stdint.h
 bisemin\sys_state.o: ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os.h
 bisemin\sys_state.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h
-bisemin\sys_state.o: E:\MDK\ARM\ARMCC\Bin\..\include\stddef.h
+bisemin\sys_state.o: D:\Keil_v5\ARM\v5\Bin\..\include\stddef.h
 bisemin\sys_state.o: ../Core/Inc/FreeRTOSConfig.h
 bisemin\sys_state.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/projdefs.h
 bisemin\sys_state.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/portable.h

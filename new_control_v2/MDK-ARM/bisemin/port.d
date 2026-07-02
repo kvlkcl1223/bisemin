@@ -1,7 +1,7 @@
 bisemin\port.o: ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F/port.c
 bisemin\port.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h
-bisemin\port.o: E:\MDK\ARM\ARMCC\Bin\..\include\stddef.h
-bisemin\port.o: E:\MDK\ARM\ARMCC\Bin\..\include\stdint.h
+bisemin\port.o: D:\Keil_v5\ARM\v5\Bin\..\include\stddef.h
+bisemin\port.o: D:\Keil_v5\ARM\v5\Bin\..\include\stdint.h
 bisemin\port.o: ../Core/Inc/FreeRTOSConfig.h
 bisemin\port.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/projdefs.h
 bisemin\port.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/portable.h

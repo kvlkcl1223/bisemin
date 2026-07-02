@@ -16,6 +16,12 @@ extern "C"
 #define APP_CONTROL_TEMP_INPUT_COUNT 4U
 #define APP_CONTROL_CLOSED_LOOP_COUNT 4U
 
+/** @brief Maximum absolute duty cycle used for PID output clamping */
+#define APP_CONTROL_MAX_ABS_DUTY 0.35f
+
+/** @brief Fixed shared channel 5 duty cycle when a cell is running */
+#define APP_CONTROL_SHARED_CH5_DUTY 0.20f
+
     typedef enum
     {
         APP_CONTROL_OK = 0,

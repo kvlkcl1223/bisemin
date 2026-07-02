@@ -1,8 +1,8 @@
 bisemin\cmsis_os2.o: ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os2.c
-bisemin\cmsis_os2.o: E:\MDK\ARM\ARMCC\Bin\..\include\string.h
+bisemin\cmsis_os2.o: D:\Keil_v5\ARM\v5\Bin\..\include\string.h
 bisemin\cmsis_os2.o: ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os2.h
-bisemin\cmsis_os2.o: E:\MDK\ARM\ARMCC\Bin\..\include\stdint.h
-bisemin\cmsis_os2.o: E:\MDK\ARM\ARMCC\Bin\..\include\stddef.h
+bisemin\cmsis_os2.o: D:\Keil_v5\ARM\v5\Bin\..\include\stdint.h
+bisemin\cmsis_os2.o: D:\Keil_v5\ARM\v5\Bin\..\include\stddef.h
 bisemin\cmsis_os2.o: ../Drivers/CMSIS/Include/cmsis_compiler.h
 bisemin\cmsis_os2.o: ../Drivers/CMSIS/Include/cmsis_armcc.h
 bisemin\cmsis_os2.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h

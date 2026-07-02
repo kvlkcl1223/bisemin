@@ -1,6 +1,7 @@
 #include "app_control.h"
 
 #include "adc_measure.h"
+#include "calib_mode.h"
 #include "cmsis_os.h"
 #include "drv8703_board.h"
 #include "pid_controller.h"
@@ -10,11 +11,9 @@
 #define APP_CONTROL_DRV_VREF_MV 3300U
 #define APP_CONTROL_VSUPPLY_MIN_V 20.0f
 #define APP_CONTROL_TEMP_PID_DT_S 0.2f
-#define APP_CONTROL_TEMP_PID_KP 0.035f
-#define APP_CONTROL_TEMP_PID_KI 0.002f
+#define APP_CONTROL_TEMP_PID_KP 0.1f
+#define APP_CONTROL_TEMP_PID_KI 0.01f
 #define APP_CONTROL_TEMP_PID_KD 0.0f
-#define APP_CONTROL_MAX_ABS_DUTY 0.40f
-#define APP_CONTROL_SHARED_CH5_DUTY 0.20f
 #define APP_CONTROL_DRV_FAULT_POLL_MS 500U
 #define APP_CONTROL_DRV_REG_SNAPSHOT_MS 100U
 #define APP_CONTROL_DRV_FAULT_READ_RETRY_COUNT 8U
@@ -1002,7 +1001,7 @@ static DRV8703_Status_t AppControl_PrepareDrv(uint8_t drv)
  * sleeping (re-applies configuration registers lost during sleep), and
  * locks the registers afterwards.
  */
-static DRV8703_Status_t AppControl_SetDrvDuty(uint8_t drv, float duty)
+DRV8703_Status_t AppControl_SetDrvDuty(uint8_t drv, float duty)
 {
     DRV8703_Handle_t *dev;
     DRV8703_Status_t ret;
@@ -1826,13 +1825,21 @@ void AppControl_Task(uint32_t now_ms)
     }
     else
     {
-        AppControl_ServiceTempSensorReset(now_ms);
-        AppControl_ProcessCommands();
-        AppControl_UpdateTemperatureInputs(now_ms);
-        AppControl_CheckVoltageFaults();
-        AppControl_CheckDrvFaults(now_ms);
-        AppControl_ServiceErrorDisplayTimeout(now_ms);
-        AppControl_RunClosedLoop();
+        if (g_calib_mode_active != 0U)
+        {
+            CalibMode_Task(now_ms);
+        }
+
+        if (g_calib_mode_active == 0U)
+        {
+            AppControl_ServiceTempSensorReset(now_ms);
+            AppControl_ProcessCommands();
+            AppControl_UpdateTemperatureInputs(now_ms);
+            AppControl_CheckVoltageFaults();
+            AppControl_CheckDrvFaults(now_ms);
+            AppControl_ServiceErrorDisplayTimeout(now_ms);
+            AppControl_RunClosedLoop();
+        }
     }
 
     AppControl_ApplyDebugState();

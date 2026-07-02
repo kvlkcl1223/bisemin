@@ -820,11 +820,10 @@ ARM Macro Assembler    Page 13
               00000000 
 Command Line: --debug --xref --diag_suppress=9931 --cpu=Cortex-M4.fp.sp --apcs=
 interwork --depend=bisemin\startup_stm32g474xx.d -obisemin\startup_stm32g474xx.
-o -I../Drivers/CMSIS/Include -I.\RTE\_bisemin -IE:\MDK\ARM\CMSIS\5.9.0\CMSIS\Co
-re\Include -IE:\MDK\Keil\STM32G4xx_DFP\1.5.0\Drivers\CMSIS\Device\ST\STM32G4xx\
-Include --predefine="__UVISION_VERSION SETA 537" --predefine="_RTE_ SETA 1" --p
-redefine="STM32G474xx SETA 1" --predefine="_RTE_ SETA 1" --list=startup_stm32g4
-74xx.lst startup_stm32g474xx.s
+o -I../Drivers/CMSIS/Include -I.\RTE\_bisemin -ID:\Users\wenbo.zhang\AppData\Lo
+cal\Arm\Packs\ARM\CMSIS\5.9.0\CMSIS\Core\Include --predefine="__UVISION_VERSION
+ SETA 538" --predefine="_RTE_ SETA 1" --predefine="STM32G474xx SETA 1" --predef
+ine="_RTE_ SETA 1" --list=startup_stm32g474xx.lst startup_stm32g474xx.s
 
 
 

@@ -7,7 +7,7 @@ bisemin\main.o: ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_def.h
 bisemin\main.o: ../Drivers/CMSIS/Device/ST/STM32G4xx/Include/stm32g4xx.h
 bisemin\main.o: ../Drivers/CMSIS/Device/ST/STM32G4xx/Include/stm32g474xx.h
 bisemin\main.o: ../Drivers/CMSIS/Include/core_cm4.h
-bisemin\main.o: E:\MDK\ARM\ARMCC\Bin\..\include\stdint.h
+bisemin\main.o: D:\Keil_v5\ARM\v5\Bin\..\include\stdint.h
 bisemin\main.o: ../Drivers/CMSIS/Include/cmsis_version.h
 bisemin\main.o: ../Drivers/CMSIS/Include/cmsis_compiler.h
 bisemin\main.o: ../Drivers/CMSIS/Include/cmsis_armcc.h
@@ -15,7 +15,7 @@ bisemin\main.o: ../Drivers/CMSIS/Include/mpu_armv7.h
 bisemin\main.o: ../Drivers/CMSIS/Device/ST/STM32G4xx/Include/system_stm32g4xx.h
 bisemin\main.o: ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal.h
 bisemin\main.o: ../Drivers/STM32G4xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h
-bisemin\main.o: E:\MDK\ARM\ARMCC\Bin\..\include\stddef.h
+bisemin\main.o: D:\Keil_v5\ARM\v5\Bin\..\include\stddef.h
 bisemin\main.o: ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_rcc_ex.h
 bisemin\main.o: ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_gpio.h
 bisemin\main.o: ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_gpio_ex.h
@@ -62,6 +62,6 @@ bisemin\main.o: ../Core/Inc/usart.h
 bisemin\main.o: ../Core/Inc/gpio.h
 bisemin\main.o: ../My/bridge1_test.h
 bisemin\main.o: ../My/tm1638_board.h
-bisemin\main.o: E:\MDK\ARM\ARMCC\Bin\..\include\stdbool.h
+bisemin\main.o: D:\Keil_v5\ARM\v5\Bin\..\include\stdbool.h
 bisemin\main.o: ../My/pid_controller.h
 bisemin\main.o: ../My/temp_panel.h

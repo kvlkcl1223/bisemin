@@ -9,7 +9,7 @@ bisemin\drv8703_board.o: ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_def.h
 bisemin\drv8703_board.o: ../Drivers/CMSIS/Device/ST/STM32G4xx/Include/stm32g4xx.h
 bisemin\drv8703_board.o: ../Drivers/CMSIS/Device/ST/STM32G4xx/Include/stm32g474xx.h
 bisemin\drv8703_board.o: ../Drivers/CMSIS/Include/core_cm4.h
-bisemin\drv8703_board.o: E:\MDK\ARM\ARMCC\Bin\..\include\stdint.h
+bisemin\drv8703_board.o: D:\Keil_v5\ARM\v5\Bin\..\include\stdint.h
 bisemin\drv8703_board.o: ../Drivers/CMSIS/Include/cmsis_version.h
 bisemin\drv8703_board.o: ../Drivers/CMSIS/Include/cmsis_compiler.h
 bisemin\drv8703_board.o: ../Drivers/CMSIS/Include/cmsis_armcc.h
@@ -17,7 +17,7 @@ bisemin\drv8703_board.o: ../Drivers/CMSIS/Include/mpu_armv7.h
 bisemin\drv8703_board.o: ../Drivers/CMSIS/Device/ST/STM32G4xx/Include/system_stm32g4xx.h
 bisemin\drv8703_board.o: ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal.h
 bisemin\drv8703_board.o: ../Drivers/STM32G4xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h
-bisemin\drv8703_board.o: E:\MDK\ARM\ARMCC\Bin\..\include\stddef.h
+bisemin\drv8703_board.o: D:\Keil_v5\ARM\v5\Bin\..\include\stddef.h
 bisemin\drv8703_board.o: ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_rcc_ex.h
 bisemin\drv8703_board.o: ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_gpio.h
 bisemin\drv8703_board.o: ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_gpio_ex.h

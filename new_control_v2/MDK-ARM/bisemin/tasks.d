@@ -1,9 +1,9 @@
 bisemin\tasks.o: ../Middlewares/Third_Party/FreeRTOS/Source/tasks.c
-bisemin\tasks.o: E:\MDK\ARM\ARMCC\Bin\..\include\stdlib.h
-bisemin\tasks.o: E:\MDK\ARM\ARMCC\Bin\..\include\string.h
+bisemin\tasks.o: D:\Keil_v5\ARM\v5\Bin\..\include\stdlib.h
+bisemin\tasks.o: D:\Keil_v5\ARM\v5\Bin\..\include\string.h
 bisemin\tasks.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h
-bisemin\tasks.o: E:\MDK\ARM\ARMCC\Bin\..\include\stddef.h
-bisemin\tasks.o: E:\MDK\ARM\ARMCC\Bin\..\include\stdint.h
+bisemin\tasks.o: D:\Keil_v5\ARM\v5\Bin\..\include\stddef.h
+bisemin\tasks.o: D:\Keil_v5\ARM\v5\Bin\..\include\stdint.h
 bisemin\tasks.o: ../Core/Inc/FreeRTOSConfig.h
 bisemin\tasks.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/projdefs.h
 bisemin\tasks.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/portable.h
