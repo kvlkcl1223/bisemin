@@ -18,7 +18,9 @@
 #include "cmsis_os.h"
 #include "flash_storage.h"
 #include "pid_controller.h"
+#include "usart.h"
 #include <string.h>
+#include <stdio.h>
 
 /* 外部温度数据（由 ISR 更新） ----------------------------------------------*/
 extern volatile float    Sys_Temperatures[4];
@@ -267,6 +269,29 @@ static uint8_t CalibMode_WriteToFlash(void)
     return 0U;
 }
 
+/* USART2 输出辅助 -----------------------------------------------------------*/
+
+/**
+ * @brief  通过 USART2 发送文本字符串（阻塞模式）
+ * @param  str 以 null 结尾的字符串
+ */
+static void CalibMode_UartSend(const char *str)
+{
+    uint16_t len = 0U;
+    const char *p = str;
+
+    while (*p != '\0')
+    {
+        len++;
+        p++;
+    }
+
+    if (len > 0U)
+    {
+        HAL_UART_Transmit(&huart2, (const uint8_t *)str, len, 100U);
+    }
+}
+
 /* 标定状态机核心 ------------------------------------------------------------*/
 
 /**
@@ -315,6 +340,25 @@ static void CalibMode_FinishStep(uint8_t settled)
     g_calib_result[g_calib_step_idx].valid    = (settled != 0U) ? 1U : 0U;
     g_calib_result[g_calib_step_idx].settled  = settled;
 
+    /* 通过 USART2 发送当前步结果 */
+    {
+        float duty = CalibMode_StepDuty((uint8_t)g_calib_step_idx);
+        char buf[80];
+        int len = snprintf(buf, sizeof(buf),
+            "CALIB,CELL:%u,STEP:%u,DUTY:%+.2f,T0:%.1f,T1:%.1f,VALID:%u,SETTLED:%u\r\n",
+            (unsigned int)g_calib_cell,
+            (unsigned int)g_calib_step_idx + 1U,
+            (double)duty,
+            (double)avg_temp_ch0,
+            (double)avg_temp_ch1,
+            (unsigned int)((settled != 0U) ? 1U : 0U),
+            (unsigned int)settled);
+        if (len > 0 && len < (int)sizeof(buf))
+        {
+            CalibMode_UartSend(buf);
+        }
+    }
+
     g_calib_step_idx++;
 
     if (g_calib_step_idx >= CALIB_DUTY_COUNT)
@@ -339,6 +383,11 @@ static void CalibMode_FinishStep(uint8_t settled)
 }
 
 /* 公有 API 实现 -------------------------------------------------------------*/
+
+/* 全局静态标志，确保 DONE/FAULT/STOP 消息只发送一次 */
+static uint8_t s_calib_done_sent   = 0U;
+static uint8_t s_calib_fault_sent  = 0U;
+static uint8_t s_calib_stop_sent   = 0U;
 
 /**
  * @brief  启动自动标定流程
@@ -365,6 +414,11 @@ void CalibMode_Start(uint8_t cell)
     g_calib_show_duty    = 1U;
     g_calib_temp_ch0     = 0.0f;
     g_calib_temp_ch1     = 0.0f;
+
+    /* 重置单次发送标志 */
+    s_calib_done_sent   = 0U;
+    s_calib_fault_sent  = 0U;
+    s_calib_stop_sent   = 0U;
 
     memset((void *)g_calib_result, 0, sizeof(g_calib_result));
 }
@@ -457,15 +511,57 @@ void CalibMode_Task(uint32_t now_ms)
     }
 
     case CALIB_DONE:
-    case CALIB_FAULT:
     {
-        /* 标定结束，停止所有通道 */
         uint8_t cell  = (uint8_t)g_calib_cell;
         uint8_t first = (uint8_t)(cell * 2U);
 
         (void)AppControl_SetDrvDuty(first, 0.0f);
         (void)AppControl_SetDrvDuty((uint8_t)(first + 1U), 0.0f);
         (void)AppControl_SetDrvDuty(4U, 0.0f);
+
+        /* 通过 USART2 发送完成信息（仅发送一次） */
+        if (s_calib_done_sent == 0U)
+        {
+            s_calib_done_sent = 1U;
+            char buf[48];
+            int len = snprintf(buf, sizeof(buf),
+                "CALIB,DONE,CELL:%u,STEPS:%u\r\n",
+                (unsigned int)cell,
+                (unsigned int)CALIB_DUTY_COUNT);
+            if (len > 0 && len < (int)sizeof(buf))
+            {
+                CalibMode_UartSend(buf);
+            }
+        }
+
+        g_calib_mode_active = 0U;
+        g_calib_running     = 0U;
+        break;
+    }
+
+    case CALIB_FAULT:
+    {
+        uint8_t cell  = (uint8_t)g_calib_cell;
+        uint8_t first = (uint8_t)(cell * 2U);
+
+        (void)AppControl_SetDrvDuty(first, 0.0f);
+        (void)AppControl_SetDrvDuty((uint8_t)(first + 1U), 0.0f);
+        (void)AppControl_SetDrvDuty(4U, 0.0f);
+
+        /* 通过 USART2 发送故障信息（仅发送一次） */
+        if (s_calib_fault_sent == 0U)
+        {
+            s_calib_fault_sent = 1U;
+            char buf[48];
+            int len = snprintf(buf, sizeof(buf),
+                "CALIB,FAULT,CELL:%u,ERROR:%lu\r\n",
+                (unsigned int)cell,
+                (unsigned long)g_calib_error);
+            if (len > 0 && len < (int)sizeof(buf))
+            {
+                CalibMode_UartSend(buf);
+            }
+        }
 
         g_calib_mode_active = 0U;
         g_calib_running     = 0U;
@@ -489,6 +585,21 @@ void CalibMode_Stop(void)
     (void)AppControl_SetDrvDuty(first, 0.0f);
     (void)AppControl_SetDrvDuty((uint8_t)(first + 1U), 0.0f);
     (void)AppControl_SetDrvDuty(4U, 0.0f);
+
+    /* 通过 USART2 发送紧急停止信息（仅发送一次） */
+    if (s_calib_stop_sent == 0U)
+    {
+        s_calib_stop_sent = 1U;
+        char buf[48];
+        int len = snprintf(buf, sizeof(buf),
+            "CALIB,STOP,CELL:%u,ERROR:%lu\r\n",
+            (unsigned int)cell,
+            (unsigned long)g_calib_error);
+        if (len > 0 && len < (int)sizeof(buf))
+        {
+            CalibMode_UartSend(buf);
+        }
+    }
 
     g_calib_state       = CALIB_IDLE;
     g_calib_mode_active = 0U;
