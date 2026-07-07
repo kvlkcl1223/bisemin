@@ -277,8 +277,9 @@ int main(void)
   TemperatureUart_RestartReceive();
   // 直接通过 huart2 结构体内部的 hdmarx 指针来关闭过半中断
   HAL_Delay(20);
+  HAL_GPIO_WritePin(NRST_OTHER_GPIO_Port, NRST_OTHER_Pin, GPIO_PIN_RESET);
+  HAL_Delay(200);
   HAL_GPIO_WritePin(NRST_OTHER_GPIO_Port, NRST_OTHER_Pin, GPIO_PIN_SET);
-
   /* 一键初始化: TM1638 + Panel + PID + 默认显示 */
   Panel_Init();
 

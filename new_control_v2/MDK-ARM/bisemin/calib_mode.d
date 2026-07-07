@@ -60,4 +60,6 @@ bisemin\calib_mode.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/list.h
 bisemin\calib_mode.o: ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os2.h
 bisemin\calib_mode.o: ..\My\flash_storage.h
 bisemin\calib_mode.o: ..\My\pid_controller.h
+bisemin\calib_mode.o: ../Core/Inc/usart.h
 bisemin\calib_mode.o: D:\Keil_v5\ARM\v5\Bin\..\include\string.h
+bisemin\calib_mode.o: D:\Keil_v5\ARM\v5\Bin\..\include\stdio.h

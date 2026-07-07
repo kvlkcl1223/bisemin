@@ -2140,7 +2140,7 @@ F (..\My\pid_controller.c)(0x6A3CC647)(--c99 -c --cpu Cortex-M4.fp.sp -g -O1 --a
 I (..\My\pid_controller.h)(0x6A3CC647)
 I (D:\Keil_v5\ARM\v5\include\stdint.h)(0x5E8E3CC2)
 I (D:\Keil_v5\ARM\v5\include\stddef.h)(0x5E8E3CC2)
-F (..\My\calib_mode.c)(0x6A4607E4)(--c99 -c --cpu Cortex-M4.fp.sp -g -O1 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32G4xx_HAL_Driver/Inc -I ../Drivers/STM32G4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32G4xx/Include -I ../Drivers/CMSIS/Include -I ../Middlewares/Third_Party/FreeRTOS/Source/include -I ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 -I ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F -I ../My-I.\RTE\_bisemin-ID:\Users\wenbo.zhang\AppData\Local\Arm\Packs\ARM\CMSIS\5.9.0\CMSIS\Core\Include-D__UVISION_VERSION="538" -D_RTE_ -DSTM32G474xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32G474xx-o bisemin\calib_mode.o --omf_browse bisemin\calib_mode.crf --depend bisemin\calib_mode.d)
+F (..\My\calib_mode.c)(0x6A4C6463)(--c99 -c --cpu Cortex-M4.fp.sp -g -O1 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32G4xx_HAL_Driver/Inc -I ../Drivers/STM32G4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32G4xx/Include -I ../Drivers/CMSIS/Include -I ../Middlewares/Third_Party/FreeRTOS/Source/include -I ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 -I ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F -I ../My-I.\RTE\_bisemin-ID:\Users\wenbo.zhang\AppData\Local\Arm\Packs\ARM\CMSIS\5.9.0\CMSIS\Core\Include-D__UVISION_VERSION="538" -D_RTE_ -DSTM32G474xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32G474xx-o bisemin\calib_mode.o --omf_browse bisemin\calib_mode.crf --depend bisemin\calib_mode.d)
 I (..\My\calib_mode.h)(0x6A46074F)
 I (D:\Keil_v5\ARM\v5\include\stdint.h)(0x5E8E3CC2)
 I (..\My\app_control.h)(0x6A45DC13)
@@ -2201,7 +2201,9 @@ I (../Middlewares/Third_Party/FreeRTOS/Source/include/list.h)(0x6A3CC647)
 I (../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os2.h)(0x6A3CC647)
 I (..\My\flash_storage.h)(0x6A44DDAF)
 I (..\My\pid_controller.h)(0x6A3CC647)
+I (../Core/Inc/usart.h)(0x6A3CC646)
 I (D:\Keil_v5\ARM\v5\include\string.h)(0x5E8E3CC2)
+I (D:\Keil_v5\ARM\v5\include\stdio.h)(0x5E8E3CC2)
 F (..\My\flash_storage.c)(0x6A44DE1B)(--c99 -c --cpu Cortex-M4.fp.sp -g -O1 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32G4xx_HAL_Driver/Inc -I ../Drivers/STM32G4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32G4xx/Include -I ../Drivers/CMSIS/Include -I ../Middlewares/Third_Party/FreeRTOS/Source/include -I ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 -I ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F -I ../My-I.\RTE\_bisemin-ID:\Users\wenbo.zhang\AppData\Local\Arm\Packs\ARM\CMSIS\5.9.0\CMSIS\Core\Include-D__UVISION_VERSION="538" -D_RTE_ -DSTM32G474xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32G474xx-o bisemin\flash_storage.o --omf_browse bisemin\flash_storage.crf --depend bisemin\flash_storage.d)
 I (..\My\flash_storage.h)(0x6A44DDAF)
 I (../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal.h)(0x6A3CC646)
