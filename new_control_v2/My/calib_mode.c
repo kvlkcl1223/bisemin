@@ -22,6 +22,7 @@
 #include <string.h>
 #include <stdio.h>
 
+#define CALIB_LOG_PERIOD_MS 1000U
 /* 外部温度数据（由 ISR 更新） ----------------------------------------------*/
 extern volatile float    Sys_Temperatures[4];
 extern volatile uint32_t Sys_TempUpdateCount[4];
@@ -39,7 +40,6 @@ volatile uint8_t      g_calib_show_duty    = 1U;
 volatile uint8_t      g_calib_running      = 0U;
 volatile float        g_calib_temp_ch0     = 0.0f;
 volatile float        g_calib_temp_ch1     = 0.0f;
-
 /* 标定状态机私有变量 --------------------------------------------------------*/
 
 static uint32_t s_calib_step_start_ms  = 0U;   /* 当前步开始 tick */
@@ -56,7 +56,7 @@ static float     s_calib_stable_sum_ch0 = 0.0f;
 static float     s_calib_stable_sum_ch1 = 0.0f;
 static uint32_t  s_calib_stable_count   = 0U;
 static uint32_t  s_calib_last_temp_tick = 0U;
-
+static uint32_t  s_calib_last_log_ms    = 0U;
 /* CRC16 计算 ----------------------------------------------------------------*/
 
 /**
@@ -288,7 +288,7 @@ static void CalibMode_UartSend(const char *str)
 
     if (len > 0U)
     {
-        HAL_UART_Transmit(&huart2, (const uint8_t *)str, len, 100U);
+        HAL_UART_Transmit(&huart2, (const uint8_t *)str, len, 20U);
     }
 }
 
@@ -297,6 +297,47 @@ static void CalibMode_UartSend(const char *str)
 /**
  * @brief  初始化标定流程：配置 DRV 通道进入开环模式
  */
+static void CalibMode_LogPeriodic(uint32_t now_ms)
+{
+    char buf[176];
+    int len;
+    uint8_t step;
+    float duty;
+    float temp_avg;
+    float span;
+    uint32_t elapsed;
+
+    if (g_calib_mode_active == 0U)
+        return;
+
+    if ((now_ms - s_calib_last_log_ms) < CALIB_LOG_PERIOD_MS)
+        return;
+    s_calib_last_log_ms = now_ms;
+
+    step = (uint8_t)g_calib_step_idx;
+    duty = (step < CALIB_DUTY_COUNT) ? CalibMode_StepDuty(step) : 0.0f;
+    temp_avg = CalibMode_GetCellTemp();
+    span = (CalibMode_IsWindowFull() != 0U) ? CalibMode_GetWindowSpan() : -1.0f;
+    elapsed = (s_calib_step_start_ms == 0U) ? 0U : (now_ms - s_calib_step_start_ms);
+
+    len = snprintf(buf, sizeof(buf),
+                   "CALIB,RUN,STATE:%u,CELL:%u,STEP:%u,DUTY:%+.2f,"
+                   "T0:%.2f,T1:%.2f,TAVG:%.2f,SPAN:%.3f,ELAP:%lu\r\n",
+                   (unsigned int)g_calib_state,
+                   (unsigned int)g_calib_cell,
+                   (unsigned int)step,
+                   (double)duty,
+                   (double)g_calib_temp_ch0,
+                   (double)g_calib_temp_ch1,
+                   (double)temp_avg,
+                   (double)span,
+                   (unsigned long)elapsed);
+    if (len > 0 && len < (int)sizeof(buf))
+    {
+        CalibMode_UartSend(buf);
+    }
+}
+
 static void CalibMode_InitStep(void)
 {
     s_calib_step_start_ms   = 0U;
@@ -396,11 +437,15 @@ static uint8_t s_calib_stop_sent   = 0U;
 void CalibMode_Start(uint8_t cell)
 {
     if (cell > 1U)
+    {
+        CalibMode_UartSend("CALIB,START_REJECT,BAD_CELL\r\n");
         return;
+    }
 
     if (g_calib_mode_active != 0U)
     {
         g_calib_error = 2U;
+        CalibMode_UartSend("CALIB,START_REJECT,ACTIVE\r\n");
         return;
     }
 
@@ -414,13 +459,24 @@ void CalibMode_Start(uint8_t cell)
     g_calib_show_duty    = 1U;
     g_calib_temp_ch0     = 0.0f;
     g_calib_temp_ch1     = 0.0f;
-
+    s_calib_last_log_ms  = 0U;
     /* 重置单次发送标志 */
     s_calib_done_sent   = 0U;
     s_calib_fault_sent  = 0U;
     s_calib_stop_sent   = 0U;
 
     memset((void *)g_calib_result, 0, sizeof(g_calib_result));
+
+    {
+        char buf[40];
+        int len = snprintf(buf, sizeof(buf),
+            "CALIB,START,CELL:%u\r\n",
+            (unsigned int)cell);
+        if (len > 0 && len < (int)sizeof(buf))
+        {
+            CalibMode_UartSend(buf);
+        }
+    }
 }
 
 /**
@@ -429,6 +485,8 @@ void CalibMode_Start(uint8_t cell)
  */
 void CalibMode_Task(uint32_t now_ms)
 {
+    CalibMode_LogPeriodic(now_ms);
+
     switch (g_calib_state)
     {
     case CALIB_IDLE:
@@ -439,6 +497,16 @@ void CalibMode_Task(uint32_t now_ms)
         /* 初始化 Flash 存储 */
         FlashStorage_Init();
         CalibMode_InitStep();
+        {
+            char buf[40];
+            int len = snprintf(buf, sizeof(buf),
+                "CALIB,INIT,CELL:%u\r\n",
+                (unsigned int)g_calib_cell);
+            if (len > 0 && len < (int)sizeof(buf))
+            {
+                CalibMode_UartSend(buf);
+            }
+        }
         g_calib_state = CALIB_RUN;
         break;
     }
@@ -448,6 +516,19 @@ void CalibMode_Task(uint32_t now_ms)
         /* 设定当前步占空比，进入等待稳态 */
         CalibMode_SetStepDuty();
         s_calib_step_start_ms = now_ms;
+        {
+            float duty = CalibMode_StepDuty((uint8_t)g_calib_step_idx);
+            char buf[64];
+            int len = snprintf(buf, sizeof(buf),
+                "CALIB,STEP_START,CELL:%u,STEP:%u,DUTY:%+.2f\r\n",
+                (unsigned int)g_calib_cell,
+                (unsigned int)g_calib_step_idx,
+                (double)duty);
+            if (len > 0 && len < (int)sizeof(buf))
+            {
+                CalibMode_UartSend(buf);
+            }
+        }
         g_calib_state = CALIB_WAIT_STABLE;
         break;
     }

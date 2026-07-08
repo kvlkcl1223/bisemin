@@ -93,6 +93,8 @@ const osMutexAttr_t SysStateMutex_attributes = {
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
 static HAL_StatusTypeDef App_StartSynchronizedPwmTimebase(void);
+static void AppDebug_UartSend(const char *str);
+static void AppDebug_LogNormal(uint32_t now_ms);
 /* USER CODE END FunctionPrototypes */
 
 void StartControlTask(void *argument);
@@ -160,13 +162,41 @@ void StartControlTask(void *argument)
 
   osDelay(1000);
 
+  AppDebug_UartSend("SYS,CONTROL_INIT_BEGIN\r\n");
+
   g_app_tim_sync_start_result = App_StartSynchronizedPwmTimebase();
+  {
+    char buf[48];
+    (void)snprintf(buf, sizeof(buf),
+                   "SYS,TIM_SYNC:%u\r\n",
+                   (unsigned int)g_app_tim_sync_start_result);
+    AppDebug_UartSend(buf);
+  }
+
   g_app_adc_measure_start_result = AdcMeasure_Start();
+  {
+    char buf[48];
+    (void)snprintf(buf, sizeof(buf),
+                   "SYS,ADC_START:%u\r\n",
+                   (unsigned int)g_app_adc_measure_start_result);
+    AppDebug_UartSend(buf);
+  }
+
   if (g_app_adc_measure_start_result == ADC_MEASURE_OK)
   {
     AdcMeasure_CalibrateCurrentZero(APP_ADC_MEASURE_ZERO_SAMPLES);
+    AppDebug_UartSend("SYS,ADC_ZERO_DONE\r\n");
   }
   g_app_control_start_result = AppControl_Init();
+  {
+    char buf[48];
+    (void)snprintf(buf, sizeof(buf),
+                   "SYS,APP_CONTROL_INIT:%u\r\n",
+                   (unsigned int)g_app_control_start_result);
+    AppDebug_UartSend(buf);
+  }
+
+  AppDebug_UartSend("CALIB,AUTO_START,CELL:0\r\n");
   CalibMode_Start(0);
 
   /* Infinite loop */
@@ -179,6 +209,7 @@ void StartControlTask(void *argument)
 
     AdcMeasure_Process();
     AppControl_Task(osKernelGetTickCount());
+    AppDebug_LogNormal(osKernelGetTickCount());
 
     /*
      * Keil Watch:
@@ -339,6 +370,71 @@ static HAL_StatusTypeDef App_StartSynchronizedPwmTimebase(void)
   }
 
   return App_TIM_BaseStartIfStopped(&htim1);
+}
+static void AppDebug_UartSend(const char *str)
+{
+  uint16_t len = 0U;
+  const char *p = str;
+
+  if (str == NULL)
+    return;
+
+  while (*p != '\0')
+  {
+    len++;
+    p++;
+  }
+
+  if (len > 0U)
+  {
+    (void)HAL_UART_Transmit(&huart2, (const uint8_t *)str, len, 20U);
+  }
+}
+
+static void AppDebug_LogNormal(uint32_t now_ms)
+{
+  static uint32_t s_last_log_ms = 0U;
+  static uint8_t s_normal_start_sent = 0U;
+  char buf[192];
+  int len;
+
+  if (g_calib_mode_active != 0U)
+  {
+    s_normal_start_sent = 0U;
+    return;
+  }
+
+  if (s_normal_start_sent == 0U)
+  {
+    s_normal_start_sent = 1U;
+    AppDebug_UartSend("APP,NORMAL_START\r\n");
+  }
+
+  if ((now_ms - s_last_log_ms) < 1000U)
+    return;
+  s_last_log_ms = now_ms;
+
+  len = snprintf(buf, sizeof(buf),
+                 "APP,RUN,C0:%u,T0:%.2f,TAR0:%.2f,DUTY0:%.3f,"
+                 "C1:%u,T1:%.2f,TAR1:%.2f,DUTY1:%.3f,"
+                 "TCNT:%lu,%lu,%lu,%lu\r\n",
+                 (unsigned int)g_app_control_cell_running[0],
+                 (double)g_app_control_cell_temp[0],
+                 (double)g_app_control_cell_target[0],
+                 (double)g_app_control_cell_duty[0],
+                 (unsigned int)g_app_control_cell_running[1],
+                 (double)g_app_control_cell_temp[1],
+                 (double)g_app_control_cell_target[1],
+                 (double)g_app_control_cell_duty[1],
+                 (unsigned long)g_app_control_temp_update_count[0],
+                 (unsigned long)g_app_control_temp_update_count[1],
+                 (unsigned long)g_app_control_temp_update_count[2],
+                 (unsigned long)g_app_control_temp_update_count[3]);
+
+  if (len > 0 && len < (int)sizeof(buf))
+  {
+    AppDebug_UartSend(buf);
+  }
 }
 /* USER CODE END Application */
 
