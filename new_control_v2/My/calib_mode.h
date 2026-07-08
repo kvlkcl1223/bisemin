@@ -49,7 +49,7 @@ extern "C" {
 #define CALIB_MAX_WAIT_SECONDS  600U
 
 /** @brief 标定过程温度采样间隔 (ms)，应与 ControlTask 周期一致 */
-#define CALIB_SAMPLE_INTERVAL_MS  20U
+#define CALIB_SAMPLE_INTERVAL_MS  50U
 
 /** @brief 稳定判定所需最小采样点数 */
 #define CALIB_STABLE_SAMPLES  ((CALIB_STABLE_SECONDS * 1000U) / CALIB_SAMPLE_INTERVAL_MS)

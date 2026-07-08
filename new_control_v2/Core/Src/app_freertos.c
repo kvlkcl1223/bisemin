@@ -172,6 +172,11 @@ void StartControlTask(void *argument)
   /* Infinite loop */
   for (;;)
   {
+    if (g_uart_need_restart != 0U)
+    {
+      TemperatureUart_RestartReceive();
+    }
+
     AdcMeasure_Process();
     AppControl_Task(osKernelGetTickCount());
 

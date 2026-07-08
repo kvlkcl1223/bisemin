@@ -22,35 +22,22 @@ Dialog DLL:      TCM.DLL V1.56.4.0
  
 <h2>Project:</h2>
 D:\bisemin\bisemin\new_control_v2\MDK-ARM\bisemin.uvprojx
-Project File Date:  07/02/2026
+Project File Date:  07/07/2026
 
 <h2>Output:</h2>
 *** Using Compiler 'V5.06 update 7 (build 960)', folder: 'D:\Keil_v5\ARM\v5\Bin'
 Build target 'bisemin'
-compiling calib_mode.c...
-..\My\calib_mode.h(176): warning:  #1-D: last line of file ends without a newline
-  #endif /* __CALIB_MODE_H */
-..\My\app_control.h(142): warning:  #1-D: last line of file ends without a newline
+compiling main.c...
+compiling app_freertos.c...
+../My/app_control.h(142): warning:  #1-D: last line of file ends without a newline
   #endif
-..\My\flash_storage.h(151): warning:  #1-D: last line of file ends without a newline
-  #endif /* __FLASH_STORAGE_H */
-..\My\calib_mode.c(324): warning:  #223-D: function "AppControl_SetDrvDuty" declared implicitly
-      (void)AppControl_SetDrvDuty(first, duty);
-..\My\calib_mode.c(518): warning:  #223-D: function "AppControl_SetDrvDuty" declared implicitly
-          (void)AppControl_SetDrvDuty(first, 0.0f);
-..\My\calib_mode.c(547): warning:  #223-D: function "AppControl_SetDrvDuty" declared implicitly
-          (void)AppControl_SetDrvDuty(first, 0.0f);
-..\My\calib_mode.c(585): warning:  #223-D: function "AppControl_SetDrvDuty" declared implicitly
-      (void)AppControl_SetDrvDuty(first, 0.0f);
-..\My\calib_mode.c(641): warning:  #1-D: last line of file ends without a newline
-  }
-..\My\calib_mode.c(48): warning:  #177-D: variable "s_calib_display_switch_ms"  was declared but never referenced
-  static uint32_t s_calib_display_switch_ms = 0U; /* 数码管显示切�? tick */
-..\My\calib_mode.c: 9 warnings, 0 errors
+../My/calib_mode.h(176): warning:  #1-D: last line of file ends without a newline
+  #endif /* __CALIB_MODE_H */
+../Core/Src/app_freertos.c: 2 warnings, 0 errors
 linking...
-Program Size: Code=57572 RO-data=2136 RW-data=1008 ZI-data=58568  
+Program Size: Code=57716 RO-data=2136 RW-data=1028 ZI-data=58564  
 FromELF: creating hex file...
-"bisemin\bisemin.axf" - 0 Error(s), 9 Warning(s).
+"bisemin\bisemin.axf" - 0 Error(s), 2 Warning(s).
 
 <h2>Software Packages used:</h2>
 
@@ -73,7 +60,7 @@ Package Vendor: Keil
 
    * Component: ARM::CMSIS:CORE:5.6.0
       Include file:  CMSIS/Core/Include/tz_context.h
-Build Time Elapsed:  00:00:11
+Build Time Elapsed:  00:00:04
 </pre>
 </body>
 </html>

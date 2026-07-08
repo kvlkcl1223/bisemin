@@ -67,6 +67,11 @@ volatile uint8_t Sys_Status[4] = {0};
 volatile uint32_t Sys_TempUpdateCount[4] = {0};
 volatile uint32_t Sys_TempUpdateTick[4] = {0};
 volatile uint8_t g_uart_need_restart = 0U;
+volatile uint32_t g_temp_uart_rx_event_count = 0U;
+volatile uint32_t g_temp_uart_error_count = 0U;
+volatile uint32_t g_temp_uart_restart_fail_count = 0U;
+volatile uint32_t g_temp_uart_last_error_code = 0U;
+volatile HAL_StatusTypeDef g_temp_uart_last_restart_status = HAL_OK;
 #define RX_BUFFER_SIZE 256
 uint8_t rx_buffer[RX_BUFFER_SIZE];
 uint16_t rx_length = 0;
@@ -399,11 +404,29 @@ void SystemClock_Config(void)
 /* USER CODE BEGIN 4 */
 void TemperatureUart_RestartReceive(void)
 {
+  HAL_StatusTypeDef ret;
+
   (void)HAL_UART_AbortReceive(&huart1);
-  (void)HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rx_buffer, RX_BUFFER_SIZE);
-  if (huart1.hdmarx != NULL)
+  __HAL_UART_CLEAR_PEFLAG(&huart1);
+  __HAL_UART_CLEAR_FEFLAG(&huart1);
+  __HAL_UART_CLEAR_NEFLAG(&huart1);
+  __HAL_UART_CLEAR_OREFLAG(&huart1);
+  __HAL_UART_CLEAR_IDLEFLAG(&huart1);
+
+  ret = HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rx_buffer, RX_BUFFER_SIZE);
+  g_temp_uart_last_restart_status = ret;
+  if (ret == HAL_OK)
   {
-    __HAL_DMA_DISABLE_IT(huart1.hdmarx, DMA_IT_HT);
+    g_uart_need_restart = 0U;
+    if (huart1.hdmarx != NULL)
+    {
+      __HAL_DMA_DISABLE_IT(huart1.hdmarx, DMA_IT_HT);
+    }
+  }
+  else
+  {
+    g_uart_need_restart = 1U;
+    g_temp_uart_restart_fail_count++;
   }
 }
 
@@ -411,6 +434,10 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
   if (huart->Instance == USART1)
   {
+    HAL_StatusTypeDef ret;
+
+    g_temp_uart_rx_event_count++;
+
     /* Parse temperature data */
     Parse_Temperature_Buffer(rx_buffer, Size);
 
@@ -420,14 +447,32 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
      * so we do NOT need HAL_UART_AbortReceive (which is blocking).
      * Just start a new DMA reception immediately.
      */
-    (void)HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rx_buffer, RX_BUFFER_SIZE);
-    if (huart1.hdmarx != NULL)
+    ret = HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rx_buffer, RX_BUFFER_SIZE);
+    g_temp_uart_last_restart_status = ret;
+    if (ret == HAL_OK)
     {
-      __HAL_DMA_DISABLE_IT(huart1.hdmarx, DMA_IT_HT);
+      if (huart1.hdmarx != NULL)
+      {
+        __HAL_DMA_DISABLE_IT(huart1.hdmarx, DMA_IT_HT);
+      }
+    }
+    else
+    {
+      g_uart_need_restart = 1U;
+      g_temp_uart_restart_fail_count++;
     }
   }
 }
 
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
+{
+  if (huart->Instance == USART1)
+  {
+    g_temp_uart_error_count++;
+    g_temp_uart_last_error_code = huart->ErrorCode;
+    g_uart_need_restart = 1U;
+  }
+}
 /**
  * @brief  字节级协议解析状态机 (自动处理粘包/断包)
  * @param  rx_byte 接收到的单字节
