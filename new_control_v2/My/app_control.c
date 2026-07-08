@@ -1534,6 +1534,28 @@ static void AppControl_CheckDrvFaults(uint32_t now_ms)
 }
 
 /**
+ * @brief Return calibration fault code when any active DRV8703 reports fault.
+ */
+static uint32_t AppControl_GetCalibDrvFault(void)
+{
+    uint8_t cell = (uint8_t)g_calib_cell;
+    uint8_t first;
+
+    if (cell >= APP_CONTROL_CELL_COUNT)
+        return CALIB_ERR_DRV_FAULT;
+
+    first = AppControl_CellFirstDrv(cell);
+    if (g_app_control_drv_fault[first] != 0U)
+        return CALIB_ERR_DRV_FAULT;
+    if (g_app_control_drv_fault[(uint8_t)(first + 1U)] != 0U)
+        return CALIB_ERR_DRV_FAULT;
+    if (g_app_control_drv_fault[4U] != 0U)
+        return CALIB_ERR_DRV_FAULT;
+
+    return 0U;
+}
+
+/**
  * @brief Run the closed-loop PID control for all active cells.
  *
  * PID calculations are only performed when a temperature sensor channel
@@ -1827,6 +1849,15 @@ void AppControl_Task(uint32_t now_ms)
     {
         if (g_calib_mode_active != 0U)
         {
+            uint32_t calib_fault;
+
+            AppControl_CheckDrvFaults(now_ms);
+            calib_fault = AppControl_GetCalibDrvFault();
+            if (calib_fault != 0U)
+            {
+                CalibMode_Fault(calib_fault);
+            }
+
             CalibMode_Task(now_ms);
         }
 

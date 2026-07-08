@@ -655,6 +655,23 @@ void CalibMode_Task(uint32_t now_ms)
 }
 
 /**
+ * @brief  Abort calibration with a fault code.
+ * @param  error Calibration error code.
+ */
+void CalibMode_Fault(uint32_t error)
+{
+    if (g_calib_mode_active == 0U)
+        return;
+
+    if (error == 0U)
+        error = CALIB_ERR_DRV_FAULT;
+
+    g_calib_error = error;
+    g_calib_state = CALIB_FAULT;
+    g_calib_running = 0U;
+}
+
+/**
  * @brief  紧急停止标定
  */
 void CalibMode_Stop(void)

@@ -127,6 +127,10 @@ extern volatile float g_calib_temp_ch0;
 /** @brief 标定过程中通道1实时温度（供数码管显示） */
 extern volatile float g_calib_temp_ch1;
 
+/* Error codes ---------------------------------------------------------------*/
+
+#define CALIB_ERR_DRV_FAULT    10U
+
 /* API 函数声明 --------------------------------------------------------------*/
 
 /**
@@ -142,6 +146,12 @@ void CalibMode_Start(uint8_t cell);
  * @param  now_ms 当前系统 tick (ms)
  */
 void CalibMode_Task(uint32_t now_ms);
+
+/**
+ * @brief  Abort calibration with a fault code.
+ * @param  error Calibration error code.
+ */
+void CalibMode_Fault(uint32_t error);
 
 /**
  * @brief  紧急停止标定（占空比归零，回到 IDLE）
