@@ -278,18 +278,16 @@ static uint8_t CalibMode_WriteToFlash(void)
     flash_data.crc16 = CalibMode_CRC16((const uint8_t *)&flash_data,
                                        sizeof(flash_data) - sizeof(flash_data.crc16));
 
-    /* 擦除目标页（Cell 0 → 第0页，Cell 1 → 第1页） */
+    /* 擦除目标页（直接调用 HAL，绕过 flash_storage.c） */
     {
-        uint32_t calib_offset = CalibMode_GetFlashOffset((uint8_t)g_calib_cell);
-        uint8_t  page_idx     = (uint8_t)(calib_offset / FLASH_STORAGE_PAGE_SIZE);
-        uint32_t abs_addr     = FLASH_STORAGE_START_ADDR + calib_offset;
-        char     buf[80];
-        int      len;
+        uint32_t           calib_offset = CalibMode_GetFlashOffset((uint8_t)g_calib_cell);
+        uint32_t           abs_addr     = FLASH_STORAGE_START_ADDR + calib_offset;
+        char               buf[80];
+        int                len;
 
         len = snprintf(buf, sizeof(buf),
-                       "CALIB,FLASH_ERASE,CELL:%u,PAGE:%u,ADDR:0x%08lX\r\n",
+                       "CALIB,FLASH_ERASE,CELL:%u,ADDR:0x%08lX\r\n",
                        (unsigned int)g_calib_cell,
-                       (unsigned int)page_idx,
                        (unsigned long)abs_addr);
         if (len > 0 && len < (int)sizeof(buf))
             CalibMode_UartSend(buf);
@@ -298,7 +296,21 @@ static uint8_t CalibMode_WriteToFlash(void)
         primask = __get_PRIMASK();
         __disable_irq();
 
-        ret = FlashStorage_ErasePage(page_idx);
+        /* 直接调 HAL 页擦除 */
+        {
+            FLASH_EraseInitTypeDef erase_init;
+            uint32_t               page_err = 0U;
+            HAL_StatusTypeDef      hal_ret;
+
+            memset(&erase_init, 0, sizeof(erase_init));
+            erase_init.TypeErase = FLASH_TYPEERASE_PAGES;
+            erase_init.Banks     = FLASH_BANK_2;
+            erase_init.Page      = 124U;  /* PNB 硬件截断 → Bank2 页 60 = 0x0803E000 */
+            erase_init.NbPages   = 1U;
+
+            hal_ret = HAL_FLASHEx_Erase(&erase_init, &page_err);
+            ret     = (hal_ret == HAL_OK) ? FLASH_STORAGE_OK : FLASH_STORAGE_ERROR_ERASE;
+        }
 
         __set_PRIMASK(primask);
 
