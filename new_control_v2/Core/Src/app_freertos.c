@@ -196,9 +196,9 @@ void StartControlTask(void *argument)
     AppDebug_UartSend(buf);
   }
 
-  /* TODO: 临时 Flash 读写测试，验证通过后删除 */
-  CalibMode_FlashTest(0);
-  CalibMode_FlashTest(1);
+  /* 读取并输出两个 Cell 的上一次标定数据 */
+  CalibMode_DumpFlashData(0);
+  CalibMode_DumpFlashData(1);
 
   AppDebug_UartSend("CALIB,AUTO_START,CELL:0\r\n");
   CalibMode_Start(0);

@@ -134,18 +134,47 @@ static FlashStorage_Status_t FlashStorage_DoErasePage(uint32_t absolute_addr)
     uint32_t page_error;
     HAL_StatusTypeDef hal_ret;
     uint32_t page_num;
+    uint32_t banks;
 
     /*
-     * STM32G4 HAL 的 FLASH_EraseInitTypeDef.Page 必须是页号（0 ~ FLASH_PAGE_NB-1），
-     * 不能传绝对地址。FLASH_PageErase() 内部会做 (Page & 0xFF)，传绝对地址会错误地
-     * 擦除 Flash 第 0 页（固件向量表），导致程序崩溃跳转到 0xFFFFFFFF。
+     * STM32G4 HAL 的 FLASH_EraseInitTypeDef.Page 必须是 Bank 内页号，
+     * 不能传绝对地址。需根据单/双 Bank 模式分别计算。
+     *
+     * 单 Bank: 页号 0 ~ 255，2KB/页
+     * 双 Bank: 每 Bank 页号 0 ~ 127，2KB/页，需指定 Banks
      */
-    page_num = (absolute_addr - FLASH_BASE) / FLASH_STORAGE_PAGE_SIZE;
+#if defined(FLASH_OPTR_DBANK)
+    if (READ_BIT(FLASH->OPTR, FLASH_OPTR_DBANK) != 0U)
+    {
+        /* 双 Bank 模式 */
+        if (absolute_addr >= (FLASH_BASE + FLASH_BANK_SIZE))
+        {
+            /* Bank 2: 0x08040000 ~ 0x0807FFFF */
+            page_num = (absolute_addr - FLASH_BASE - FLASH_BANK_SIZE)
+                       / FLASH_STORAGE_PAGE_SIZE;
+            banks    = FLASH_BANK_2;
+        }
+        else
+        {
+            /* Bank 1: 0x08000000 ~ 0x0803FFFF */
+            page_num = (absolute_addr - FLASH_BASE)
+                       / FLASH_STORAGE_PAGE_SIZE;
+            banks    = FLASH_BANK_1;
+        }
+    }
+    else
+#endif
+    {
+        /* 单 Bank 模式 */
+        page_num = (absolute_addr - FLASH_BASE) / FLASH_STORAGE_PAGE_SIZE;
+        banks    = FLASH_BANK_1;
+    }
 
+    memset(&erase_init, 0, sizeof(erase_init));
     erase_init.TypeErase    = FLASH_TYPEERASE_PAGES;
     erase_init.Page         = page_num;
     erase_init.NbPages      = 1U;
-    erase_init.Banks        = FLASH_BANK_1;
+    erase_init.Banks        = banks;
 
     /*
      * HAL_FLASHEx_Erase 会阻塞直到擦除完成或出错

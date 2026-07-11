@@ -1,8 +1,8 @@
 bisemin\heap_4.o: ../Middlewares/Third_Party/FreeRTOS/Source/portable/MemMang/heap_4.c
-bisemin\heap_4.o: D:\Keil_v5\ARM\v5\Bin\..\include\stdlib.h
+bisemin\heap_4.o: E:\MDK\ARM\ARMCC\Bin\..\include\stdlib.h
 bisemin\heap_4.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h
-bisemin\heap_4.o: D:\Keil_v5\ARM\v5\Bin\..\include\stddef.h
-bisemin\heap_4.o: D:\Keil_v5\ARM\v5\Bin\..\include\stdint.h
+bisemin\heap_4.o: E:\MDK\ARM\ARMCC\Bin\..\include\stddef.h
+bisemin\heap_4.o: E:\MDK\ARM\ARMCC\Bin\..\include\stdint.h
 bisemin\heap_4.o: ../Core/Inc/FreeRTOSConfig.h
 bisemin\heap_4.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/projdefs.h
 bisemin\heap_4.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/portable.h

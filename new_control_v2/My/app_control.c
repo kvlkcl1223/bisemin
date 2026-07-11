@@ -6,6 +6,8 @@
 #include "drv8703_board.h"
 #include "pid_controller.h"
 
+#include <string.h>
+
 #define APP_CONTROL_QUEUE_DEPTH 12U
 #define APP_CONTROL_DRV_RETRY_COUNT 3U
 #define APP_CONTROL_DRV_VREF_MV 3300U
@@ -232,6 +234,18 @@ uint8_t s_temp_stale_cycles[APP_CONTROL_TEMP_INPUT_COUNT] = {0U, 0U, 0U, 0U};
 static uint8_t s_test_drv_initialized = 0U;
 static uint32_t s_test_duty_toggle_ms[APP_CONTROL_DRV_COUNT] = {0U};
 static int8_t s_test_ramp_dir[APP_CONTROL_DRV_COUNT] = {1, 1, 1, 1, 1};
+static uint8_t s_calib_was_active = 0U;  /* 检测标定→正常模式的过渡 */
+
+/* 标定数据缓存，用于前馈控制 ------------------------------------------------*/
+typedef struct
+{
+    uint8_t loaded;         /**< 1 = Flash 加载成功 */
+    float   duty[46];       /**< 46 步占空比 */
+    float   temp_ch0[46];   /**< CH0/CH2 对应温度曲线 */
+    float   temp_ch1[46];   /**< CH1/CH3 对应温度曲线 */
+} CalibCache_t;
+
+static CalibCache_t s_calib_cache[APP_CONTROL_CELL_COUNT];
 
 extern osMutexId_t SysStateMutexHandle;
 extern volatile float Sys_Temperatures[4];
@@ -1555,12 +1569,108 @@ static uint32_t AppControl_GetCalibDrvFault(void)
     return 0U;
 }
 
+/* 标定数据加载与查表 ---------------------------------------------------------*/
+
+/**
+ * @brief  从 Flash 加载指定 Cell 的标定数据到 RAM 缓存
+ * @param  cell Cell 编号 (0 或 1)
+ * @note   应在标定模式结束后、正常温控启动前调用
+ *         加载失败时设置 loaded=0，后续前馈退化为 0
+ */
+static void AppControl_LoadCalibData(uint8_t cell)
+{
+    CalibFlashData_t flash_data;
+    uint8_t ret;
+    uint8_t i;
+
+    if (cell >= APP_CONTROL_CELL_COUNT)
+        return;
+
+    s_calib_cache[cell].loaded = 0U;
+
+    memset(&flash_data, 0, sizeof(flash_data));
+    ret = CalibMode_LoadFromFlash(cell, &flash_data);
+    if (ret != 0U)
+        return;
+
+    for (i = 0U; i < CALIB_DUTY_COUNT; i++)
+    {
+        s_calib_cache[cell].duty[i]     = flash_data.step[i].duty;
+        s_calib_cache[cell].temp_ch0[i] = flash_data.step[i].temp_ch0;
+        s_calib_cache[cell].temp_ch1[i] = flash_data.step[i].temp_ch1;
+    }
+
+    s_calib_cache[cell].loaded = 1U;
+}
+
+/**
+ * @brief  根据目标温度查标定表，返回前馈占空比
+ * @param  drv        DRV 通道索引 (0~3)
+ * @param  target_temp 目标温度 (°C)
+ * @return float 前馈占空比
+ * @note   在标定点之间线性插值，超出范围取最近端点
+ *         标定未加载时返回 0.0f
+ */
+static float AppControl_FeedforwardDuty(uint8_t drv, float target_temp)
+{
+    uint8_t cell;
+    const float *temps;
+    const float *dutys;
+    uint8_t i;
+
+    if (drv >= APP_CONTROL_CLOSED_LOOP_COUNT)
+        return 0.0f;
+
+    cell  = drv / 2U;
+    dutys = s_calib_cache[cell].duty;
+    temps = ((drv & 1U) == 0U) ? s_calib_cache[cell].temp_ch0
+                               : s_calib_cache[cell].temp_ch1;
+
+    if (s_calib_cache[cell].loaded == 0U)
+        return 0.0f;
+
+    /* 低于最低温度 → 取第一步 */
+    if (target_temp <= temps[0])
+        return dutys[0];
+
+    /* 高于最高温度 → 取最后一步 */
+    if (target_temp >= temps[CALIB_DUTY_COUNT - 1U])
+        return dutys[CALIB_DUTY_COUNT - 1U];
+
+    /* 线性扫描找相邻区间并插值 */
+    for (i = 0U; i < (CALIB_DUTY_COUNT - 1U); i++)
+    {
+        float t_lo = temps[i];
+        float t_hi = temps[i + 1U];
+
+        /* 确保单调递增：如果倒序则跳过 */
+        if (t_hi <= t_lo)
+            continue;
+
+        if (target_temp >= t_lo && target_temp <= t_hi)
+        {
+            float ratio = (target_temp - t_lo) / (t_hi - t_lo);
+            return dutys[i] + (dutys[i + 1U] - dutys[i]) * ratio;
+        }
+    }
+
+    /* 未找到合适区间（异常分支），返回最近值 */
+    for (i = 1U; i < CALIB_DUTY_COUNT; i++)
+    {
+        if (temps[i] > target_temp)
+            return dutys[i - 1U];
+    }
+
+    return dutys[CALIB_DUTY_COUNT - 1U];
+}
+
 /**
  * @brief Run the closed-loop PID control for all active cells.
  *
  * PID calculations are only performed when a temperature sensor channel
  * has received new data (s_temp_pid_update_pending flag).  The calculated
  * duty is inverted before output (Peltier convention: positive = cooling).
+ * Feedforward duty from calibration table is added to the PID output.
  * The shared DRV8703 channel 5 is driven at a fixed duty whenever any
  * cell is running.
  */
@@ -1612,8 +1722,14 @@ static void AppControl_RunClosedLoop(void)
 
             PID_SetTarget(&s_temp_pid[drv], s_cell[cell].target_temp);
 
-            duty = -PID_Compute(&s_temp_pid[drv], s_temp_channel_temp[drv]);
-            duty = AppControl_Clamp(duty, -APP_CONTROL_MAX_ABS_DUTY, APP_CONTROL_MAX_ABS_DUTY);
+            {
+                float ff_duty  = AppControl_FeedforwardDuty(drv, s_cell[cell].target_temp);
+                float pid_duty = -PID_Compute(&s_temp_pid[drv], s_temp_channel_temp[drv]);
+
+                duty = AppControl_Clamp(ff_duty + pid_duty,
+                                        -APP_CONTROL_MAX_ABS_DUTY,
+                                        APP_CONTROL_MAX_ABS_DUTY);
+            }
 
             if (AppControl_Abs(duty) < 0.001f)
                 duty = 0.0f;
@@ -1749,6 +1865,11 @@ AppControl_Status_t AppControl_Init(void)
 
     s_last_reg_snapshot_ms = 0U;
     g_app_control_periodic_reg_snapshot_count = 0U;
+
+    /* 加载两个 Cell 的历史标定数据用于前馈控制 */
+    AppControl_LoadCalibData(0);
+    AppControl_LoadCalibData(1);
+
     AppControl_ApplyDebugState();
     g_app_control_init_result = APP_CONTROL_OK;
     return APP_CONTROL_OK;
@@ -1851,6 +1972,8 @@ void AppControl_Task(uint32_t now_ms)
         {
             uint32_t calib_fault;
 
+            s_calib_was_active = 1U;
+
             AppControl_CheckDrvFaults(now_ms);
             calib_fault = AppControl_GetCalibDrvFault();
             if (calib_fault != 0U)
@@ -1863,6 +1986,14 @@ void AppControl_Task(uint32_t now_ms)
 
         if (g_calib_mode_active == 0U)
         {
+            /* 标定刚刚完成 → 重新加载 Flash 标定数据用于前馈 */
+            if (s_calib_was_active != 0U)
+            {
+                s_calib_was_active = 0U;
+                AppControl_LoadCalibData(0);
+                AppControl_LoadCalibData(1);
+            }
+
             AppControl_ServiceTempSensorReset(now_ms);
             AppControl_ProcessCommands();
             AppControl_UpdateTemperatureInputs(now_ms);

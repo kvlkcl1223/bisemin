@@ -59,6 +59,37 @@ extern "C" {
 /** @brief 滑动窗口大小（用于稳定判定），与稳定采样点数相同 */
 #define CALIB_WINDOW_SAMPLES  (CALIB_STABLE_SAMPLES)
 
+/*
+ * 快速测试模式 — 取消下行注释即可启用
+ * 仅标定 1 步（duty=0.0），其余 45 步复制填充，~10 秒完成
+ * 用于验证 Flash 写入是否正常
+ */
+// #define CALIB_FAST_TEST
+
+#ifdef CALIB_FAST_TEST
+  /** @brief 快速测试：实际标定步数 */
+  #define CALIB_SCAN_COUNT         1U
+
+  /** @brief 快速测试：占空比固定为 0（不加热也不制冷） */
+  #define CALIB_FAST_DUTY          0.0f
+
+  /** @brief 快速测试：立即判定稳定 */
+  #define CALIB_FAST_THRESHOLD     999.0f
+  #define CALIB_FAST_STABLE_SEC    1U
+  #define CALIB_FAST_MAX_WAIT      10U
+
+  /* 用快速参数覆写正常参数 */
+  #undef  CALIB_STABLE_THRESHOLD
+  #define CALIB_STABLE_THRESHOLD   CALIB_FAST_THRESHOLD
+  #undef  CALIB_STABLE_SECONDS
+  #define CALIB_STABLE_SECONDS     CALIB_FAST_STABLE_SEC
+  #undef  CALIB_MAX_WAIT_SECONDS
+  #define CALIB_MAX_WAIT_SECONDS   CALIB_FAST_MAX_WAIT
+#else
+  /** @brief 正常模式：实际标定步数 = 46 */
+  #define CALIB_SCAN_COUNT         CALIB_DUTY_COUNT
+#endif
+
 /* 标定状态机 ----------------------------------------------------------------*/
 
 typedef enum
@@ -194,6 +225,13 @@ float CalibMode_GetCellTemp(void);
  *         全程通过 USART2 输出日志
  */
 void CalibMode_FlashTest(uint8_t cell);
+
+/**
+ * @brief  读取指定 Cell 的 Flash 标定数据并通过 USART2 输出
+ * @param  cell Cell 编号 (0 或 1)
+ * @note   启动标定前调用，用于查看上一次标定结果
+ */
+void CalibMode_DumpFlashData(uint8_t cell);
 
 #ifdef __cplusplus
 }

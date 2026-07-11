@@ -188,12 +188,12 @@
         <Ww>
           <count>7</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_adc_il3_a</ItemText>
+          <ItemText>g_adc_il5_a</ItemText>
         </Ww>
         <Ww>
           <count>8</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_adc_il4_a</ItemText>
+          <ItemText>g_adc_il3_a</ItemText>
         </Ww>
         <Ww>
           <count>9</count>
@@ -349,11 +349,6 @@
           <count>39</count>
           <WinNumber>1</WinNumber>
           <ItemText>g_app_control_pid_duty</ItemText>
-        </Ww>
-        <Ww>
-          <count>40</count>
-          <WinNumber>1</WinNumber>
-          <ItemText>g_calib_result</ItemText>
         </Ww>
       </WatchWindow1>
       <WatchWindow2>

@@ -119,7 +119,12 @@ static uint16_t CalibMode_CRC16(const uint8_t *data, uint32_t len)
  */
 float CalibMode_StepDuty(uint8_t step_idx)
 {
+#ifdef CALIB_FAST_TEST
+    (void)step_idx;
+    return CALIB_FAST_DUTY;
+#else
     return CALIB_DUTY_START + (float)step_idx * CALIB_DUTY_STEP;
+#endif
 }
 
 /* 温度辅助函数 --------------------------------------------------------------*/
@@ -254,11 +259,17 @@ static uint8_t CalibMode_WriteToFlash(void)
 
     for (i = 0U; i < CALIB_DUTY_COUNT; i++)
     {
-        flash_data.step[i].duty     = (float)g_calib_result[i].duty;
-        flash_data.step[i].temp_ch0 = (float)g_calib_result[i].temp_ch0;
-        flash_data.step[i].temp_ch1 = (float)g_calib_result[i].temp_ch1;
-        flash_data.step[i].valid    = g_calib_result[i].valid;
-        flash_data.step[i].settled  = g_calib_result[i].settled;
+#ifdef CALIB_FAST_TEST
+        /* 快速测试：仅第 0 步为真实数据，其余 45 步复制填充 */
+        uint8_t src = (i < CALIB_SCAN_COUNT) ? i : 0U;
+#else
+        uint8_t src = i;
+#endif
+        flash_data.step[i].duty     = (float)g_calib_result[src].duty;
+        flash_data.step[i].temp_ch0 = (float)g_calib_result[src].temp_ch0;
+        flash_data.step[i].temp_ch1 = (float)g_calib_result[src].temp_ch1;
+        flash_data.step[i].valid    = g_calib_result[src].valid;
+        flash_data.step[i].settled  = g_calib_result[src].settled;
     }
 
     /* 计算 CRC（不包含 crc16 字段本身） */
@@ -285,7 +296,7 @@ static uint8_t CalibMode_WriteToFlash(void)
         __set_PRIMASK(primask);
     }
     if (ret != FLASH_STORAGE_OK)
-        return 2U;
+        return (uint8_t)ret;   /* 返回实际 Flash 错误码供串口输出诊断 */
 
     return 0U;
 }
@@ -336,7 +347,7 @@ static void CalibMode_LogPeriodic(uint32_t now_ms)
     s_calib_last_log_ms = now_ms;
 
     step = (uint8_t)g_calib_step_idx;
-    duty = (step < CALIB_DUTY_COUNT) ? CalibMode_StepDuty(step) : 0.0f;
+    duty = (step < CALIB_SCAN_COUNT) ? CalibMode_StepDuty(step) : 0.0f;
     temp_avg = CalibMode_GetCellTemp();
     span = (CalibMode_IsWindowFull() != 0U) ? CalibMode_GetWindowSpan() : -1.0f;
     elapsed = (s_calib_step_start_ms == 0U) ? 0U : (now_ms - s_calib_step_start_ms);
@@ -423,17 +434,20 @@ static void CalibMode_FinishStep(uint8_t settled)
 
     g_calib_step_idx++;
 
-    if (g_calib_step_idx >= CALIB_DUTY_COUNT)
+    if (g_calib_step_idx >= CALIB_SCAN_COUNT)
     {
-        /* 全部 15 步完成 */
-        if (CalibMode_WriteToFlash() == 0U)
+        /* 全部标定步完成 */
         {
-            g_calib_state = CALIB_DONE;
-        }
-        else
-        {
-            g_calib_error = 1U;
-            g_calib_state = CALIB_FAULT;
+            uint8_t write_ret = CalibMode_WriteToFlash();
+            if (write_ret == 0U)
+            {
+                g_calib_state = CALIB_DONE;
+            }
+            else
+            {
+                g_calib_error = (uint32_t)write_ret;
+                g_calib_state = CALIB_FAULT;
+            }
         }
     }
     else
@@ -909,4 +923,69 @@ void CalibMode_FlashTest(uint8_t cell)
             }
         }
     }
+}
+
+/* Flash 标定数据读取与串口输出 ------------------------------------------------*/
+
+/**
+ * @brief  读取指定 Cell 的 Flash 标定数据并通过 USART2 输出
+ * @param  cell Cell 编号 (0 或 1)
+ * @note   启动标定前调用，用于查看上一次标定结果
+ */
+void CalibMode_DumpFlashData(uint8_t cell)
+{
+    CalibFlashData_t data;
+    uint8_t ret;
+    uint8_t i;
+    char buf[128];
+    int len;
+
+    if (cell > 1U)
+        return;
+
+    len = snprintf(buf, sizeof(buf),
+                   "CALIB,LOAD,CELL:%u,BEGIN\r\n",
+                   (unsigned int)cell);
+    if (len > 0 && len < (int)sizeof(buf))
+        CalibMode_UartSend(buf);
+
+    memset(&data, 0, sizeof(data));
+    ret = CalibMode_LoadFromFlash(cell, &data);
+
+    if (ret != 0U)
+    {
+        len = snprintf(buf, sizeof(buf),
+                       "CALIB,LOAD,CELL:%u,NOT_FOUND,ERR:%u\r\n",
+                       (unsigned int)cell, (unsigned int)ret);
+        if (len > 0 && len < (int)sizeof(buf))
+            CalibMode_UartSend(buf);
+        return;
+    }
+
+    len = snprintf(buf, sizeof(buf),
+                   "CALIB,LOAD,CELL:%u,FOUND,CELL_STORED:%u,CRC:0x%04X\r\n",
+                   (unsigned int)cell,
+                   (unsigned int)data.cell,
+                   (unsigned int)data.crc16);
+    if (len > 0 && len < (int)sizeof(buf))
+        CalibMode_UartSend(buf);
+
+    for (i = 0U; i < CALIB_DUTY_COUNT; i++)
+    {
+        len = snprintf(buf, sizeof(buf),
+                       "CALIB,STEP,%u,%+.2f,%.1f,%.1f,%u\r\n",
+                       (unsigned int)i,
+                       (double)data.step[i].duty,
+                       (double)data.step[i].temp_ch0,
+                       (double)data.step[i].temp_ch1,
+                       (unsigned int)data.step[i].valid);
+        if (len > 0 && len < (int)sizeof(buf))
+            CalibMode_UartSend(buf);
+    }
+
+    len = snprintf(buf, sizeof(buf),
+                   "CALIB,LOAD,CELL:%u,END\r\n",
+                   (unsigned int)cell);
+    if (len > 0 && len < (int)sizeof(buf))
+        CalibMode_UartSend(buf);
 }
