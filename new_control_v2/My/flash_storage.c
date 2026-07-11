@@ -140,34 +140,39 @@ static FlashStorage_Status_t FlashStorage_DoErasePage(uint32_t absolute_addr)
      * STM32G4 HAL 的 FLASH_EraseInitTypeDef.Page 必须是 Bank 内页号，
      * 不能传绝对地址。需根据单/双 Bank 模式分别计算。
      *
-     * 单 Bank: 页号 0 ~ 255，2KB/页
-     * 双 Bank: 每 Bank 页号 0 ~ 127，2KB/页，需指定 Banks
+     * 关键：PNB 寄存器仅 7 位（最大 128 页）。单 Bank 512KB 时
+     * 每页实际为 4KB（512KB/128），而不是 2KB。必须用硬件页大小计算。
      */
-#if defined(FLASH_OPTR_DBANK)
-    if (READ_BIT(FLASH->OPTR, FLASH_OPTR_DBANK) != 0U)
     {
-        /* 双 Bank 模式 */
-        if (absolute_addr >= (FLASH_BASE + FLASH_BANK_SIZE))
+        uint32_t hw_page_size;
+
+#if defined(FLASH_OPTR_DBANK)
+        if (READ_BIT(FLASH->OPTR, FLASH_OPTR_DBANK) != 0U)
         {
-            /* Bank 2: 0x08040000 ~ 0x0807FFFF */
-            page_num = (absolute_addr - FLASH_BASE - FLASH_BANK_SIZE)
-                       / FLASH_STORAGE_PAGE_SIZE;
-            banks    = FLASH_BANK_2;
+            /* 双 Bank 模式：每 Bank 最多 128 页，2KB/页 */
+            if (absolute_addr >= (FLASH_BASE + FLASH_BANK_SIZE))
+            {
+                /* Bank 2 */
+                page_num = (absolute_addr - FLASH_BASE - FLASH_BANK_SIZE)
+                           / FLASH_STORAGE_PAGE_SIZE;
+                banks    = FLASH_BANK_2;
+            }
+            else
+            {
+                /* Bank 1 */
+                page_num = (absolute_addr - FLASH_BASE)
+                           / FLASH_STORAGE_PAGE_SIZE;
+                banks    = FLASH_BANK_1;
+            }
         }
         else
-        {
-            /* Bank 1: 0x08000000 ~ 0x0803FFFF */
-            page_num = (absolute_addr - FLASH_BASE)
-                       / FLASH_STORAGE_PAGE_SIZE;
-            banks    = FLASH_BANK_1;
-        }
-    }
-    else
 #endif
-    {
-        /* 单 Bank 模式 */
-        page_num = (absolute_addr - FLASH_BASE) / FLASH_STORAGE_PAGE_SIZE;
-        banks    = FLASH_BANK_1;
+        {
+            /* 单 Bank 模式：PNB 最大 128，页大小 = FLASH_SIZE / 128 */
+            hw_page_size = FLASH_SIZE / 128U;
+            page_num     = (absolute_addr - FLASH_BASE) / hw_page_size;
+            banks        = FLASH_BANK_1;
+        }
     }
 
     memset(&erase_init, 0, sizeof(erase_init));

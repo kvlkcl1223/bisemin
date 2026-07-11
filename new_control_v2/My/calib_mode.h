@@ -119,11 +119,11 @@ extern "C"
 
 #define CALIB_FLASH_MAGIC 0x42495345UL /**< "BISE" */
 
-/** @brief Flash 存储区偏移：Cell 0（第 0 页起始） */
+/** @brief Flash 存储区偏移：Cell 0（硬件 4KB 页 126） */
 #define CALIB_FLASH_OFFSET_CELL0 0U
 
-/** @brief Flash 存储区偏移：Cell 1（第 1 页起始，与 Cell 0 不重叠） */
-#define CALIB_FLASH_OFFSET_CELL1 FLASH_STORAGE_PAGE_SIZE
+/** @brief Flash 存储区偏移：Cell 1（硬件 4KB 页 127，与 Cell 0 不在同一页） */
+#define CALIB_FLASH_OFFSET_CELL1 4096U
 
   typedef struct
   {
