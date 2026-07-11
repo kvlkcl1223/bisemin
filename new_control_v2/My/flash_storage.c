@@ -133,10 +133,19 @@ static FlashStorage_Status_t FlashStorage_DoErasePage(uint32_t absolute_addr)
     FLASH_EraseInitTypeDef erase_init;
     uint32_t page_error;
     HAL_StatusTypeDef hal_ret;
+    uint32_t page_num;
+
+    /*
+     * STM32G4 HAL 的 FLASH_EraseInitTypeDef.Page 必须是页号（0 ~ FLASH_PAGE_NB-1），
+     * 不能传绝对地址。FLASH_PageErase() 内部会做 (Page & 0xFF)，传绝对地址会错误地
+     * 擦除 Flash 第 0 页（固件向量表），导致程序崩溃跳转到 0xFFFFFFFF。
+     */
+    page_num = (absolute_addr - FLASH_BASE) / FLASH_STORAGE_PAGE_SIZE;
 
     erase_init.TypeErase    = FLASH_TYPEERASE_PAGES;
-    erase_init.Page         = absolute_addr;
+    erase_init.Page         = page_num;
     erase_init.NbPages      = 1U;
+    erase_init.Banks        = FLASH_BANK_1;
 
     /*
      * HAL_FLASHEx_Erase 会阻塞直到擦除完成或出错
