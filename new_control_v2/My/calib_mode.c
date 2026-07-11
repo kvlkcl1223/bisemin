@@ -231,6 +231,8 @@ static float CalibMode_CalcStableAverageCh(float sum)
 
 /* 标定数据写入 Flash --------------------------------------------------------*/
 
+static void CalibMode_UartSend(const char *str);
+
 /**
  * @brief  根据 Cell 编号获取对应的 Flash 存储区偏移
  * @param  cell Cell 编号 (0 或 1)

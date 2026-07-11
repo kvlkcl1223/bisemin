@@ -3,11 +3,11 @@
 <title>Static Call Graph - [bisemin\bisemin.axf]</title></head>
 <body><HR>
 <H1>Static Call Graph for image bisemin\bisemin.axf</H1><HR>
-<BR><P>#&#060CALLGRAPH&#062# ARM Linker, 5060750: Last Updated: Sat Jul 11 12:57:19 2026
+<BR><P>#&#060CALLGRAPH&#062# ARM Linker, 5060750: Last Updated: Sat Jul 11 13:54:16 2026
 <BR><P>
-<H3>Maximum Stack Usage =       1280 bytes + Unknown(Functions without stacksize, Cycles, Untraceable Function Pointers)</H3><H3>
+<H3>Maximum Stack Usage =       1376 bytes + Unknown(Functions without stacksize, Cycles, Untraceable Function Pointers)</H3><H3>
 Call chain for Maximum Stack Depth:</H3>
-StartControlTask &rArr; AppControl_Task &rArr; CalibMode_Task &rArr; CalibMode_FinishStep &rArr; CalibMode_WriteToFlash &rArr; FlashStorage_Write &rArr; FlashStorage_DoErasePage &rArr; HAL_FLASHEx_Erase &rArr; FLASH_WaitForLastOperation
+StartControlTask &rArr; AppControl_Task &rArr; CalibMode_Task &rArr; CalibMode_FinishStep &rArr; CalibMode_WriteToFlash &rArr; __2snprintf &rArr; _printf_char_common &rArr; __printf
 <P>
 <H3>
 Functions with no stack information
@@ -684,6 +684,7 @@ Global Symbols
 <LI><a href="#[13a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;CalibMode_DumpFlashData
 <LI><a href="#[7b]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;StartControlTask
 <LI><a href="#[132]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;AppDebug_LogNormal
+<LI><a href="#[13e]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;CalibMode_WriteToFlash
 <LI><a href="#[145]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;CalibMode_LogPeriodic
 <LI><a href="#[13c]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;CalibMode_FinishStep
 <LI><a href="#[127]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;CalibMode_Task
@@ -1103,8 +1104,8 @@ Global Symbols
 </UL>
 
 <P><STRONG><a name="[125]"></a>AppControl_Task</STRONG> (Thumb, 496 bytes, Stack size 48 bytes, app_control.o(i.AppControl_Task))
-<BR><BR>[Stack]<UL><LI>Max Depth = 1232 + Unknown Stack Size
-<LI>Call Chain = AppControl_Task &rArr; CalibMode_Task &rArr; CalibMode_FinishStep &rArr; CalibMode_WriteToFlash &rArr; FlashStorage_Write &rArr; FlashStorage_DoErasePage &rArr; HAL_FLASHEx_Erase &rArr; FLASH_WaitForLastOperation
+<BR><BR>[Stack]<UL><LI>Max Depth = 1328 + Unknown Stack Size
+<LI>Call Chain = AppControl_Task &rArr; CalibMode_Task &rArr; CalibMode_FinishStep &rArr; CalibMode_WriteToFlash &rArr; __2snprintf &rArr; _printf_char_common &rArr; __printf
 </UL>
 <BR>[Calls]<UL><LI><a href="#[109]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_Sleep
 <LI><a href="#[108]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;DRV8703_SetVrefMv
@@ -1198,7 +1199,7 @@ Global Symbols
 <BR>[Called By]<UL><LI><a href="#[7b]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;StartControlTask
 </UL>
 
-<P><STRONG><a name="[13d]"></a>CalibMode_StepDuty</STRONG> (Thumb, 22 bytes, Stack size 0 bytes, calib_mode.o(i.CalibMode_StepDuty))
+<P><STRONG><a name="[13d]"></a>CalibMode_StepDuty</STRONG> (Thumb, 6 bytes, Stack size 0 bytes, calib_mode.o(i.CalibMode_StepDuty))
 <BR><BR>[Called By]<UL><LI><a href="#[7c]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;StartHMITask
 <LI><a href="#[146]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;CalibMode_SetStepDuty
 <LI><a href="#[145]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;CalibMode_LogPeriodic
@@ -1206,9 +1207,9 @@ Global Symbols
 <LI><a href="#[127]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;CalibMode_Task
 </UL>
 
-<P><STRONG><a name="[127]"></a>CalibMode_Task</STRONG> (Thumb, 464 bytes, Stack size 112 bytes, calib_mode.o(i.CalibMode_Task))
-<BR><BR>[Stack]<UL><LI>Max Depth = 1184 + Unknown Stack Size
-<LI>Call Chain = CalibMode_Task &rArr; CalibMode_FinishStep &rArr; CalibMode_WriteToFlash &rArr; FlashStorage_Write &rArr; FlashStorage_DoErasePage &rArr; HAL_FLASHEx_Erase &rArr; FLASH_WaitForLastOperation
+<P><STRONG><a name="[127]"></a>CalibMode_Task</STRONG> (Thumb, 466 bytes, Stack size 112 bytes, calib_mode.o(i.CalibMode_Task))
+<BR><BR>[Stack]<UL><LI>Max Depth = 1280 + Unknown Stack Size
+<LI>Call Chain = CalibMode_Task &rArr; CalibMode_FinishStep &rArr; CalibMode_WriteToFlash &rArr; __2snprintf &rArr; _printf_char_common &rArr; __printf
 </UL>
 <BR>[Calls]<UL><LI><a href="#[13d]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;CalibMode_StepDuty
 <LI><a href="#[aa]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__2snprintf
@@ -2807,8 +2808,8 @@ Global Symbols
 </UL>
 
 <P><STRONG><a name="[7b]"></a>StartControlTask</STRONG> (Thumb, 174 bytes, Stack size 48 bytes, app_freertos.o(i.StartControlTask))
-<BR><BR>[Stack]<UL><LI>Max Depth = 1280 + Unknown Stack Size
-<LI>Call Chain = StartControlTask &rArr; AppControl_Task &rArr; CalibMode_Task &rArr; CalibMode_FinishStep &rArr; CalibMode_WriteToFlash &rArr; FlashStorage_Write &rArr; FlashStorage_DoErasePage &rArr; HAL_FLASHEx_Erase &rArr; FLASH_WaitForLastOperation
+<BR><BR>[Stack]<UL><LI>Max Depth = 1376 + Unknown Stack Size
+<LI>Call Chain = StartControlTask &rArr; AppControl_Task &rArr; CalibMode_Task &rArr; CalibMode_FinishStep &rArr; CalibMode_WriteToFlash &rArr; __2snprintf &rArr; _printf_char_common &rArr; __printf
 </UL>
 <BR>[Calls]<UL><LI><a href="#[d7]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;osDelay
 <LI><a href="#[147]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;CalibMode_Start
@@ -5163,9 +5164,9 @@ Local Symbols
 <BR>[Called By]<UL><LI><a href="#[13c]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;CalibMode_FinishStep
 </UL>
 
-<P><STRONG><a name="[13c]"></a>CalibMode_FinishStep</STRONG> (Thumb, 278 bytes, Stack size 160 bytes, calib_mode.o(i.CalibMode_FinishStep))
-<BR><BR>[Stack]<UL><LI>Max Depth = 1072 + Unknown Stack Size
-<LI>Call Chain = CalibMode_FinishStep &rArr; CalibMode_WriteToFlash &rArr; FlashStorage_Write &rArr; FlashStorage_DoErasePage &rArr; HAL_FLASHEx_Erase &rArr; FLASH_WaitForLastOperation
+<P><STRONG><a name="[13c]"></a>CalibMode_FinishStep</STRONG> (Thumb, 276 bytes, Stack size 160 bytes, calib_mode.o(i.CalibMode_FinishStep))
+<BR><BR>[Stack]<UL><LI>Max Depth = 1168 + Unknown Stack Size
+<LI>Call Chain = CalibMode_FinishStep &rArr; CalibMode_WriteToFlash &rArr; __2snprintf &rArr; _printf_char_common &rArr; __printf
 </UL>
 <BR>[Calls]<UL><LI><a href="#[13d]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;CalibMode_StepDuty
 <LI><a href="#[aa]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__2snprintf
@@ -5192,7 +5193,7 @@ Local Symbols
 <LI><a href="#[127]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;CalibMode_Task
 </UL>
 
-<P><STRONG><a name="[13f]"></a>CalibMode_InitStep</STRONG> (Thumb, 38 bytes, Stack size 0 bytes, calib_mode.o(i.CalibMode_InitStep))
+<P><STRONG><a name="[13f]"></a>CalibMode_InitStep</STRONG> (Thumb, 36 bytes, Stack size 0 bytes, calib_mode.o(i.CalibMode_InitStep))
 <BR><BR>[Stack]<UL><LI>Max Depth = 4<LI>Call Chain = CalibMode_InitStep &rArr; __aeabi_memclr4
 </UL>
 <BR>[Calls]<UL><LI><a href="#[d6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__aeabi_memclr4
@@ -5211,7 +5212,7 @@ Local Symbols
 <LI><a href="#[127]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;CalibMode_Task
 </UL>
 
-<P><STRONG><a name="[145]"></a>CalibMode_LogPeriodic</STRONG> (Thumb, 232 bytes, Stack size 280 bytes, calib_mode.o(i.CalibMode_LogPeriodic))
+<P><STRONG><a name="[145]"></a>CalibMode_LogPeriodic</STRONG> (Thumb, 230 bytes, Stack size 280 bytes, calib_mode.o(i.CalibMode_LogPeriodic))
 <BR><BR>[Stack]<UL><LI>Max Depth = 424 + Unknown Stack Size
 <LI>Call Chain = CalibMode_LogPeriodic &rArr; __2snprintf &rArr; _printf_char_common &rArr; __printf
 </UL>
@@ -5246,16 +5247,20 @@ Local Symbols
 </UL>
 <BR>[Called By]<UL><LI><a href="#[147]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;CalibMode_Start
 <LI><a href="#[13a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;CalibMode_DumpFlashData
+<LI><a href="#[13e]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;CalibMode_WriteToFlash
 <LI><a href="#[145]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;CalibMode_LogPeriodic
 <LI><a href="#[13c]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;CalibMode_FinishStep
 <LI><a href="#[127]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;CalibMode_Task
 </UL>
 
-<P><STRONG><a name="[13e]"></a>CalibMode_WriteToFlash</STRONG> (Thumb, 146 bytes, Stack size 768 bytes, calib_mode.o(i.CalibMode_WriteToFlash))
-<BR><BR>[Stack]<UL><LI>Max Depth = 912<LI>Call Chain = CalibMode_WriteToFlash &rArr; FlashStorage_Write &rArr; FlashStorage_DoErasePage &rArr; HAL_FLASHEx_Erase &rArr; FLASH_WaitForLastOperation
+<P><STRONG><a name="[13e]"></a>CalibMode_WriteToFlash</STRONG> (Thumb, 300 bytes, Stack size 864 bytes, calib_mode.o(i.CalibMode_WriteToFlash))
+<BR><BR>[Stack]<UL><LI>Max Depth = 1008 + Unknown Stack Size
+<LI>Call Chain = CalibMode_WriteToFlash &rArr; __2snprintf &rArr; _printf_char_common &rArr; __printf
 </UL>
-<BR>[Calls]<UL><LI><a href="#[14c]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;FlashStorage_Write
+<BR>[Calls]<UL><LI><a href="#[aa]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__2snprintf
+<LI><a href="#[14c]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;FlashStorage_Write
 <LI><a href="#[14b]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;FlashStorage_ErasePage
+<LI><a href="#[13b]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;CalibMode_UartSend
 <LI><a href="#[142]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;CalibMode_GetFlashOffset
 <LI><a href="#[144]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;CalibMode_CRC16
 <LI><a href="#[d6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__aeabi_memclr4

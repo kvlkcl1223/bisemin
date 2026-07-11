@@ -27,24 +27,22 @@ Project File Date:  07/11/2026
 <h2>Output:</h2>
 *** Using Compiler 'V5.06 update 6 (build 750)', folder: 'E:\MDK\ARM\ARMCC\Bin'
 Build target 'bisemin'
-compiling app_control.c...
-..\My\app_control.h(144): warning:  #1-D: last line of file ends without a newline
-  #endif
+compiling calib_mode.c...
 ..\My\flash_storage.h(151): warning:  #1-D: last line of file ends without a newline
   #endif /* __FLASH_STORAGE_H */
-..\My\calib_mode.h(240): warning:  #1-D: last line of file ends without a newline
+..\My\calib_mode.h(241): warning:  #1-D: last line of file ends without a newline
   #endif /* __CALIB_MODE_H */
-..\My\app_control.c(2084): warning:  #1-D: last line of file ends without a newline
+..\My\app_control.h(144): warning:  #1-D: last line of file ends without a newline
+  #endif
+..\My\calib_mode.c(1031): warning:  #1-D: last line of file ends without a newline
   }
-..\My\app_control.c(225): warning:  #177-D: variable "s_pid_freq_last_count"  was declared but never referenced
-  static uint32_t s_pid_freq_last_count[APP_CONTROL_CLOSED_LOOP_COUNT] = {0U, 0U, 0U, 0U};
-..\My\app_control.c(347): warning:  #177-D: function "AppControl_CellVoltageError"  was declared but never referenced
-  static PanelError_t AppControl_CellVoltageError(uint8_t cell)
-..\My\app_control.c: 6 warnings, 0 errors
+..\My\calib_mode.c(48): warning:  #177-D: variable "s_calib_display_switch_ms"  was declared but never referenced
+  static uint32_t s_calib_display_switch_ms = 0U; /* 数码管显示切�? tick */
+..\My\calib_mode.c: 5 warnings, 0 errors
 linking...
-Program Size: Code=60096 RO-data=2376 RW-data=1040 ZI-data=58976  
+Program Size: Code=60404 RO-data=2376 RW-data=1040 ZI-data=58256  
 FromELF: creating hex file...
-"bisemin\bisemin.axf" - 0 Error(s), 6 Warning(s).
+"bisemin\bisemin.axf" - 0 Error(s), 5 Warning(s).
 
 <h2>Software Packages used:</h2>
 
@@ -68,7 +66,7 @@ Package Vendor: Keil
 
    * Component: ARM::CMSIS:CORE:5.6.0
       Include file:  CMSIS/Core/Include/tz_context.h
-Build Time Elapsed:  00:00:04
+Build Time Elapsed:  00:00:03
 </pre>
 </body>
 </html>

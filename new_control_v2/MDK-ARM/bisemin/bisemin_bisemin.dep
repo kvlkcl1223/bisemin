@@ -181,7 +181,7 @@ I (../My/tm1638_board.h)(0x6A519791)
 I (../My/sys_state.h)(0x6A519791)
 I (../My/adc_measure.h)(0x6A519791)
 I (../My/app_control.h)(0x6A51A22D)
-I (../My/calib_mode.h)(0x6A51C932)
+I (../My/calib_mode.h)(0x6A51D9C1)
 I (../My/flash_storage.h)(0x6A519791)
 F (../Core/Src/adc.c)(0x6A519790)(--c99 -c --cpu Cortex-M4.fp.sp -g -O1 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32G4xx_HAL_Driver/Inc -I ../Drivers/STM32G4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32G4xx/Include -I ../Drivers/CMSIS/Include -I ../Middlewares/Third_Party/FreeRTOS/Source/include -I ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 -I ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F -I ../My-I.\RTE\_bisemin-IE:\MDK\ARM\CMSIS\5.9.0\CMSIS\Core\Include-IE:\MDK\Keil\STM32G4xx_DFP\1.5.0\Drivers\CMSIS\Device\ST\STM32G4xx\Include-D__UVISION_VERSION="537" -D_RTE_ -DSTM32G474xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32G474xx-o bisemin\adc.o --omf_browse bisemin\adc.crf --depend bisemin\adc.d)
 I (../Core/Inc/adc.h)(0x6A519790)
@@ -1965,7 +1965,7 @@ I (..\My\temp_panel.h)(0x6A519791)
 I (E:\MDK\ARM\ARMCC\include\stdbool.h)(0x5D9B3488)
 I (..\My\tm1638_board.h)(0x6A519791)
 I (..\My\adc_measure.h)(0x6A519791)
-I (..\My\calib_mode.h)(0x6A51C932)
+I (..\My\calib_mode.h)(0x6A51D9C1)
 I (..\My\flash_storage.h)(0x6A519791)
 I (../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os.h)(0x6A519791)
 I (../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h)(0x6A519791)
@@ -2143,8 +2143,8 @@ F (..\My\pid_controller.c)(0x6A519791)(--c99 -c --cpu Cortex-M4.fp.sp -g -O1 --a
 I (..\My\pid_controller.h)(0x6A519791)
 I (E:\MDK\ARM\ARMCC\include\stdint.h)(0x5D9B3488)
 I (E:\MDK\ARM\ARMCC\include\stddef.h)(0x5D9B3488)
-F (..\My\calib_mode.c)(0x6A51C94C)(--c99 -c --cpu Cortex-M4.fp.sp -g -O1 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32G4xx_HAL_Driver/Inc -I ../Drivers/STM32G4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32G4xx/Include -I ../Drivers/CMSIS/Include -I ../Middlewares/Third_Party/FreeRTOS/Source/include -I ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 -I ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F -I ../My-I.\RTE\_bisemin-IE:\MDK\ARM\CMSIS\5.9.0\CMSIS\Core\Include-IE:\MDK\Keil\STM32G4xx_DFP\1.5.0\Drivers\CMSIS\Device\ST\STM32G4xx\Include-D__UVISION_VERSION="537" -D_RTE_ -DSTM32G474xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32G474xx-o bisemin\calib_mode.o --omf_browse bisemin\calib_mode.crf --depend bisemin\calib_mode.d)
-I (..\My\calib_mode.h)(0x6A51C932)
+F (..\My\calib_mode.c)(0x6A51DA79)(--c99 -c --cpu Cortex-M4.fp.sp -g -O1 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32G4xx_HAL_Driver/Inc -I ../Drivers/STM32G4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32G4xx/Include -I ../Drivers/CMSIS/Include -I ../Middlewares/Third_Party/FreeRTOS/Source/include -I ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 -I ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F -I ../My-I.\RTE\_bisemin-IE:\MDK\ARM\CMSIS\5.9.0\CMSIS\Core\Include-IE:\MDK\Keil\STM32G4xx_DFP\1.5.0\Drivers\CMSIS\Device\ST\STM32G4xx\Include-D__UVISION_VERSION="537" -D_RTE_ -DSTM32G474xx -D_RTE_ -DUSE_HAL_DRIVER -DSTM32G474xx-o bisemin\calib_mode.o --omf_browse bisemin\calib_mode.crf --depend bisemin\calib_mode.d)
+I (..\My\calib_mode.h)(0x6A51D9C1)
 I (E:\MDK\ARM\ARMCC\include\stdint.h)(0x5D9B3488)
 I (..\My\flash_storage.h)(0x6A519791)
 I (../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal.h)(0x6A519790)
