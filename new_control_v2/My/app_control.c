@@ -235,6 +235,7 @@ static uint8_t s_test_drv_initialized = 0U;
 static uint32_t s_test_duty_toggle_ms[APP_CONTROL_DRV_COUNT] = {0U};
 static int8_t s_test_ramp_dir[APP_CONTROL_DRV_COUNT] = {1, 1, 1, 1, 1};
 static uint8_t s_calib_was_active = 0U;  /* 检测标定→正常模式的过渡 */
+static uint32_t s_last_water_check_ms = 0U;  /* 水位检测间隔计时 */
 
 /* 标定数据缓存，用于前馈控制 ------------------------------------------------*/
 typedef struct
@@ -254,6 +255,7 @@ extern volatile uint32_t Sys_TempUpdateCount[4];
 extern volatile uint32_t Sys_TempUpdateTick[4];
 
 extern UART_HandleTypeDef huart1;
+extern UART_HandleTypeDef huart2;
 #define RX_BUFFER_SIZE 256U
 extern uint8_t rx_buffer[RX_BUFFER_SIZE];
 
@@ -1758,6 +1760,28 @@ static void AppControl_RunClosedLoop(void)
     }
 }
 
+/* 水位检测 -----------------------------------------------------------------*/
+
+/**
+ * @brief  每秒检测水位传感器并在串口输出状态
+ * @param  now_ms 当前系统 tick (ms)
+ */
+static void AppControl_WaterCheck(uint32_t now_ms)
+{
+    if ((now_ms - s_last_water_check_ms) < 1000U)
+        return;
+    s_last_water_check_ms = now_ms;
+
+    if (HAL_GPIO_ReadPin(WATER_GPIO_Port, WATER_Pin) == GPIO_PIN_SET)
+    {
+        (void)HAL_UART_Transmit(&huart2, (uint8_t *)"WATER,OK\r\n", 10, 10);
+    }
+    else
+    {
+        (void)HAL_UART_Transmit(&huart2, (uint8_t *)"WATER,FAULT\r\n", 13, 10);
+    }
+}
+
 /**
  * @brief Initialise the application control module.
  *
@@ -2004,6 +2028,7 @@ void AppControl_Task(uint32_t now_ms)
         }
     }
 
+    AppControl_WaterCheck(now_ms);
     AppControl_ApplyDebugState();
     g_app_control_loop_count++;
     AppControl_Unlock();
