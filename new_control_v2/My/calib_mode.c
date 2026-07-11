@@ -19,6 +19,7 @@
 #include "flash_storage.h"
 #include "pid_controller.h"
 #include "usart.h"
+#include <stddef.h>
 #include <string.h>
 #include <stdio.h>
 
@@ -276,14 +277,15 @@ static uint8_t CalibMode_WriteToFlash(void)
 
     /* 计算 CRC（不包含 crc16 字段本身） */
     flash_data.crc16 = CalibMode_CRC16((const uint8_t *)&flash_data,
-                                       sizeof(flash_data) - sizeof(flash_data.crc16));
+                                       offsetof(CalibFlashData_t, crc16));
 
-    /* 擦除目标页（直接调用 HAL，绕过 flash_storage.c） */
+    /* 擦除目标页 */
     {
-        uint32_t           calib_offset = CalibMode_GetFlashOffset((uint8_t)g_calib_cell);
-        uint32_t           abs_addr     = FLASH_STORAGE_START_ADDR + calib_offset;
-        char               buf[80];
-        int                len;
+        uint32_t calib_offset = CalibMode_GetFlashOffset((uint8_t)g_calib_cell);
+        uint8_t  page_idx     = (uint8_t)(calib_offset / FLASH_STORAGE_PAGE_SIZE);
+        uint32_t abs_addr     = FLASH_STORAGE_START_ADDR + calib_offset;
+        char     buf[80];
+        int      len;
 
         len = snprintf(buf, sizeof(buf),
                        "CALIB,FLASH_ERASE,CELL:%u,ADDR:0x%08lX\r\n",
@@ -296,24 +298,7 @@ static uint8_t CalibMode_WriteToFlash(void)
         primask = __get_PRIMASK();
         __disable_irq();
 
-        /* 直接调 HAL 页擦除（需先解锁 Flash） */
-        {
-            FLASH_EraseInitTypeDef erase_init;
-            uint32_t               page_err = 0U;
-            HAL_StatusTypeDef      hal_ret;
-
-            memset(&erase_init, 0, sizeof(erase_init));
-            erase_init.TypeErase = FLASH_TYPEERASE_PAGES;
-            erase_init.Banks     = FLASH_BANK_2;
-            erase_init.Page      = 124U;  /* PNB 硬件截断 → Bank2 页 60 = 0x0803E000 */
-            erase_init.NbPages   = 1U;
-
-            HAL_FLASH_Unlock();
-            hal_ret = HAL_FLASHEx_Erase(&erase_init, &page_err);
-            HAL_FLASH_Lock();
-
-            ret = (hal_ret == HAL_OK) ? FLASH_STORAGE_OK : FLASH_STORAGE_ERROR_ERASE;
-        }
+        ret = FlashStorage_ErasePage(page_idx);
 
         __set_PRIMASK(primask);
 
@@ -839,7 +824,7 @@ uint8_t CalibMode_LoadFromFlash(uint8_t cell, CalibFlashData_t *buf)
     /* 校验 CRC */
     stored_crc = buf->crc16;
     calc_crc   = CalibMode_CRC16((const uint8_t *)buf,
-                                  sizeof(CalibFlashData_t) - sizeof(buf->crc16));
+                                  offsetof(CalibFlashData_t, crc16));
     if (stored_crc != calc_crc)
         return 4U;
 
@@ -890,7 +875,7 @@ void CalibMode_FlashTest(uint8_t cell)
         write_data.step[i].settled  = 1U;
     }
     write_data.crc16 = CalibMode_CRC16((const uint8_t *)&write_data,
-                                       sizeof(write_data) - sizeof(write_data.crc16));
+                                       offsetof(CalibFlashData_t, crc16));
 
     len = snprintf(buf, sizeof(buf),
                    "FLASH_TEST,START,CELL:%u,PAGE:%u,ADDR:0x%08lX,SIZE:%u\r\n",

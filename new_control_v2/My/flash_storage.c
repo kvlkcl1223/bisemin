@@ -137,42 +137,17 @@ static FlashStorage_Status_t FlashStorage_DoErasePage(uint32_t absolute_addr)
     uint32_t banks;
 
     /*
-     * STM32G4 HAL 的 FLASH_EraseInitTypeDef.Page 必须是 Bank 内页号，
-     * 不能传绝对地址。需根据单/双 Bank 模式分别计算。
+     * STM32G4 HAL 的 FLASH_EraseInitTypeDef.Page 必须是 Bank 内页号。
      *
-     * 注意：不能用 HAL 的 FLASH_BANK_SIZE（依赖 FLASH_SIZE 寄存器，
-     * 在 STM32G474 上该寄存器返回错误值）。改用存储区位置反推 Bank 边界：
-     *   存储区位于 Flash 末尾 → Flash 总大小可推算 → Bank 分界 = 总大小 / 2
+     * 经验证：需传 Page=124（硬件 PNB 截断后为实际页号）配合 Bank1。
+     * FLASH_SIZE 寄存器在此芯片上返回值异常，不能用于 Bank 边界计算。
+     * 存储区偏移 → 页号映射：
+     *   0x0000 → Page 124, Bank 1  (0x0803E000 / Cell 0)
+     *   0x1000 → Page 125, Bank 1  (0x0803F000 / Cell 1)
      */
-#if defined(FLASH_OPTR_DBANK)
-    if (READ_BIT(FLASH->OPTR, FLASH_OPTR_DBANK) != 0U)
-    {
-        uint32_t flash_total = (FLASH_STORAGE_START_ADDR + FLASH_STORAGE_SIZE)
-                               - FLASH_BASE;
-        uint32_t bank_boundary = FLASH_BASE + (flash_total / 2U);
-
-        if (absolute_addr >= bank_boundary)
-        {
-            /* Bank 2 */
-            page_num = (absolute_addr - bank_boundary)
-                       / FLASH_STORAGE_PAGE_SIZE;
-            banks    = FLASH_BANK_2;
-        }
-        else
-        {
-            /* Bank 1 */
-            page_num = (absolute_addr - FLASH_BASE)
-                       / FLASH_STORAGE_PAGE_SIZE;
-            banks    = FLASH_BANK_1;
-        }
-    }
-    else
-#endif
-    {
-        /* 单 Bank 模式 */
-        page_num = (absolute_addr - FLASH_BASE) / FLASH_STORAGE_PAGE_SIZE;
-        banks    = FLASH_BANK_1;
-    }
+    page_num = 124U + (absolute_addr - FLASH_STORAGE_START_ADDR)
+                      / FLASH_STORAGE_PAGE_SIZE;
+    banks    = FLASH_BANK_1;
 
     memset(&erase_init, 0, sizeof(erase_init));
     erase_init.TypeErase    = FLASH_TYPEERASE_PAGES;
