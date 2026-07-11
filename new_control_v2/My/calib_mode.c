@@ -300,28 +300,6 @@ static uint8_t CalibMode_WriteToFlash(void)
 
         ret = FlashStorage_ErasePage(page_idx);
 
-        /* 直接调用 HAL 擦除作为对比测试，硬编码 Bank2 页号 124 */
-        {
-            FLASH_EraseInitTypeDef dir_erase;
-            uint32_t               dir_page_err = 0U;
-            HAL_StatusTypeDef      dir_ret;
-
-            memset(&dir_erase, 0, sizeof(dir_erase));
-            dir_erase.TypeErase = FLASH_TYPEERASE_PAGES;
-            dir_erase.Page      = 124U;          /* Bank2 内页号 */
-            dir_erase.NbPages   = 1U;
-            dir_erase.Banks     = FLASH_BANK_2;
-
-            dir_ret = HAL_FLASHEx_Erase(&dir_erase, &dir_page_err);
-
-            len = snprintf(buf, sizeof(buf),
-                           "CALIB,DIRECT_ERASE,PAGE:124,BANK:2,RET:%lu,PAGE_ERR:%lu\r\n",
-                           (unsigned long)dir_ret,
-                           (unsigned long)dir_page_err);
-            if (len > 0 && len < (int)sizeof(buf))
-                CalibMode_UartSend(buf);
-        }
-
         __set_PRIMASK(primask);
 
         len = snprintf(buf, sizeof(buf),
@@ -329,27 +307,6 @@ static uint8_t CalibMode_WriteToFlash(void)
                        (unsigned int)ret);
         if (len > 0 && len < (int)sizeof(buf))
             CalibMode_UartSend(buf);
-
-        /* 诊断：打印 FLASH_SIZE、DBANK、计算的硬件页号 */
-        {
-            uint32_t flash_sz = 0U;
-            uint32_t dbank    = 0U;
-            uint32_t pnb      = 0U;
-
-#if defined(FLASH_OPTR_DBANK)
-            dbank = (READ_BIT(FLASH->OPTR, FLASH_OPTR_DBANK) != 0U) ? 1U : 0U;
-#endif
-            flash_sz = (((*((uint32_t *)0x1FFF6E10U)) & 0xFFFFUL) << 10U);
-            pnb      = (FLASH->CR & 0x000007F8U) >> 3U;
-
-            len = snprintf(buf, sizeof(buf),
-                           "CALIB,DIAG,FLASH_SIZE:%lu,DBANK:%lu,PNB_AFTER_ERASE:%lu\r\n",
-                           (unsigned long)flash_sz,
-                           (unsigned long)dbank,
-                           (unsigned long)pnb);
-            if (len > 0 && len < (int)sizeof(buf))
-                CalibMode_UartSend(buf);
-        }
 
         /* 验证擦除是否真正生效：关中断内立即读回 */
         {
