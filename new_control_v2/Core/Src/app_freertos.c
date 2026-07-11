@@ -196,6 +196,10 @@ void StartControlTask(void *argument)
     AppDebug_UartSend(buf);
   }
 
+  /* TODO: 临时 Flash 读写测试，验证通过后删除 */
+  CalibMode_FlashTest(0);
+  CalibMode_FlashTest(1);
+
   AppDebug_UartSend("CALIB,AUTO_START,CELL:0\r\n");
   CalibMode_Start(0);
 
@@ -261,49 +265,56 @@ void StartHMITask(void *argument)
 
       if (g_calib_mode_active != 0U)
       {
-        uint16_t led_mask = 0U;
-        if (g_calib_state == CALIB_IDLE || g_calib_state == CALIB_RUN)
-          led_mask = 0x00;
-        else if (g_calib_state == CALIB_INIT)
-          led_mask = 0x01;
+        if (g_calib_state == CALIB_INIT)
+        {
+          /* INIT: LED1 亮，数码管清空 */
+          TM1638_SetAllLEDs(&htm1638, 0x01);
+          TM1638_ClearDisplay(&htm1638);
+        }
+        else if (g_calib_state == CALIB_RUN || g_calib_state == CALIB_IDLE)
+        {
+          /* RUN/IDLE 过渡态: LED 全灭，数码管清空 */
+          TM1638_SetAllLEDs(&htm1638, 0x00);
+          TM1638_ClearDisplay(&htm1638);
+        }
         else if (g_calib_state == CALIB_WAIT_STABLE)
-          led_mask = 0x03;
-        else if (g_calib_state == CALIB_DONE)
-          led_mask = 0x1FF;
-        else if (g_calib_state == CALIB_FAULT)
-          led_mask = 0x155;
-        TM1638_SetAllLEDs(&htm1638, led_mask);
+        {
+          /* WAIT_STABLE: 三个值每 2s 轮换，LED1/2/3 分别指示 */
+          uint8_t disp_mode = (uint8_t)((now / 2000U) % 3U);
+          TM1638_ClearDisplay(&htm1638);
 
-        TM1638_ClearDisplay(&htm1638);
-        if (g_calib_state == CALIB_DONE)
-        {
-        }
-        else if (g_calib_state == CALIB_FAULT)
-        {
-          TM1638_ShowString(&htm1638, "Err");
-        }
-        else
-        {
-          TM1638_ShowChar(&htm1638, 0U, 'C', false);
-          TM1638_ShowDigit(&htm1638, 1U, g_calib_cell, false);
-          TM1638_ShowDigit(&htm1638, 3U, g_calib_step_idx / 10U, false);
-          TM1638_ShowDigit(&htm1638, 4U, g_calib_step_idx % 10U, false);
-          if (g_calib_show_duty != 0U)
+          if (disp_mode == 0U)
           {
-            float duty = CalibMode_StepDuty(g_calib_step_idx);
-            TM1638_ShowChar(&htm1638, 5U, 'd', false);
+            /* 占空比 → LED1 */
+            float duty = CalibMode_StepDuty((uint8_t)g_calib_step_idx);
+            TM1638_SetAllLEDs(&htm1638, 0x01);
             TM1638_ShowFloat(&htm1638, duty, 2);
+          }
+          else if (disp_mode == 1U)
+          {
+            /* CH0 温度 → LED2 */
+            TM1638_SetAllLEDs(&htm1638, 0x02);
+            TM1638_ShowFloat(&htm1638, g_calib_temp_ch0, 1);
           }
           else
           {
-            float temp;
-            if (g_calib_cell == 0U)
-              temp = g_calib_temp_ch0;
-            else
-              temp = g_calib_temp_ch1;
-            TM1638_ShowChar(&htm1638, 5U, 't', false);
-            TM1638_ShowFloat(&htm1638, temp, 1);
+            /* CH1 温度 → LED3 */
+            TM1638_SetAllLEDs(&htm1638, 0x04);
+            TM1638_ShowFloat(&htm1638, g_calib_temp_ch1, 1);
           }
+        }
+        else if (g_calib_state == CALIB_DONE)
+        {
+          /* DONE: 9 LED 全亮，数码管清空 */
+          TM1638_SetAllLEDs(&htm1638, 0x1FF);
+          TM1638_ClearDisplay(&htm1638);
+        }
+        else if (g_calib_state == CALIB_FAULT)
+        {
+          /* FAULT: 交替 LED，数码管显示 Err */
+          TM1638_SetAllLEDs(&htm1638, 0x155);
+          TM1638_ClearDisplay(&htm1638);
+          TM1638_ShowString(&htm1638, "Err");
         }
       }
       else

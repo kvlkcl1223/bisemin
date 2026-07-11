@@ -3,83 +3,34 @@
 <pre>
 <h1>µVision Build Log</h1>
 <h2>Tool Versions:</h2>
-IDE-Version: ¶ÃVision V5.38.0.0
+IDE-Version: ¶ÃVision V5.37.0.0
 Copyright (C) 2022 ARM Ltd and ARM Germany GmbH. All rights reserved.
-License Information: wenbozhang admin, wenbozhang, LIC=03C6R-K2VFB-GKUBG-VH4DV-G39TE-NVMHN
+License Information: 1 ’≈Œƒ≤®, HP Inc., LIC=R4HV2-9BK62-YDWK5-GZ7IG-Q66J5-2PQTI
  
 Tool Versions:
-Toolchain:       MDK-ARM Plus  Version: 5.38.0.0
-Toolchain Path:  D:\Keil_v5\ARM\v5\Bin
-C Compiler:      Armcc.exe V5.06 update 7 (build 960)
-Assembler:       Armasm.exe V5.06 update 7 (build 960)
-Linker/Locator:  ArmLink.exe V5.06 update 7 (build 960)
-Library Manager: ArmAr.exe V5.06 update 7 (build 960)
-Hex Converter:   FromElf.exe V5.06 update 7 (build 960)
-CPU DLL:         SARMCM3.DLL V5.38.0.0
+Toolchain:       MDK-ARM Professional  Version: 5.37.0.0
+Toolchain Path:  E:\MDK\ARM\ARMCLANG\bin\
+C Compiler:      ArmClang.exe V6.18
+Assembler:       Armasm.exe V6.18
+Linker/Locator:  ArmLink.exe V6.18
+Library Manager: ArmAr.exe V6.18
+Hex Converter:   FromElf.exe V6.18
+CPU DLL:         SARMCM3.DLL V5.37.0.0
 Dialog DLL:      DCM.DLL V1.17.5.0
-Target DLL:      STLink\ST-LINKIII-KEIL_SWO.dll V3.1.0.0
-Dialog DLL:      TCM.DLL V1.56.4.0
+Target DLL:      STLink\ST-LINKIII-KEIL_SWO.dll V3.0.9.0
+Dialog DLL:      TCM.DLL V1.56.1.0
  
 <h2>Project:</h2>
-D:\bisemin\bisemin\new_control_v2\MDK-ARM\bisemin.uvprojx
-Project File Date:  07/07/2026
+E:\jianzhi\bisemin\new_control_v2\MDK-ARM\bisemin.uvprojx
+Project File Date:  07/11/2026
 
 <h2>Output:</h2>
-*** Using Compiler 'V5.06 update 7 (build 960)', folder: 'D:\Keil_v5\ARM\v5\Bin'
-Build target 'bisemin'
-compiling calib_mode.c...
-..\My\calib_mode.h(176): warning:  #1-D: last line of file ends without a newline
-  #endif /* __CALIB_MODE_H */
-..\My\app_control.h(142): warning:  #1-D: last line of file ends without a newline
-  #endif
-..\My\flash_storage.h(151): warning:  #1-D: last line of file ends without a newline
-  #endif /* __FLASH_STORAGE_H */
-..\My\calib_mode.c(365): warning:  #223-D: function "AppControl_SetDrvDuty" declared implicitly
-      (void)AppControl_SetDrvDuty(first, duty);
-..\My\calib_mode.c(599): warning:  #223-D: function "AppControl_SetDrvDuty" declared implicitly
-          (void)AppControl_SetDrvDuty(first, 0.0f);
-..\My\calib_mode.c(628): warning:  #223-D: function "AppControl_SetDrvDuty" declared implicitly
-          (void)AppControl_SetDrvDuty(first, 0.0f);
-..\My\calib_mode.c(666): warning:  #223-D: function "AppControl_SetDrvDuty" declared implicitly
-      (void)AppControl_SetDrvDuty(first, 0.0f);
-..\My\calib_mode.c(722): warning:  #1-D: last line of file ends without a newline
-  }
-..\My\calib_mode.c(48): warning:  #177-D: variable "s_calib_display_switch_ms"  was declared but never referenced
-  static uint32_t s_calib_display_switch_ms = 0U; /* Êï∞Á†ÅÁÆ°ÊòæÁ§∫ÂàáÊç? tick */
-..\My\calib_mode.c: 9 warnings, 0 errors
-compiling app_freertos.c...
-../My/app_control.h(142): warning:  #1-D: last line of file ends without a newline
-  #endif
-../My/calib_mode.h(176): warning:  #1-D: last line of file ends without a newline
-  #endif /* __CALIB_MODE_H */
-../Core/Src/app_freertos.c: 2 warnings, 0 errors
-linking...
-Program Size: Code=58808 RO-data=2336 RW-data=1040 ZI-data=57368  
-FromELF: creating hex file...
-"bisemin\bisemin.axf" - 0 Error(s), 11 Warning(s).
-
-<h2>Software Packages used:</h2>
-
-Package Vendor: ARM
-                http://www.keil.com/pack/ARM.CMSIS.5.9.0.pack
-                ARM.CMSIS.5.9.0
-                CMSIS (Common Microcontroller Software Interface Standard)
-   * Component: CORE Version: 5.6.0
-
-Package Vendor: Keil
-                https://www.keil.com/pack/Keil.STM32G4xx_DFP.2.2.0.pack
-                Keil.STM32G4xx_DFP.2.2.0
-                STMicroelectronics STM32G4 Series Device Support
-
-<h2>Collection of Component include folders:</h2>
-  ./RTE/_bisemin
-  D:/Users/wenbo.zhang/AppData/Local/Arm/Packs/ARM/CMSIS/5.9.0/CMSIS/Core/Include
-
-<h2>Collection of Component Files used:</h2>
-
-   * Component: ARM::CMSIS:CORE:5.6.0
-      Include file:  CMSIS/Core/Include/tz_context.h
-Build Time Elapsed:  00:00:06
+*** Target 'bisemin' uses ARM-Compiler 'V5.06 update 7 (build 960)' which is not available.
+*** Please review the installed ARM Compiler Versions:
+   'Manage Project Items - Folders/Extensions' to manage ARM Compiler Versions.
+   'Options for Target - Target' to select an ARM Compiler Version for the target.
+*** Build aborted.
+Build Time Elapsed:  00:00:00
 </pre>
 </body>
 </html>

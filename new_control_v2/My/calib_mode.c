@@ -227,6 +227,16 @@ static float CalibMode_CalcStableAverageCh(float sum)
 /* 标定数据写入 Flash --------------------------------------------------------*/
 
 /**
+ * @brief  根据 Cell 编号获取对应的 Flash 存储区偏移
+ * @param  cell Cell 编号 (0 或 1)
+ * @return uint32_t Flash 存储区内偏移
+ */
+static uint32_t CalibMode_GetFlashOffset(uint8_t cell)
+{
+    return (cell == 0U) ? CALIB_FLASH_OFFSET_CELL0 : CALIB_FLASH_OFFSET_CELL1;
+}
+
+/**
  * @brief  将标定结果写入 Flash
  * @return uint8_t 0 = 成功，非0 = 失败
  */
@@ -234,6 +244,7 @@ static uint8_t CalibMode_WriteToFlash(void)
 {
     CalibFlashData_t flash_data;
     FlashStorage_Status_t ret;
+    uint32_t primask;
     uint8_t i;
 
     memset(&flash_data, 0, sizeof(flash_data));
@@ -250,19 +261,29 @@ static uint8_t CalibMode_WriteToFlash(void)
         flash_data.step[i].settled  = g_calib_result[i].settled;
     }
 
-    /* 擦除目标页 */
-    ret = FlashStorage_ErasePage((uint8_t)(CALIB_FLASH_OFFSET / FLASH_STORAGE_PAGE_SIZE));
-    if (ret != FLASH_STORAGE_OK)
-        return 1U;
-
     /* 计算 CRC（不包含 crc16 字段本身） */
     flash_data.crc16 = CalibMode_CRC16((const uint8_t *)&flash_data,
                                        sizeof(flash_data) - sizeof(flash_data.crc16));
 
-    /* 写入 Flash */
-    ret = FlashStorage_Write(CALIB_FLASH_OFFSET,
-                             (const uint8_t *)&flash_data,
-                             sizeof(flash_data));
+    /* 擦除目标页（Cell 0 → 第0页，Cell 1 → 第1页） */
+    {
+        uint32_t calib_offset = CalibMode_GetFlashOffset((uint8_t)g_calib_cell);
+
+        /* 关全局中断，防止 Flash 操作期间 ISR 取指导致 HardFault */
+        primask = __get_PRIMASK();
+        __disable_irq();
+
+        ret = FlashStorage_ErasePage((uint8_t)(calib_offset / FLASH_STORAGE_PAGE_SIZE));
+        if (ret == FLASH_STORAGE_OK)
+        {
+            /* 写入 Flash */
+            ret = FlashStorage_Write(calib_offset,
+                                     (const uint8_t *)&flash_data,
+                                     sizeof(flash_data));
+        }
+
+        __set_PRIMASK(primask);
+    }
     if (ret != FLASH_STORAGE_OK)
         return 2U;
 
@@ -706,19 +727,21 @@ void CalibMode_Stop(void)
 }
 
 /**
- * @brief  从 Flash 读取上一次标定数据
+ * @brief  从 Flash 读取指定 Cell 的上一次标定数据
+ * @param  cell Cell 编号 (0 或 1)
  * @param  buf  输出缓冲区指针
  * @return uint8_t 0 = 成功，非0 = 失败
  */
-uint8_t CalibMode_LoadFromFlash(CalibFlashData_t *buf)
+uint8_t CalibMode_LoadFromFlash(uint8_t cell, CalibFlashData_t *buf)
 {
     FlashStorage_Status_t ret;
     uint16_t stored_crc, calc_crc;
+    uint32_t calib_offset = CalibMode_GetFlashOffset(cell);
 
     if (buf == 0)
         return 1U;
 
-    ret = FlashStorage_Read(CALIB_FLASH_OFFSET,
+    ret = FlashStorage_Read(calib_offset,
                             (uint8_t *)buf,
                             sizeof(CalibFlashData_t));
     if (ret != FLASH_STORAGE_OK)
@@ -736,4 +759,154 @@ uint8_t CalibMode_LoadFromFlash(CalibFlashData_t *buf)
         return 4U;
 
     return 0U;
+}
+
+/* Flash 读写测试 --------------------------------------------------------------*/
+
+/**
+ * @brief  Flash 写入/读出/校验测试函数
+ * @param  cell Cell 编号 (0 或 1)
+ * @note   构造模拟标定数据 → 擦除 → 写入 → 读出 → 逐字节校验
+ *         全程通过 USART2 输出日志
+ *         写入前后关闭全局中断，防止 Flash 操作期间 ISR 取指卡死
+ */
+void CalibMode_FlashTest(uint8_t cell)
+{
+    CalibFlashData_t write_data;
+    CalibFlashData_t read_data;
+    FlashStorage_Status_t ret;
+    uint32_t calib_offset;
+    uint32_t primask;
+    uint8_t page_idx;
+    uint8_t i;
+    char buf[128];
+    int len;
+
+    if (cell > 1U)
+    {
+        CalibMode_UartSend("FLASH_TEST,REJECT,BAD_CELL\r\n");
+        return;
+    }
+
+    calib_offset = CalibMode_GetFlashOffset(cell);
+    page_idx     = (uint8_t)(calib_offset / FLASH_STORAGE_PAGE_SIZE);
+
+    /* ---- 构造模拟标定数据 ---- */
+    memset(&write_data, 0, sizeof(write_data));
+    write_data.magic = CALIB_FLASH_MAGIC;
+    write_data.cell  = cell;
+
+    for (i = 0U; i < CALIB_DUTY_COUNT; i++)
+    {
+        write_data.step[i].duty     = CalibMode_StepDuty(i);
+        write_data.step[i].temp_ch0 = 25.0f + (float)i;
+        write_data.step[i].temp_ch1 = 26.0f + (float)i;
+        write_data.step[i].valid    = 1U;
+        write_data.step[i].settled  = 1U;
+    }
+    write_data.crc16 = CalibMode_CRC16((const uint8_t *)&write_data,
+                                       sizeof(write_data) - sizeof(write_data.crc16));
+
+    len = snprintf(buf, sizeof(buf),
+                   "FLASH_TEST,START,CELL:%u,PAGE:%u,ADDR:0x%08lX,SIZE:%u\r\n",
+                   (unsigned int)cell, (unsigned int)page_idx,
+                   (unsigned long)(FLASH_STORAGE_START_ADDR + calib_offset),
+                   (unsigned int)sizeof(CalibFlashData_t));
+    if (len > 0 && len < (int)sizeof(buf))
+        CalibMode_UartSend(buf);
+
+    /* ---- 擦除 ---- */
+    CalibMode_UartSend("FLASH_TEST,ERASE_BEGIN\r\n");
+
+    primask = __get_PRIMASK();
+    __disable_irq();
+
+    ret = FlashStorage_ErasePage(page_idx);
+
+    __set_PRIMASK(primask);
+
+    len = snprintf(buf, sizeof(buf),
+                   "FLASH_TEST,ERASE_DONE,STATUS:%u\r\n",
+                   (unsigned int)ret);
+    if (len > 0 && len < (int)sizeof(buf))
+        CalibMode_UartSend(buf);
+
+    if (ret != FLASH_STORAGE_OK)
+    {
+        CalibMode_UartSend("FLASH_TEST,FAIL,ERASE\r\n");
+        return;
+    }
+
+    /* ---- 写入 ---- */
+    CalibMode_UartSend("FLASH_TEST,WRITE_BEGIN\r\n");
+
+    primask = __get_PRIMASK();
+    __disable_irq();
+
+    ret = FlashStorage_Write(calib_offset,
+                             (const uint8_t *)&write_data,
+                             sizeof(write_data));
+
+    __set_PRIMASK(primask);
+
+    len = snprintf(buf, sizeof(buf),
+                   "FLASH_TEST,WRITE_DONE,STATUS:%u\r\n",
+                   (unsigned int)ret);
+    if (len > 0 && len < (int)sizeof(buf))
+        CalibMode_UartSend(buf);
+
+    if (ret != FLASH_STORAGE_OK)
+    {
+        CalibMode_UartSend("FLASH_TEST,FAIL,WRITE\r\n");
+        return;
+    }
+
+    /* ---- 读回 ---- */
+    memset(&read_data, 0xFFU, sizeof(read_data));
+    ret = FlashStorage_Read(calib_offset,
+                            (uint8_t *)&read_data,
+                            sizeof(read_data));
+
+    len = snprintf(buf, sizeof(buf),
+                   "FLASH_TEST,READ_DONE,STATUS:%u,MAGIC:0x%08lX,CELL:%u,CRC16:0x%04X\r\n",
+                   (unsigned int)ret,
+                   (unsigned long)read_data.magic,
+                   (unsigned int)read_data.cell,
+                   (unsigned int)read_data.crc16);
+    if (len > 0 && len < (int)sizeof(buf))
+        CalibMode_UartSend(buf);
+
+    if (ret != FLASH_STORAGE_OK)
+    {
+        CalibMode_UartSend("FLASH_TEST,FAIL,READ\r\n");
+        return;
+    }
+
+    /* ---- 逐字节校验 ---- */
+    if (memcmp(&write_data, &read_data, sizeof(write_data)) == 0)
+    {
+        CalibMode_UartSend("FLASH_TEST,PASS,VERIFY_OK\r\n");
+    }
+    else
+    {
+        const uint8_t *w = (const uint8_t *)&write_data;
+        const uint8_t *r = (const uint8_t *)&read_data;
+
+        CalibMode_UartSend("FLASH_TEST,FAIL,VERIFY_MISMATCH\r\n");
+
+        for (i = 0U; i < (uint8_t)sizeof(write_data); i++)
+        {
+            if (w[i] != r[i])
+            {
+                len = snprintf(buf, sizeof(buf),
+                               "FLASH_TEST,MISMATCH,OFFSET:%u,W:0x%02X,R:0x%02X\r\n",
+                               (unsigned int)i,
+                               (unsigned int)w[i],
+                               (unsigned int)r[i]);
+                if (len > 0 && len < (int)sizeof(buf))
+                    CalibMode_UartSend(buf);
+                break;
+            }
+        }
+    }
 }

@@ -7,11 +7,12 @@
  * @date    2026-07-02
  *
  * @details
- * 从 -0.35 到 +0.35 每 0.05 步进，共 15 步。
+ * 从 +0.45（制冷）到 -0.45（加热）每 -0.02 步进，共 46 步。
  * 每一步设定固定占空比后等待温度稳定（波动 < CALIB_STABLE_THRESHOLD
  * 持续 CALIB_STABLE_SECONDS 秒），记录稳定区间的平均温度。
  * 若超时未稳定则记录当前值并标记 valid=0。
- * 全部 15 步完成后写入 Flash。
+ * 全部 46 步完成后写入 Flash。
+ * Cell 0 和 Cell 1 的标定数据分别存储在 Flash 不同页，互不覆盖。
  ******************************************************************************
  */
 
@@ -24,20 +25,21 @@ extern "C" {
 
 /* Includes ------------------------------------------------------------------*/
 #include <stdint.h>
+#include "flash_storage.h"
 
 /* 标定参数常量 --------------------------------------------------------------*/
 
-/** @brief 占空比扫描范围：起始值 */
-#define CALIB_DUTY_START      (-0.35f)
+/** @brief 占空比扫描范围：起始值（正=制冷） */
+#define CALIB_DUTY_START      ( 0.45f)
 
-/** @brief 占空比扫描范围：结束值 */
-#define CALIB_DUTY_END        ( 0.35f)
+/** @brief 占空比扫描范围：结束值（负=加热） */
+#define CALIB_DUTY_END        (-0.45f)
 
-/** @brief 占空比扫描步进 */
-#define CALIB_DUTY_STEP       ( 0.05f)
+/** @brief 占空比扫描步进（负步进=从制冷到加热） */
+#define CALIB_DUTY_STEP       (-0.02f)
 
-/** @brief 扫描点数 = (END - START) / STEP + 1 */
-#define CALIB_DUTY_COUNT      (15U)
+/** @brief 扫描点数 = (START - END) / |STEP| + 1 */
+#define CALIB_DUTY_COUNT      (46U)
 
 /** @brief 稳定判定阈值 (°C)，温度 max-min 小于此值认为稳定 */
 #define CALIB_STABLE_THRESHOLD  0.1f
@@ -84,14 +86,19 @@ typedef struct
 /* Flash 存储数据结构 ---------------------------------------------------------*/
 
 #define CALIB_FLASH_MAGIC   0x42495345UL  /**< "BISE" */
-#define CALIB_FLASH_OFFSET  0U            /**< 存储在 Flash 存储区第 0 页起始 */
+
+/** @brief Flash 存储区偏移：Cell 0（第 0 页起始） */
+#define CALIB_FLASH_OFFSET_CELL0  0U
+
+/** @brief Flash 存储区偏移：Cell 1（第 1 页起始，与 Cell 0 不重叠） */
+#define CALIB_FLASH_OFFSET_CELL1  FLASH_STORAGE_PAGE_SIZE
 
 typedef struct
 {
     uint32_t     magic;                       /**< 魔数，用于校验数据有效性 */
     uint8_t      cell;                        /**< 标定的 Cell 编号 (0 或 1) */
     uint8_t      reserved[3];                 /**< 对齐填充 */
-    CalibStep_t  step[CALIB_DUTY_COUNT];     /**< 15 步标定记录 */
+    CalibStep_t  step[CALIB_DUTY_COUNT];     /**< 46 步标定记录 */
     uint16_t     crc16;                       /**< 整个结构体的 CRC16 校验 */
 } CalibFlashData_t;
 
@@ -103,10 +110,10 @@ extern volatile uint8_t g_calib_mode_active;
 /** @brief 当前标定状态 */
 extern volatile CalibState_t g_calib_state;
 
-/** @brief 当前扫描步索引 (0 ~ 14) */
+/** @brief 当前扫描步索引 (0 ~ 45) */
 extern volatile uint8_t g_calib_step_idx;
 
-/** @brief 15 步标定结果（运行时） */
+/** @brief 46 步标定结果（运行时） */
 extern volatile CalibStep_t g_calib_result[CALIB_DUTY_COUNT];
 
 /** @brief 被标定的 Cell 编号 */
@@ -160,15 +167,16 @@ void CalibMode_Fault(uint32_t error);
 void CalibMode_Stop(void);
 
 /**
- * @brief  从 Flash 读取上一次标定数据
+ * @brief  从 Flash 读取指定 Cell 的上一次标定数据
+ * @param  cell Cell 编号 (0 或 1)
  * @param  buf  输出缓冲区指针
  * @return 0 = 成功, 非0 = 失败（数据无效或读取错误）
  */
-uint8_t CalibMode_LoadFromFlash(CalibFlashData_t *buf);
+uint8_t CalibMode_LoadFromFlash(uint8_t cell, CalibFlashData_t *buf);
 
 /**
  * @brief  获取当前步的占空比（供数码管显示）
- * @param  step_idx 步索引 (0 ~ 14)
+ * @param  step_idx 步索引 (0 ~ 45)
  * @return float 占空比
  */
 float CalibMode_StepDuty(uint8_t step_idx);
@@ -178,6 +186,14 @@ float CalibMode_StepDuty(uint8_t step_idx);
  * @return float 当前平均温度 (°C)
  */
 float CalibMode_GetCellTemp(void);
+
+/**
+ * @brief  Flash 写入/读出/校验测试函数
+ * @param  cell Cell 编号 (0 或 1)
+ * @note   构造模拟标定数据 → 擦除 → 写入 → 读出 → 逐字节校验
+ *         全程通过 USART2 输出日志
+ */
+void CalibMode_FlashTest(uint8_t cell);
 
 #ifdef __cplusplus
 }
