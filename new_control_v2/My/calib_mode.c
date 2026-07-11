@@ -296,12 +296,11 @@ static uint8_t CalibMode_WriteToFlash(void)
         primask = __get_PRIMASK();
         __disable_irq();
 
-        /* 直接调 HAL 页擦除（连续两次，第二次触发缓存刷新） */
+        /* 直接调 HAL 页擦除（需先解锁 Flash） */
         {
             FLASH_EraseInitTypeDef erase_init;
             uint32_t               page_err = 0U;
             HAL_StatusTypeDef      hal_ret;
-            uint8_t                attempt;
 
             memset(&erase_init, 0, sizeof(erase_init));
             erase_init.TypeErase = FLASH_TYPEERASE_PAGES;
@@ -309,16 +308,11 @@ static uint8_t CalibMode_WriteToFlash(void)
             erase_init.Page      = 124U;  /* PNB 硬件截断 → Bank2 页 60 = 0x0803E000 */
             erase_init.NbPages   = 1U;
 
-            ret = FLASH_STORAGE_OK;
-            for (attempt = 0U; attempt < 2U; attempt++)
-            {
-                hal_ret = HAL_FLASHEx_Erase(&erase_init, &page_err);
-                if (hal_ret != HAL_OK)
-                {
-                    ret = FLASH_STORAGE_ERROR_ERASE;
-                    break;
-                }
-            }
+            HAL_FLASH_Unlock();
+            hal_ret = HAL_FLASHEx_Erase(&erase_init, &page_err);
+            HAL_FLASH_Lock();
+
+            ret = (hal_ret == HAL_OK) ? FLASH_STORAGE_OK : FLASH_STORAGE_ERROR_ERASE;
         }
 
         __set_PRIMASK(primask);
