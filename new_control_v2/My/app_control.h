@@ -131,6 +131,8 @@ extern "C"
     void AppControl_Task(uint32_t now_ms);
     void AppControl_UpdatePanel(TempPanel_t *panel, uint32_t now_ms);
 
+    DRV8703_Status_t AppControl_SetDrvDuty(uint8_t drv, float duty);
+
     void Control_StartPid(uint8_t cell);
     void Control_StopPid(uint8_t cell);
     void Control_SetTargetTemp(uint8_t cell, float target);
