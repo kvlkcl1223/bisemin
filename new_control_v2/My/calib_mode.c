@@ -308,9 +308,36 @@ static uint8_t CalibMode_WriteToFlash(void)
         if (len > 0 && len < (int)sizeof(buf))
             CalibMode_UartSend(buf);
 
-        /* 验证擦除是否真正生效：读回前 4 字节检查是否为 0xFFFFFFFF */
+        /* 诊断：打印 FLASH_SIZE、DBANK、计算的硬件页号 */
         {
-            uint32_t verify = *((volatile uint32_t *)abs_addr);
+            uint32_t flash_sz = 0U;
+            uint32_t dbank    = 0U;
+            uint32_t pnb      = 0U;
+
+#if defined(FLASH_OPTR_DBANK)
+            dbank = (READ_BIT(FLASH->OPTR, FLASH_OPTR_DBANK) != 0U) ? 1U : 0U;
+#endif
+            flash_sz = (((*((uint32_t *)0x1FFF6E10U)) & 0xFFFFUL) << 10U);
+            pnb      = (FLASH->CR & 0x000007F8U) >> 3U;
+
+            len = snprintf(buf, sizeof(buf),
+                           "CALIB,DIAG,FLASH_SIZE:%lu,DBANK:%lu,PNB_AFTER_ERASE:%lu\r\n",
+                           (unsigned long)flash_sz,
+                           (unsigned long)dbank,
+                           (unsigned long)pnb);
+            if (len > 0 && len < (int)sizeof(buf))
+                CalibMode_UartSend(buf);
+        }
+
+        /* 验证擦除是否真正生效：关中断内立即读回 */
+        {
+            uint32_t verify;
+
+            primask = __get_PRIMASK();
+            __disable_irq();
+            verify = *((volatile uint32_t *)abs_addr);
+            __set_PRIMASK(primask);
+
             len = snprintf(buf, sizeof(buf),
                            "CALIB,FLASH_ERASE_VERIFY,ADDR:0x%08lX,DATA:0x%08lX\r\n",
                            (unsigned long)abs_addr, (unsigned long)verify);
