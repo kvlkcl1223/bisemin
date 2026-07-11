@@ -308,6 +308,16 @@ static uint8_t CalibMode_WriteToFlash(void)
         if (len > 0 && len < (int)sizeof(buf))
             CalibMode_UartSend(buf);
 
+        /* 验证擦除是否真正生效：读回前 4 字节检查是否为 0xFFFFFFFF */
+        {
+            uint32_t verify = *((volatile uint32_t *)abs_addr);
+            len = snprintf(buf, sizeof(buf),
+                           "CALIB,FLASH_ERASE_VERIFY,ADDR:0x%08lX,DATA:0x%08lX\r\n",
+                           (unsigned long)abs_addr, (unsigned long)verify);
+            if (len > 0 && len < (int)sizeof(buf))
+                CalibMode_UartSend(buf);
+        }
+
         if (ret == FLASH_STORAGE_OK)
         {
             len = snprintf(buf, sizeof(buf),
