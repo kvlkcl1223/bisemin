@@ -279,21 +279,59 @@ static uint8_t CalibMode_WriteToFlash(void)
     /* 擦除目标页（Cell 0 → 第0页，Cell 1 → 第1页） */
     {
         uint32_t calib_offset = CalibMode_GetFlashOffset((uint8_t)g_calib_cell);
+        uint8_t  page_idx     = (uint8_t)(calib_offset / FLASH_STORAGE_PAGE_SIZE);
+        uint32_t abs_addr     = FLASH_STORAGE_START_ADDR + calib_offset;
+        char     buf[80];
+        int      len;
+
+        len = snprintf(buf, sizeof(buf),
+                       "CALIB,FLASH_ERASE,CELL:%u,PAGE:%u,ADDR:0x%08lX\r\n",
+                       (unsigned int)g_calib_cell,
+                       (unsigned int)page_idx,
+                       (unsigned long)abs_addr);
+        if (len > 0 && len < (int)sizeof(buf))
+            CalibMode_UartSend(buf);
 
         /* 关全局中断，防止 Flash 操作期间 ISR 取指导致 HardFault */
         primask = __get_PRIMASK();
         __disable_irq();
 
-        ret = FlashStorage_ErasePage((uint8_t)(calib_offset / FLASH_STORAGE_PAGE_SIZE));
+        ret = FlashStorage_ErasePage(page_idx);
+
+        __set_PRIMASK(primask);
+
+        len = snprintf(buf, sizeof(buf),
+                       "CALIB,FLASH_ERASE_DONE,STATUS:%u\r\n",
+                       (unsigned int)ret);
+        if (len > 0 && len < (int)sizeof(buf))
+            CalibMode_UartSend(buf);
+
         if (ret == FLASH_STORAGE_OK)
         {
-            /* 写入 Flash */
+            len = snprintf(buf, sizeof(buf),
+                           "CALIB,FLASH_WRITE,ADDR:0x%08lX,SIZE:%u\r\n",
+                           (unsigned long)abs_addr,
+                           (unsigned int)sizeof(flash_data));
+            if (len > 0 && len < (int)sizeof(buf))
+                CalibMode_UartSend(buf);
+
+            /* 关全局中断 */
+            primask = __get_PRIMASK();
+            __disable_irq();
+
             ret = FlashStorage_Write(calib_offset,
                                      (const uint8_t *)&flash_data,
                                      sizeof(flash_data));
-        }
 
-        __set_PRIMASK(primask);
+            __set_PRIMASK(primask);
+
+            len = snprintf(buf, sizeof(buf),
+                           "CALIB,FLASH_WRITE_DONE,STATUS:%u,CRC:0x%04X\r\n",
+                           (unsigned int)ret,
+                           (unsigned int)flash_data.crc16);
+            if (len > 0 && len < (int)sizeof(buf))
+                CalibMode_UartSend(buf);
+        }
     }
     if (ret != FLASH_STORAGE_OK)
         return (uint8_t)ret;   /* 返回实际 Flash 错误码供串口输出诊断 */
