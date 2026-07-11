@@ -37,7 +37,9 @@ extern "C" {
 /* 存储区地址与大小配置（可修改）----------------------------------------------*/
 
 /** @brief Flash 存储区起始地址（Flash 末尾 8KB） */
-#define FLASH_STORAGE_START_ADDR    (0x0807E000ULL)
+/* DEBUG: 临时改为低 256KB 内测试 */
+#define FLASH_STORAGE_START_ADDR    (0x0803E000ULL)
+/* 原值: 0x0807E000ULL */
 
 /** @brief Flash 存储区总容量（字节） */
 #define FLASH_STORAGE_SIZE          (8192U)
