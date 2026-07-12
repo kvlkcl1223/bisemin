@@ -7,12 +7,12 @@ bisemin\tim.o: ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_rcc.h
 bisemin\tim.o: ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_def.h
 bisemin\tim.o: ../Drivers/CMSIS/Device/ST/STM32G4xx/Include/stm32g4xx.h
 bisemin\tim.o: ../Drivers/CMSIS/Device/ST/STM32G4xx/Include/stm32g474xx.h
-bisemin\tim.o: E:\MDK\ARM\CMSIS\5.9.0\CMSIS\Core\Include\core_cm4.h
+bisemin\tim.o: ../Drivers/CMSIS/Include/core_cm4.h
 bisemin\tim.o: E:\MDK\ARM\ARMCC\Bin\..\include\stdint.h
-bisemin\tim.o: E:\MDK\ARM\CMSIS\5.9.0\CMSIS\Core\Include\cmsis_version.h
-bisemin\tim.o: E:\MDK\ARM\CMSIS\5.9.0\CMSIS\Core\Include\cmsis_compiler.h
-bisemin\tim.o: E:\MDK\ARM\CMSIS\5.9.0\CMSIS\Core\Include\cmsis_armcc.h
-bisemin\tim.o: E:\MDK\ARM\CMSIS\5.9.0\CMSIS\Core\Include\mpu_armv7.h
+bisemin\tim.o: ../Drivers/CMSIS/Include/cmsis_version.h
+bisemin\tim.o: ../Drivers/CMSIS/Include/cmsis_compiler.h
+bisemin\tim.o: ../Drivers/CMSIS/Include/cmsis_armcc.h
+bisemin\tim.o: ../Drivers/CMSIS/Include/mpu_armv7.h
 bisemin\tim.o: ../Drivers/CMSIS/Device/ST/STM32G4xx/Include/system_stm32g4xx.h
 bisemin\tim.o: ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal.h
 bisemin\tim.o: ../Drivers/STM32G4xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h

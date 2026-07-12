@@ -33,6 +33,7 @@
 #include "adc_measure.h"
 #include "app_control.h"
 #include "calib_mode.h"
+#include "ads1220.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -195,6 +196,10 @@ void StartControlTask(void *argument)
                    (unsigned int)g_app_control_start_result);
     AppDebug_UartSend(buf);
   }
+
+  /* 初始化 ADS1220 温度采集 */
+  Ads1220_InitAll();
+  AppDebug_UartSend("SYS,ADS1220_INIT_DONE\r\n");
 
   /* 读取并输出两个 Cell 的上一次标定数据 */
   CalibMode_DumpFlashData(0);

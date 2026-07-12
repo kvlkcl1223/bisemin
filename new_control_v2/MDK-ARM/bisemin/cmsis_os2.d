@@ -3,8 +3,8 @@ bisemin\cmsis_os2.o: E:\MDK\ARM\ARMCC\Bin\..\include\string.h
 bisemin\cmsis_os2.o: ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os2.h
 bisemin\cmsis_os2.o: E:\MDK\ARM\ARMCC\Bin\..\include\stdint.h
 bisemin\cmsis_os2.o: E:\MDK\ARM\ARMCC\Bin\..\include\stddef.h
-bisemin\cmsis_os2.o: E:\MDK\ARM\CMSIS\5.9.0\CMSIS\Core\Include\cmsis_compiler.h
-bisemin\cmsis_os2.o: E:\MDK\ARM\CMSIS\5.9.0\CMSIS\Core\Include\cmsis_armcc.h
+bisemin\cmsis_os2.o: ../Drivers/CMSIS/Include/cmsis_compiler.h
+bisemin\cmsis_os2.o: ../Drivers/CMSIS/Include/cmsis_armcc.h
 bisemin\cmsis_os2.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h
 bisemin\cmsis_os2.o: ../Core/Inc/FreeRTOSConfig.h
 bisemin\cmsis_os2.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/projdefs.h
@@ -22,9 +22,9 @@ bisemin\cmsis_os2.o: ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/fr
 bisemin\cmsis_os2.o: ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/freertos_os2.h
 bisemin\cmsis_os2.o: ../Drivers/CMSIS/Device/ST/STM32G4xx/Include/stm32g4xx.h
 bisemin\cmsis_os2.o: ../Drivers/CMSIS/Device/ST/STM32G4xx/Include/stm32g474xx.h
-bisemin\cmsis_os2.o: E:\MDK\ARM\CMSIS\5.9.0\CMSIS\Core\Include\core_cm4.h
-bisemin\cmsis_os2.o: E:\MDK\ARM\CMSIS\5.9.0\CMSIS\Core\Include\cmsis_version.h
-bisemin\cmsis_os2.o: E:\MDK\ARM\CMSIS\5.9.0\CMSIS\Core\Include\mpu_armv7.h
+bisemin\cmsis_os2.o: ../Drivers/CMSIS/Include/core_cm4.h
+bisemin\cmsis_os2.o: ../Drivers/CMSIS/Include/cmsis_version.h
+bisemin\cmsis_os2.o: ../Drivers/CMSIS/Include/mpu_armv7.h
 bisemin\cmsis_os2.o: ../Drivers/CMSIS/Device/ST/STM32G4xx/Include/system_stm32g4xx.h
 bisemin\cmsis_os2.o: ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal.h
 bisemin\cmsis_os2.o: ../Core/Inc/stm32g4xx_hal_conf.h

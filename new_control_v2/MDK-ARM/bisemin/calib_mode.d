@@ -8,11 +8,11 @@ bisemin\calib_mode.o: ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_rcc.h
 bisemin\calib_mode.o: ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal_def.h
 bisemin\calib_mode.o: ../Drivers/CMSIS/Device/ST/STM32G4xx/Include/stm32g4xx.h
 bisemin\calib_mode.o: ../Drivers/CMSIS/Device/ST/STM32G4xx/Include/stm32g474xx.h
-bisemin\calib_mode.o: E:\MDK\ARM\CMSIS\5.9.0\CMSIS\Core\Include\core_cm4.h
-bisemin\calib_mode.o: E:\MDK\ARM\CMSIS\5.9.0\CMSIS\Core\Include\cmsis_version.h
-bisemin\calib_mode.o: E:\MDK\ARM\CMSIS\5.9.0\CMSIS\Core\Include\cmsis_compiler.h
-bisemin\calib_mode.o: E:\MDK\ARM\CMSIS\5.9.0\CMSIS\Core\Include\cmsis_armcc.h
-bisemin\calib_mode.o: E:\MDK\ARM\CMSIS\5.9.0\CMSIS\Core\Include\mpu_armv7.h
+bisemin\calib_mode.o: ../Drivers/CMSIS/Include/core_cm4.h
+bisemin\calib_mode.o: ../Drivers/CMSIS/Include/cmsis_version.h
+bisemin\calib_mode.o: ../Drivers/CMSIS/Include/cmsis_compiler.h
+bisemin\calib_mode.o: ../Drivers/CMSIS/Include/cmsis_armcc.h
+bisemin\calib_mode.o: ../Drivers/CMSIS/Include/mpu_armv7.h
 bisemin\calib_mode.o: ../Drivers/CMSIS/Device/ST/STM32G4xx/Include/system_stm32g4xx.h
 bisemin\calib_mode.o: ../Drivers/STM32G4xx_HAL_Driver/Inc/stm32g4xx_hal.h
 bisemin\calib_mode.o: ../Drivers/STM32G4xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h

@@ -5,6 +5,7 @@
 #include "cmsis_os.h"
 #include "drv8703_board.h"
 #include "pid_controller.h"
+#include "ads1220.h"
 
 #include <string.h>
 
@@ -2029,6 +2030,7 @@ void AppControl_Task(uint32_t now_ms)
     }
 
     AppControl_WaterCheck(now_ms);
+    Ads1220_Test();   /* 临时：ADS1220 测试，验证通过后删除 */
     AppControl_ApplyDebugState();
     g_app_control_loop_count++;
     AppControl_Unlock();

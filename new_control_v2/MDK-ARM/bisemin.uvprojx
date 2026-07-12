@@ -1809,6 +1809,11 @@
               <FileType>1</FileType>
               <FilePath>..\My\flash_storage.c</FilePath>
             </File>
+            <File>
+              <FileName>ads1220.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\My\ads1220.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
