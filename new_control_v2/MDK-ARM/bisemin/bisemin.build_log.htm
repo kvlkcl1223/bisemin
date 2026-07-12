@@ -27,20 +27,14 @@ Project File Date:  07/12/2026
 <h2>Output:</h2>
 *** Using Compiler 'V5.06 update 6 (build 750)', folder: 'E:\MDK\ARM\ARMCC\Bin'
 Build target 'bisemin'
-assembling startup_stm32g474xx.s...
-compiling gpio.c...
-compiling app_control.c...
-..\My\app_control.c(2116): warning:  #1-D: last line of file ends without a newline
-  }
-..\My\app_control.c(226): warning:  #177-D: variable "s_pid_freq_last_count"  was declared but never referenced
-  static uint32_t s_pid_freq_last_count[APP_CONTROL_CLOSED_LOOP_COUNT] = {0U, 0U, 0U, 0U};
-..\My\app_control.c(350): warning:  #177-D: function "AppControl_CellVoltageError"  was declared but never referenced
-  static PanelError_t AppControl_CellVoltageError(uint8_t cell)
-..\My\app_control.c: 3 warnings, 0 errors
+compiling pc_protocol.c...
+..\My\pc_protocol.c(222): warning:  #167-D: argument of type "volatile char *" is incompatible with parameter of type "void *restrict"
+                          (void)memcpy(s_cmd_queue.payload,
+..\My\pc_protocol.c: 1 warning, 0 errors
 linking...
-Program Size: Code=73136 RO-data=2432 RW-data=1100 ZI-data=62460  
+Program Size: Code=80712 RO-data=3356 RW-data=1120 ZI-data=63496  
 FromELF: creating hex file...
-"bisemin\bisemin.axf" - 0 Error(s), 3 Warning(s).
+"bisemin\bisemin.axf" - 0 Error(s), 1 Warning(s).
 
 <h2>Software Packages used:</h2>
 
@@ -64,7 +58,7 @@ Package Vendor: Keil
 
    * Component: ARM::CMSIS:CORE:5.6.0
       Include file:  CMSIS/Core/Include/tz_context.h
-Build Time Elapsed:  00:00:04
+Build Time Elapsed:  00:00:03
 </pre>
 </body>
 </html>

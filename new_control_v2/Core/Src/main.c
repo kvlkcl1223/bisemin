@@ -34,6 +34,7 @@
 #include "tm1638_board.h"
 #include "pid_controller.h"
 #include "temp_panel.h"
+#include "pc_protocol.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -280,7 +281,8 @@ int main(void)
   // 启动带有空闲检测的 DMA 接收
   // 启动 USART2 带有空闲检测的 DMA 接收
   TemperatureUart_RestartReceive();
-  // 直接通过 huart2 结构体内部的 hdmarx 指针来关闭过半中断
+  /* 启动 USART2 PC 协议 DMA 空闲线接收 */
+  PcProto_Init();
   HAL_Delay(20);
   HAL_GPIO_WritePin(NRST_OTHER_GPIO_Port, NRST_OTHER_Pin, GPIO_PIN_RESET);
   HAL_Delay(200);
@@ -462,6 +464,11 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
       g_temp_uart_restart_fail_count++;
     }
   }
+  else if (huart->Instance == USART2)
+  {
+    PcProto_OnRxData(Size);
+    PcProto_RestartRx();
+  }
 }
 
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
@@ -471,6 +478,10 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
     g_temp_uart_error_count++;
     g_temp_uart_last_error_code = huart->ErrorCode;
     g_uart_need_restart = 1U;
+  }
+  else if (huart->Instance == USART2)
+  {
+    g_uart2_need_restart = 1U;
   }
 }
 /**

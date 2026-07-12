@@ -20,7 +20,7 @@ from PyQt5.QtWidgets import (
 
 from app.logger import DataLogger
 from app.models import CellState
-from app.protocol import ProtocolError, decode_frame, encode_frame
+from app.protocol import Frame, ProtocolError, bytes_to_hex, encode_frame, frame_to_text
 from app.serial_worker import SerialClient
 from app.widgets.cell_panel import CellPanel
 from app.widgets.log_panel import LogPanel
@@ -33,7 +33,7 @@ class MainWindow(QMainWindow):
         self.resize(1280, 760)
 
         self.serial = SerialClient()
-        self.serial.line_received.connect(self.on_line_received)
+        self.serial.frame_received.connect(self.on_frame_received)
         self.serial.status_changed.connect(self.on_serial_status)
         self.serial.error_reported.connect(self.on_serial_error)
 
@@ -48,8 +48,8 @@ class MainWindow(QMainWindow):
         top = QHBoxLayout()
         self.port_combo = QComboBox()
         self.baud_combo = QComboBox()
-        self.baud_combo.addItems(["115200", "921600"])
-        self.baud_combo.setCurrentText("115200")
+        self.baud_combo.addItems(["1000000", "921600", "115200"])
+        self.baud_combo.setCurrentText("1000000")
         self.refresh_btn = QPushButton("Refresh")
         self.connect_btn = QPushButton("Connect")
         self.hello_btn = QPushButton("HELLO")
@@ -131,19 +131,27 @@ class MainWindow(QMainWindow):
 
     def next_seq(self) -> int:
         seq = self.seq
-        self.seq += 1
+        self.seq = 1 if self.seq >= 0xFFFF else self.seq + 1
         return seq
 
-    def send_frame(self, frame_type: str, **fields: object) -> None:
-        data = encode_frame(frame_type, **fields)
-        self.tx_log.appendPlainText(data.decode("ascii").strip())
+    def send_frame(self, frame_type: str, seq: int = 0, **fields: object) -> None:
+        try:
+            data = encode_frame(frame_type, seq=seq, **fields)
+        except (ProtocolError, UnicodeEncodeError, ValueError) as exc:
+            self.statusBar().showMessage(f"Protocol encode error: {exc}", 5000)
+            return
+
+        payload = ",".join(f"{key}={value}" for key, value in fields.items() if value is not None)
+        self.tx_log.appendPlainText(
+            f'TYPE={frame_type}, SEQ={seq}, PAYLOAD="{payload}"\nHEX={bytes_to_hex(data)}'
+        )
         self.serial.write(data)
 
     def send_cmd(self, op: str, **fields: object) -> None:
         self.send_frame("CMD", seq=self.next_seq(), op=op, **fields)
 
     def send_hello(self) -> None:
-        self.send_frame("HELLO", role="PC", proto=1, app="BiseminQt", seq=self.next_seq())
+        self.send_frame("HELLO", seq=self.next_seq(), role="PC", proto=1, app="BiseminQt")
 
     def send_heartbeat(self) -> None:
         if self.serial.is_open():
@@ -182,24 +190,18 @@ class MainWindow(QMainWindow):
     def start_program(self, cell: int) -> None:
         self.send_cmd("START_PROGRAM", cell=cell)
 
-    def on_line_received(self, line: bytes) -> None:
-        text = line.decode("ascii", errors="replace").strip()
-        self.rx_log.appendPlainText(text)
-        try:
-            frame = decode_frame(line)
-        except (ProtocolError, UnicodeDecodeError, ValueError) as exc:
-            self.statusBar().showMessage(f"Protocol error: {exc}", 5000)
-            return
+    def on_frame_received(self, frame: Frame) -> None:
+        self.rx_log.appendPlainText(f"{frame_to_text(frame)}\nHEX={bytes_to_hex(frame.raw)}")
 
         if frame.frame_type == "STATE":
             self.handle_state(frame.fields)
         elif frame.frame_type == "DATA":
             self.handle_data(frame.fields)
         elif frame.frame_type == "ACK":
-            self.statusBar().showMessage(f"ACK seq={frame.fields.get('seq', '')}", 2000)
+            self.statusBar().showMessage(f"ACK seq={frame.seq}", 2000)
         elif frame.frame_type == "NACK":
             self.statusBar().showMessage(
-                f"NACK seq={frame.fields.get('seq', '')} err={frame.fields.get('err', '')}",
+                f"NACK seq={frame.seq} err={frame.fields.get('err', '')}",
                 5000,
             )
         elif frame.frame_type == "EVENT":
@@ -238,3 +240,4 @@ def main() -> None:
     window = MainWindow()
     window.show()
     sys.exit(app.exec_())
+

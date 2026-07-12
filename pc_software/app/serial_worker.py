@@ -3,9 +3,11 @@ from __future__ import annotations
 from PyQt5.QtCore import QObject, pyqtSignal
 from PyQt5.QtSerialPort import QSerialPort, QSerialPortInfo
 
+from app.protocol import Frame, FrameParser
+
 
 class SerialClient(QObject):
-    line_received = pyqtSignal(bytes)
+    frame_received = pyqtSignal(object)
     status_changed = pyqtSignal(str)
     error_reported = pyqtSignal(str)
 
@@ -14,7 +16,7 @@ class SerialClient(QObject):
         self.port = QSerialPort(self)
         self.port.readyRead.connect(self._on_ready_read)
         self.port.errorOccurred.connect(self._on_error)
-        self._buffer = bytearray()
+        self._parser = FrameParser()
 
     @staticmethod
     def available_ports() -> list[str]:
@@ -26,6 +28,7 @@ class SerialClient(QObject):
     def open(self, port_name: str, baudrate: int) -> bool:
         if self.port.isOpen():
             self.port.close()
+        self._parser.clear()
         self.port.setPortName(port_name)
         self.port.setBaudRate(baudrate)
         self.port.setDataBits(QSerialPort.Data8)
@@ -41,6 +44,7 @@ class SerialClient(QObject):
     def close(self) -> None:
         if self.port.isOpen():
             self.port.close()
+        self._parser.clear()
         self.status_changed.emit("disconnected")
 
     def write(self, data: bytes) -> None:
@@ -50,12 +54,11 @@ class SerialClient(QObject):
         self.port.write(data)
 
     def _on_ready_read(self) -> None:
-        self._buffer.extend(bytes(self.port.readAll()))
-        while b"\n" in self._buffer:
-            idx = self._buffer.index(b"\n")
-            line = bytes(self._buffer[: idx + 1])
-            del self._buffer[: idx + 1]
-            self.line_received.emit(line)
+        frames, errors = self._parser.feed(bytes(self.port.readAll()))
+        for error in errors:
+            self.error_reported.emit(f"protocol: {error}")
+        for frame in frames:
+            self.frame_received.emit(frame)
 
     def _on_error(self, error: QSerialPort.SerialPortError) -> None:
         if error == QSerialPort.NoError:

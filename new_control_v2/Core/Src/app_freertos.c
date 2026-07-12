@@ -34,6 +34,7 @@
 #include "app_control.h"
 #include "calib_mode.h"
 #include "ads1220.h"
+#include "pc_protocol.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -229,6 +230,7 @@ void StartControlTask(void *argument)
      * g_adc_measure_adc1_update_count / g_adc_measure_adc2_update_count
      */
     g_app_drv8703_loop_counter++;
+    PcProto_Process();   /* 处理 PC 协议收到的命令 */
     osDelay(20);
   }
   /* USER CODE END StartControlTask */

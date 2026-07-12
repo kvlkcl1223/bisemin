@@ -73,3 +73,4 @@ bisemin\app_freertos.o: ../My/app_control.h
 bisemin\app_freertos.o: ../My/calib_mode.h
 bisemin\app_freertos.o: ../My/flash_storage.h
 bisemin\app_freertos.o: ../My/ads1220.h
+bisemin\app_freertos.o: ../My/pc_protocol.h

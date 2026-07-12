@@ -62,6 +62,7 @@
 "bisemin\calib_mode.o"
 "bisemin\flash_storage.o"
 "bisemin\ads1220.o"
+"bisemin\pc_protocol.o"
 --strict --scatter "stm32g474xx_flash.sct"
 --summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
 --info sizes --info totals --info unused --info veneers

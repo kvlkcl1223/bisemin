@@ -65,3 +65,4 @@ bisemin\main.o: ../My/tm1638_board.h
 bisemin\main.o: E:\MDK\ARM\ARMCC\Bin\..\include\stdbool.h
 bisemin\main.o: ../My/pid_controller.h
 bisemin\main.o: ../My/temp_panel.h
+bisemin\main.o: ../My/pc_protocol.h

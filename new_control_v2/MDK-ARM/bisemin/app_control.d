@@ -63,4 +63,5 @@ bisemin\app_control.o: ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2/
 bisemin\app_control.o: ..\My\drv8703_board.h
 bisemin\app_control.o: ..\My\pid_controller.h
 bisemin\app_control.o: ..\My\ads1220.h
+bisemin\app_control.o: ..\My\pc_protocol.h
 bisemin\app_control.o: E:\MDK\ARM\ARMCC\Bin\..\include\string.h

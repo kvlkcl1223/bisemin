@@ -106,6 +106,9 @@ extern "C"
     /* UART DMA restart flag — set in ISR, serviced in AppControl_Task */
     extern volatile uint8_t g_uart_need_restart;
 
+    /* USART2 PC 协议接收错误标志 */
+    extern volatile uint8_t g_uart2_need_restart;
+
     /* ============================================================
      * Test mode: manual DRV8703 duty cycling (no closed-loop, no temp sensor)
      * Set g_app_control_test_active = 1 to enable.

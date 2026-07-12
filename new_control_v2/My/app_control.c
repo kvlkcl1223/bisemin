@@ -6,6 +6,7 @@
 #include "drv8703_board.h"
 #include "pid_controller.h"
 #include "ads1220.h"
+#include "pc_protocol.h"
 
 #include <string.h>
 
@@ -888,6 +889,14 @@ static void AppControl_SetCellError(uint8_t cell, PanelError_t err)
 
     s_cell[cell].error = err;
     g_app_control_cell_error[cell] = err;
+
+    /* PC 协议：故障时通知上位机 */
+    if (err != PANEL_ERR_NONE)
+    {
+        PcProto_SendEvent(cell, "ERROR");
+        PcProto_SendState(cell);
+    }
+
     if (!AppControl_IsTempSensorError(err))
         g_app_control_temp_fault_sensor[cell] = 0xFFU;
 }
@@ -1184,10 +1193,12 @@ static uint8_t AppControl_SharedDrvNeeded(void)
 static void AppControl_StopCell(uint8_t cell)
 {
     uint8_t first;
+    uint8_t was_running;
 
     if (cell >= APP_CONTROL_CELL_COUNT)
         return;
 
+    was_running = s_cell[cell].running;
     first = AppControl_CellFirstDrv(cell);
     s_cell[cell].running = 0U;
     s_cell[cell].requested = 0U;
@@ -1209,6 +1220,13 @@ static void AppControl_StopCell(uint8_t cell)
     {
         (void)AppControl_SetDrvDuty(4U, 0.0f);
         AppControl_SleepDrv(4U);
+    }
+
+    /* PC 协议：通知上位机 Cell 停止 */
+    if (was_running != 0U)
+    {
+        PcProto_SendEvent(cell, "STOP");
+        PcProto_SendState(cell);
     }
 }
 
@@ -1291,6 +1309,10 @@ static void AppControl_StartCell(uint8_t cell)
     s_cell[cell].pid_update_pending = 0U;
     s_cell[cell].running = 1U;
     s_cell[cell].requested = 1U;
+
+    /* PC 协议：通知上位机 Cell 启动 */
+    PcProto_SendEvent(cell, "START");
+    PcProto_SendState(cell);
 }
 
 /**
@@ -2036,6 +2058,18 @@ void AppControl_Task(uint32_t now_ms)
 
     AppControl_WaterCheck(now_ms);
     Ads1220_Test(); /* 临时：ADS1220 测试，验证通过后删除 */
+
+    /* PC 协议：每 1s 发送一次过程数据 */
+    {
+        static uint32_t s_last_data_ms = 0U;
+        if ((now_ms - s_last_data_ms) >= 1000U)
+        {
+            s_last_data_ms = now_ms;
+            PcProto_SendData(0);
+            PcProto_SendData(1);
+        }
+    }
+
     AppControl_ApplyDebugState();
     g_app_control_loop_count++;
     AppControl_Unlock();
