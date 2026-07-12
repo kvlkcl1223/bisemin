@@ -193,6 +193,9 @@ void TemperatureUart_RestartReceive(void);
 
 /* USER CODE BEGIN Private defines */
 
+/* 串口日志总开关：注释掉此行关闭所有 USART2 调试日志输出 */
+#define UART_LOG_ENABLE
+
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

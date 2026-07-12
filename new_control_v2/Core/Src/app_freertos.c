@@ -389,6 +389,7 @@ static HAL_StatusTypeDef App_StartSynchronizedPwmTimebase(void)
 }
 static void AppDebug_UartSend(const char *str)
 {
+#ifdef UART_LOG_ENABLE
   uint16_t len = 0U;
   const char *p = str;
 
@@ -405,6 +406,9 @@ static void AppDebug_UartSend(const char *str)
   {
     (void)HAL_UART_Transmit(&huart2, (const uint8_t *)str, len, 20U);
   }
+#else
+  (void)str;
+#endif
 }
 
 static void AppDebug_LogNormal(uint32_t now_ms)

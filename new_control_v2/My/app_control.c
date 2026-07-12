@@ -1773,15 +1773,18 @@ static void AppControl_WaterCheck(uint32_t now_ms)
         return;
     s_last_water_check_ms = now_ms;
 
-    // if (HAL_GPIO_ReadPin(WATER_GPIO_Port, WATER_Pin) == GPIO_PIN_SET)
-    // {
-    //     (void)HAL_UART_Transmit(&huart2, (uint8_t *)"WATER,OK\r\n", 10, 10);
-    // }
-    // else
-    // {
-    //     (void)HAL_UART_Transmit(&huart2, (uint8_t *)"WATER,FAULT\r\n", 13, 10);
-    // }
-    HAL_GPIO_TogglePin(WATER_GPIO_Port, WATER_Pin);
+#ifdef UART_LOG_ENABLE
+    if (HAL_GPIO_ReadPin(WATER_GPIO_Port, WATER_Pin) == GPIO_PIN_SET)
+    {
+        (void)HAL_UART_Transmit(&huart2, (uint8_t *)"WATER,OK\r\n", 10, 10);
+    }
+    else
+    {
+        (void)HAL_UART_Transmit(&huart2, (uint8_t *)"WATER,FAULT\r\n", 13, 10);
+    }
+#else
+    (void)now_ms;
+#endif
 }
 
 /**

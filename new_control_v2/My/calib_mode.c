@@ -365,6 +365,7 @@ static uint8_t CalibMode_WriteToFlash(void)
  */
 static void CalibMode_UartSend(const char *str)
 {
+#ifdef UART_LOG_ENABLE
     uint16_t len = 0U;
     const char *p = str;
 
@@ -378,6 +379,9 @@ static void CalibMode_UartSend(const char *str)
     {
         HAL_UART_Transmit(&huart2, (const uint8_t *)str, len, 20U);
     }
+#else
+    (void)str;
+#endif
 }
 
 /* 标定状态机核心 ------------------------------------------------------------*/

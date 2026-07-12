@@ -283,20 +283,21 @@ void Ads1220_Test(void)
 
     for (i = 0U; i < ADS1220_ACTIVE_COUNT; i++)
     {
-        char    buf[64];
-        int     len;
-        uint8_t ch;
-
-        ch = g_ads_cfgs[i].ch_id;
+        uint8_t ch = g_ads_cfgs[i].ch_id;
 
         if (!Ads1220_IsReady(&g_ads_cfgs[i]))
         {
-            len = snprintf(buf, sizeof(buf),
-                           "ADS1220,CH%u,NOT_READY\r\n",
-                           (unsigned int)ch);
-            if (len > 0 && len < (int)sizeof(buf))
-                (void)HAL_UART_Transmit(&huart2, (uint8_t *)buf,
-                                        (uint16_t)len, 20U);
+#ifdef UART_LOG_ENABLE
+            {
+                char buf[32];
+                int  len = snprintf(buf, sizeof(buf),
+                                    "ADS1220,CH%u,NOT_READY\r\n",
+                                    (unsigned int)ch);
+                if (len > 0 && len < (int)sizeof(buf))
+                    (void)HAL_UART_Transmit(&huart2, (uint8_t *)buf,
+                                            (uint16_t)len, 20U);
+            }
+#endif
             continue;
         }
 
@@ -304,12 +305,20 @@ void Ads1220_Test(void)
             float r = Ads1220_FetchResistance(&g_ads_cfgs[i]);
             float t = Ads1220_ResistanceToTemp(r);
 
-            len = snprintf(buf, sizeof(buf),
-                           "ADS1220,CH%u,R:%.1f,T:%.2f\r\n",
-                           (unsigned int)ch, (double)r, (double)t);
-            if (len > 0 && len < (int)sizeof(buf))
-                (void)HAL_UART_Transmit(&huart2, (uint8_t *)buf,
-                                        (uint16_t)len, 20U);
+#ifdef UART_LOG_ENABLE
+            {
+                char buf[48];
+                int  len = snprintf(buf, sizeof(buf),
+                                    "ADS1220,CH%u,R:%.1f,T:%.2f\r\n",
+                                    (unsigned int)ch, (double)r, (double)t);
+                if (len > 0 && len < (int)sizeof(buf))
+                    (void)HAL_UART_Transmit(&huart2, (uint8_t *)buf,
+                                            (uint16_t)len, 20U);
+            }
+#else
+            (void)r;
+            (void)t;
+#endif
         }
     }
 }

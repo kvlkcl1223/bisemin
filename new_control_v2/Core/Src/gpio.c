@@ -57,7 +57,7 @@ void MX_GPIO_Init(void)
                           |SLEEP3_Pin|SENSOR_CS2_Pin|DIR2_Pin|DIR3_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, WATER_Pin|SENSOR_CS1_Pin|CS5_Pin|DIR1_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, SENSOR_CS1_Pin|CS5_Pin|DIR1_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOD, DIR4_Pin|DIR5_Pin|SLEEP4_Pin|SLEEP5_Pin
@@ -96,8 +96,14 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(WDFLT5_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : WATER_Pin SENSOR_CS1_Pin CS5_Pin DIR1_Pin */
-  GPIO_InitStruct.Pin = WATER_Pin|SENSOR_CS1_Pin|CS5_Pin|DIR1_Pin;
+  /*Configure GPIO pin : WATER_Pin */
+  GPIO_InitStruct.Pin = WATER_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(WATER_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : SENSOR_CS1_Pin CS5_Pin DIR1_Pin */
+  GPIO_InitStruct.Pin = SENSOR_CS1_Pin|CS5_Pin|DIR1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
