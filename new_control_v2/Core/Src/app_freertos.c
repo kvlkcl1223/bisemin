@@ -75,22 +75,19 @@ volatile AppControl_Status_t g_app_control_start_result = APP_CONTROL_ERROR_QUEU
 /* Definitions for ControlTask */
 osThreadId_t ControlTaskHandle;
 const osThreadAttr_t ControlTask_attributes = {
-  .name = "ControlTask",
-  .priority = (osPriority_t) osPriorityHigh,
-  .stack_size = 512 * 4
-};
+    .name = "ControlTask",
+    .priority = (osPriority_t)osPriorityHigh,
+    .stack_size = 512 * 4};
 /* Definitions for HMITask */
 osThreadId_t HMITaskHandle;
 const osThreadAttr_t HMITask_attributes = {
-  .name = "HMITask",
-  .priority = (osPriority_t) osPriorityLow,
-  .stack_size = 256 * 4
-};
+    .name = "HMITask",
+    .priority = (osPriority_t)osPriorityLow,
+    .stack_size = 256 * 4};
 /* Definitions for SysStateMutex */
 osMutexId_t SysStateMutexHandle;
 const osMutexAttr_t SysStateMutex_attributes = {
-  .name = "SysStateMutex"
-};
+    .name = "SysStateMutex"};
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -105,11 +102,12 @@ void StartHMITask(void *argument);
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
 /**
-  * @brief  FreeRTOS initialization
-  * @param  None
-  * @retval None
-  */
-void MX_FREERTOS_Init(void) {
+ * @brief  FreeRTOS initialization
+ * @param  None
+ * @retval None
+ */
+void MX_FREERTOS_Init(void)
+{
   /* USER CODE BEGIN Init */
 
   /* USER CODE END Init */
@@ -147,7 +145,6 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN RTOS_EVENTS */
   /* add events, ... */
   /* USER CODE END RTOS_EVENTS */
-
 }
 
 /* USER CODE BEGIN Header_StartControlTask */
@@ -206,8 +203,8 @@ void StartControlTask(void *argument)
   CalibMode_DumpFlashData(0);
   CalibMode_DumpFlashData(1);
 
-  AppDebug_UartSend("CALIB,AUTO_START,CELL:0\r\n");
-  CalibMode_Start(0);
+  // AppDebug_UartSend("CALIB,AUTO_START,CELL:0\r\n");
+  // CalibMode_Start(0);
 
   /* Infinite loop */
   for (;;)
@@ -230,7 +227,7 @@ void StartControlTask(void *argument)
      * g_adc_measure_adc1_update_count / g_adc_measure_adc2_update_count
      */
     g_app_drv8703_loop_counter++;
-    PcProto_Process();   /* 处理 PC 协议收到的命令 */
+    PcProto_Process(); /* 处理 PC 协议收到的命令 */
     osDelay(20);
   }
   /* USER CODE END StartControlTask */
@@ -459,4 +456,3 @@ static void AppDebug_LogNormal(uint32_t now_ms)
   }
 }
 /* USER CODE END Application */
-

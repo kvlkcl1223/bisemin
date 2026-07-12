@@ -60,12 +60,12 @@ extern "C"
 /** @brief 滑动窗口大小（用于稳定判定），与稳定采样点数相同 */
 #define CALIB_WINDOW_SAMPLES (CALIB_STABLE_SAMPLES)
 
-/*
- * 快速测试模式 — 取消下行注释即可启用
- * 仅标定 1 步（duty=0.0），其余 45 步复制填充，~10 秒完成
- * 用于验证 Flash 写入是否正常
- */
-#define CALIB_FAST_TEST
+  /*
+   * 快速测试模式 — 取消下行注释即可启用
+   * 仅标定 1 步（duty=0.0），其余 45 步复制填充，~10 秒完成
+   * 用于验证 Flash 写入是否正常
+   */
+  // #define CALIB_FAST_TEST
 
 #ifdef CALIB_FAST_TEST
 /** @brief 快速测试：实际标定步数 */

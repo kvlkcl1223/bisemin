@@ -38,8 +38,9 @@ typedef enum
 /* 命令队列条目 */
 typedef struct
 {
-    uint8_t       pending;     /**< 1 = 有待处理命令 */
-    PcFrameType_t type;        /**< 帧类型 */
+    uint8_t       pending;      /**< 1 = 有待处理命令 */
+    PcFrameType_t type;         /**< 帧类型 */
+    uint16_t      seq;          /**< PC 发来的 SEQ（ACK/NACK 回传用） */
     char          payload[256]; /**< ASCII 载荷（含结尾 \0） */
 } PcCmdQueue_t;
 
@@ -48,8 +49,12 @@ typedef struct
 /** @brief 初始化：启动 USART2 DMA 空闲线接收 */
 void PcProto_Init(void);
 
-/** @brief 发送一帧 */
+/** @brief 发送一帧（自动 seq，用于周期性 STATE/DATA/EVENT） */
 void PcProto_SendFrame(PcFrameType_t type, const char *payload);
+
+/** @brief 发送一帧（指定 seq，用于 ACK/NACK/HEARTBEAT 回传） */
+void PcProto_SendFrameSeq(PcFrameType_t type, uint16_t seq,
+                          const char *payload);
 
 /** @brief 发送 Cell 状态帧 */
 void PcProto_SendState(uint8_t cell);
