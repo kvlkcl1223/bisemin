@@ -235,16 +235,16 @@ uint8_t s_temp_stale_cycles[APP_CONTROL_TEMP_INPUT_COUNT] = {0U, 0U, 0U, 0U};
 static uint8_t s_test_drv_initialized = 0U;
 static uint32_t s_test_duty_toggle_ms[APP_CONTROL_DRV_COUNT] = {0U};
 static int8_t s_test_ramp_dir[APP_CONTROL_DRV_COUNT] = {1, 1, 1, 1, 1};
-static uint8_t s_calib_was_active = 0U;  /* 检测标定→正常模式的过渡 */
-static uint32_t s_last_water_check_ms = 0U;  /* 水位检测间隔计时 */
+static uint8_t s_calib_was_active = 0U;     /* 检测标定→正常模式的过渡 */
+static uint32_t s_last_water_check_ms = 0U; /* 水位检测间隔计时 */
 
 /* 标定数据缓存，用于前馈控制 ------------------------------------------------*/
 typedef struct
 {
-    uint8_t loaded;         /**< 1 = Flash 加载成功 */
-    float   duty[46];       /**< 46 步占空比 */
-    float   temp_ch0[46];   /**< CH0/CH2 对应温度曲线 */
-    float   temp_ch1[46];   /**< CH1/CH3 对应温度曲线 */
+    uint8_t loaded;     /**< 1 = Flash 加载成功 */
+    float duty[46];     /**< 46 步占空比 */
+    float temp_ch0[46]; /**< CH0/CH2 对应温度曲线 */
+    float temp_ch1[46]; /**< CH1/CH3 对应温度曲线 */
 } CalibCache_t;
 
 static CalibCache_t s_calib_cache[APP_CONTROL_CELL_COUNT];
@@ -1598,7 +1598,7 @@ static void AppControl_LoadCalibData(uint8_t cell)
 
     for (i = 0U; i < CALIB_DUTY_COUNT; i++)
     {
-        s_calib_cache[cell].duty[i]     = flash_data.step[i].duty;
+        s_calib_cache[cell].duty[i] = flash_data.step[i].duty;
         s_calib_cache[cell].temp_ch0[i] = flash_data.step[i].temp_ch0;
         s_calib_cache[cell].temp_ch1[i] = flash_data.step[i].temp_ch1;
     }
@@ -1624,7 +1624,7 @@ static float AppControl_FeedforwardDuty(uint8_t drv, float target_temp)
     if (drv >= APP_CONTROL_CLOSED_LOOP_COUNT)
         return 0.0f;
 
-    cell  = drv / 2U;
+    cell = drv / 2U;
     dutys = s_calib_cache[cell].duty;
     temps = ((drv & 1U) == 0U) ? s_calib_cache[cell].temp_ch0
                                : s_calib_cache[cell].temp_ch1;
@@ -1726,7 +1726,7 @@ static void AppControl_RunClosedLoop(void)
             PID_SetTarget(&s_temp_pid[drv], s_cell[cell].target_temp);
 
             {
-                float ff_duty  = AppControl_FeedforwardDuty(drv, s_cell[cell].target_temp);
+                float ff_duty = AppControl_FeedforwardDuty(drv, s_cell[cell].target_temp);
                 float pid_duty = -PID_Compute(&s_temp_pid[drv], s_temp_channel_temp[drv]);
 
                 duty = AppControl_Clamp(ff_duty + pid_duty,
@@ -1773,14 +1773,15 @@ static void AppControl_WaterCheck(uint32_t now_ms)
         return;
     s_last_water_check_ms = now_ms;
 
-    if (HAL_GPIO_ReadPin(WATER_GPIO_Port, WATER_Pin) == GPIO_PIN_SET)
-    {
-        (void)HAL_UART_Transmit(&huart2, (uint8_t *)"WATER,OK\r\n", 10, 10);
-    }
-    else
-    {
-        (void)HAL_UART_Transmit(&huart2, (uint8_t *)"WATER,FAULT\r\n", 13, 10);
-    }
+    // if (HAL_GPIO_ReadPin(WATER_GPIO_Port, WATER_Pin) == GPIO_PIN_SET)
+    // {
+    //     (void)HAL_UART_Transmit(&huart2, (uint8_t *)"WATER,OK\r\n", 10, 10);
+    // }
+    // else
+    // {
+    //     (void)HAL_UART_Transmit(&huart2, (uint8_t *)"WATER,FAULT\r\n", 13, 10);
+    // }
+    HAL_GPIO_TogglePin(WATER_GPIO_Port, WATER_Pin);
 }
 
 /**
@@ -2030,7 +2031,7 @@ void AppControl_Task(uint32_t now_ms)
     }
 
     AppControl_WaterCheck(now_ms);
-    Ads1220_Test();   /* 临时：ADS1220 测试，验证通过后删除 */
+    Ads1220_Test(); /* 临时：ADS1220 测试，验证通过后删除 */
     AppControl_ApplyDebugState();
     g_app_control_loop_count++;
     AppControl_Unlock();
