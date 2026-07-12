@@ -196,6 +196,7 @@ class MainWindow(QMainWindow):
         if frame.frame_type == "STATE":
             self.handle_state(frame.fields)
         elif frame.frame_type == "DATA":
+            self.handle_state(frame.fields)
             self.handle_data(frame.fields)
         elif frame.frame_type == "ACK":
             self.statusBar().showMessage(f"ACK seq={frame.seq}", 2000)
@@ -240,4 +241,5 @@ def main() -> None:
     window = MainWindow()
     window.show()
     sys.exit(app.exec_())
+
 
