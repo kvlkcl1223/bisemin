@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git rm *)",
+      "Bash(git commit -m 'Add .gitignore and remove tracked build artifacts *)",
+      "Bash(git add *)",
+      "Bash(git commit -m 'Track .gitignore *)"
+    ]
+  }
+}
