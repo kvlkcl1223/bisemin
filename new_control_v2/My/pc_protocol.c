@@ -1,7 +1,7 @@
-/**
+﻿/**
  ******************************************************************************
  * @file    pc_protocol.c
- * @brief   PC 上位机通信协议实现
+ * @brief   PC 涓婁綅鏈洪€氫俊鍗忚瀹炵幇
  * @author  Bisemin Team
  * @version V1.1.0
  * @date    2026-07-12
@@ -19,7 +19,7 @@
 #include <string.h>
 
 /* ============================================================
- * 常量
+ * 甯搁噺
  * ============================================================ */
 
 #define PC_RX_BUF_SIZE      512U
@@ -32,7 +32,7 @@
 #define PC_EOF0  0x0DU
 #define PC_EOF1  0x0AU
 
-/* 帧状态机 */
+/* 甯х姸鎬佹満 */
 #define PC_STATE_WAIT_SOF0  0U
 #define PC_STATE_WAIT_SOF1  1U
 #define PC_STATE_READ_LEN   2U
@@ -41,20 +41,20 @@
 #define PC_STATE_READ_EOF   5U
 
 /* ============================================================
- * 全局变量
+ * 鍏ㄥ眬鍙橀噺
  * ============================================================ */
 
 volatile uint8_t g_uart2_need_restart = 0U;
 
 /* ============================================================
- * 私有变量
+ * 绉佹湁鍙橀噺
  * ============================================================ */
 
 static uint8_t s_rx_buf[PC_RX_BUF_SIZE];
 
-/* 帧状态机 */
+/* 甯х姸鎬佹満 */
 static uint8_t  s_fsm_state       = PC_STATE_WAIT_SOF0;
-static uint16_t s_frm_len         = 0U;   /* LEN + TYPE + SEQ + PAYLOAD (含 LEN) */
+static uint16_t s_frm_len         = 0U;   /* LEN + TYPE + SEQ + PAYLOAD (鍚?LEN) */
 static uint8_t  s_len_buf[2];
 static uint8_t  s_len_idx         = 0U;
 static uint8_t  s_body_buf[PC_BODY_BUF_SIZE];
@@ -63,11 +63,35 @@ static uint8_t  s_crc_buf[2];
 static uint8_t  s_crc_idx         = 0U;
 static uint8_t  s_eof_prev_0d     = 0U;
 
-/* 命令队列 */
+/* 鍛戒护闃熷垪 */
 static volatile PcCmdQueue_t s_cmd_queue;
 
-/* 发送序号（周期性帧用） */
+/* 鍙戦€佸簭鍙凤紙鍛ㄦ湡鎬у抚鐢級 */
 static uint16_t s_tx_seq = 0U;
+static uint8_t  s_pc_owner[APP_CONTROL_CELL_COUNT] = {0U, 0U};
+
+static const char *PcProto_ModeString(uint8_t cell)
+{
+    if (cell >= APP_CONTROL_CELL_COUNT)
+        return "STOP";
+
+    if (g_panel.cell[cell].run_mode == CELL_RUN_PROGRAM)
+        return "PROGRAM";
+    if (g_panel.cell[cell].run_mode == CELL_RUN_EXTERNAL)
+        return "EXTERNAL";
+    if (g_app_control_cell_running[cell] != 0U ||
+        g_panel.cell[cell].run_mode == CELL_RUN_JUMP)
+        return "NORMAL";
+
+    return "STOP";
+}
+
+static const char *PcProto_OwnerString(uint8_t cell)
+{
+    if (cell < APP_CONTROL_CELL_COUNT && s_pc_owner[cell] != 0U)
+        return "PC";
+    return "PANEL";
+}
 
 /* ============================================================
  * CRC16-CCITT
@@ -123,13 +147,12 @@ static uint16_t PcProto_CRC16(const uint8_t *data, uint32_t len)
 }
 
 /* ============================================================
- * payload key=value 解析
+ * payload key=value 瑙ｆ瀽
  * ============================================================ */
 
 /**
- * @brief  从 payload 中取 key=value，拷贝到 dst 并补 \0
- * @return 1=找到, 0=未找到
- */
+ * @brief  浠?payload 涓彇 key=value锛屾嫹璐濆埌 dst 骞惰ˉ \0
+ * @return 1=鎵惧埌, 0=鏈壘鍒? */
 static uint8_t PcProto_GetValue(const char *payload, const char *key,
                                 char *dst, uint16_t dst_size)
 {
@@ -147,7 +170,7 @@ static uint8_t PcProto_GetValue(const char *payload, const char *key,
     {
         if (strncmp(p, key, key_len) == 0 && p[key_len] == '=')
         {
-            /* 找到 key=，拷贝 value 直到逗号或结尾 */
+            /* 鎵惧埌 key=锛屾嫹璐?value 鐩村埌閫楀彿鎴栫粨灏?*/
             p += (key_len + 1U);
             vi = 0U;
             while (*p != '\0' && *p != ',' && vi < (dst_size - 1U))
@@ -159,7 +182,7 @@ static uint8_t PcProto_GetValue(const char *payload, const char *key,
             return 1U;
         }
 
-        /* 跳到下一个逗号 */
+        /* 璺冲埌涓嬩竴涓€楀彿 */
         while (*p != '\0' && *p != ',')
             p++;
         if (*p == ',')
@@ -170,7 +193,7 @@ static uint8_t PcProto_GetValue(const char *payload, const char *key,
 }
 
 /* ============================================================
- * 帧状态机（逐字节）
+ * 甯х姸鎬佹満锛堥€愬瓧鑺傦級
  * ============================================================ */
 
 static void PcProto_FeedByte(uint8_t byte)
@@ -206,19 +229,19 @@ static void PcProto_FeedByte(uint8_t byte)
 
             if (raw_len < 3U || raw_len > (PC_FRAME_LEN_MAX - 2U))
             {
-                /* LEN 非法 */
+                /* LEN 闈炴硶 */
                 s_fsm_state = PC_STATE_WAIT_SOF0;
             }
             else
             {
                 /*
-                 * Fix #1: CRC 覆盖 LEN+TYPE+SEQ+PAYLOAD
-                 * 把 LEN 写入 body_buf 开头，CRC 校验时 s_body_buf[0..] 包含 LEN
+                 * Fix #1: CRC 瑕嗙洊 LEN+TYPE+SEQ+PAYLOAD
+                 * 鎶?LEN 鍐欏叆 body_buf 寮€澶达紝CRC 鏍￠獙鏃?s_body_buf[0..] 鍖呭惈 LEN
                  */
                 s_body_buf[0] = s_len_buf[0];
                 s_body_buf[1] = s_len_buf[1];
-                s_body_idx    = 2U;               /* TYPE+SEQ+PAYLOAD 从偏移 2 开始 */
-                s_frm_len     = raw_len + 2U;     /* CRC 覆盖 LEN(2) + raw_len */
+                s_body_idx    = 2U;               /* TYPE+SEQ+PAYLOAD 浠庡亸绉?2 寮€濮?*/
+                s_frm_len     = raw_len + 2U;     /* CRC 瑕嗙洊 LEN(2) + raw_len */
                 s_fsm_state   = PC_STATE_READ_BODY;
             }
         }
@@ -263,7 +286,7 @@ static void PcProto_FeedByte(uint8_t byte)
         {
             if (byte == PC_EOF1)
             {
-                /* 帧校验通过 → 入命令队列 */
+                /* 甯ф牎楠岄€氳繃 鈫?鍏ュ懡浠ら槦鍒?*/
                 if (s_cmd_queue.pending == 0U)
                 {
                     uint16_t pay_len;
@@ -274,7 +297,7 @@ static void PcProto_FeedByte(uint8_t byte)
                     s_cmd_queue.seq  = (uint16_t)s_body_buf[3]
                                      | ((uint16_t)s_body_buf[4] << 8U);
 
-                    body_offset = 5U;  /* 跳过 LEN(2)+TYPE(1)+SEQ(2) */
+                    body_offset = 5U;  /* 璺宠繃 LEN(2)+TYPE(1)+SEQ(2) */
                     pay_len     = s_frm_len - body_offset;
 
                     if (pay_len > 0U && pay_len < sizeof(s_cmd_queue.payload))
@@ -310,7 +333,7 @@ static void PcProto_FeedByte(uint8_t byte)
 }
 
 /* ============================================================
- * 公开 API — 初始化 / 接收 / 重启
+ * 鍏紑 API 鈥?鍒濆鍖?/ 鎺ユ敹 / 閲嶅惎
  * ============================================================ */
 
 void PcProto_Init(void)
@@ -363,12 +386,10 @@ void PcProto_OnRxData(uint16_t len)
 }
 
 /* ============================================================
- * 公开 API — 发送
- * ============================================================ */
+ * 鍏紑 API 鈥?鍙戦€? * ============================================================ */
 
 /**
- * @brief  发送一帧（自动 seq）
- */
+ * @brief  鍙戦€佷竴甯э紙鑷姩 seq锛? */
 void PcProto_SendFrame(PcFrameType_t type, const char *payload)
 {
     PcProto_SendFrameSeq(type, s_tx_seq, payload);
@@ -376,8 +397,7 @@ void PcProto_SendFrame(PcFrameType_t type, const char *payload)
 }
 
 /**
- * @brief  发送一帧（指定 seq）
- */
+ * @brief  鍙戦€佷竴甯э紙鎸囧畾 seq锛? */
 void PcProto_SendFrameSeq(PcFrameType_t type, uint16_t seq,
                           const char *payload)
 {
@@ -394,7 +414,7 @@ void PcProto_SendFrameSeq(PcFrameType_t type, uint16_t seq,
             pay_len++;
     }
 
-    /* LEN = TYPE(1) + SEQ(2) + PAYLOAD(N) — 不含 LEN 自身 */
+    /* LEN = TYPE(1) + SEQ(2) + PAYLOAD(N) 鈥?涓嶅惈 LEN 鑷韩 */
     frm_len = 1U + 2U + pay_len;
 
     idx = 0U;
@@ -403,14 +423,14 @@ void PcProto_SendFrameSeq(PcFrameType_t type, uint16_t seq,
     buf[idx++] = PC_SOF0;
     buf[idx++] = PC_SOF1;
 
-    /* LEN (小端) */
+    /* LEN (灏忕) */
     buf[idx++] = (uint8_t)(frm_len & 0xFFU);
     buf[idx++] = (uint8_t)((frm_len >> 8U) & 0xFFU);
 
     /* TYPE */
     buf[idx++] = (uint8_t)type;
 
-    /* SEQ (小端) */
+    /* SEQ (灏忕) */
     buf[idx++] = (uint8_t)(seq & 0xFFU);
     buf[idx++] = (uint8_t)((seq >> 8U) & 0xFFU);
 
@@ -421,7 +441,7 @@ void PcProto_SendFrameSeq(PcFrameType_t type, uint16_t seq,
         idx += pay_len;
     }
 
-    /* CRC (小端) —— 覆盖 LEN+TYPE+SEQ+PAYLOAD */
+    /* CRC (灏忕) 鈥斺€?瑕嗙洊 LEN+TYPE+SEQ+PAYLOAD */
     crc = PcProto_CRC16(&buf[2], (uint32_t)(idx - 2U));
     buf[idx++] = (uint8_t)(crc & 0xFFU);
     buf[idx++] = (uint8_t)((crc >> 8U) & 0xFFU);
@@ -434,7 +454,7 @@ void PcProto_SendFrameSeq(PcFrameType_t type, uint16_t seq,
 }
 
 /**
- * @brief  发送 Cell 状态帧
+ * @brief  鍙戦€?Cell 鐘舵€佸抚
  */
 void PcProto_SendState(uint8_t cell)
 {
@@ -447,29 +467,29 @@ void PcProto_SendState(uint8_t cell)
     len = snprintf(pay, sizeof(pay),
                    "t=%lu,cell=%u,mode=%s,owner=%s,running=%u,"
                    "target=%.1f,command=%.1f,current=%.1f,"
-                   "t0=%.1f,t1=%.1f,duty=%.3f,error=%u,phase=0",
+                   "t0=%.1f,t1=%.1f,duty=%.3f,error=%u,phase=%u",
                    (unsigned long)osKernelGetTickCount(),
                    (unsigned int)cell,
-                   (g_app_control_cell_running[cell] != 0U) ? "NORMAL" : "STOP",
-                   "PANEL",
+                   PcProto_ModeString(cell),
+                   PcProto_OwnerString(cell),
                    (unsigned int)g_app_control_cell_running[cell],
                    (double)g_app_control_cell_target[cell],
-                   (double)g_app_control_cell_target[cell],
+                   (double)g_panel.cell[cell].command_temp,
                    (double)g_app_control_cell_temp[cell],
                    (double)((cell == 0U) ? g_app_control_pid_temp[0]
                                          : g_app_control_pid_temp[2]),
                    (double)((cell == 0U) ? g_app_control_pid_temp[1]
                                          : g_app_control_pid_temp[3]),
                    (double)g_app_control_cell_duty[cell],
-                   (unsigned int)g_app_control_cell_error[cell]);
+                   (unsigned int)g_app_control_cell_error[cell],
+                   (unsigned int)g_panel.cell[cell].program_phase);
 
     if (len > 0 && len < (int)sizeof(pay))
         PcProto_SendFrame(PC_FRAME_STATE, pay);
 }
 
 /**
- * @brief  发送 Cell 过程数据帧（Fix #5: 真正发 DATA 类型）
- */
+ * @brief  鍙戦€?Cell 杩囩▼鏁版嵁甯э紙Fix #5: 鐪熸鍙?DATA 绫诲瀷锛? */
 void PcProto_SendData(uint8_t cell)
 {
     char pay[256];
@@ -481,28 +501,29 @@ void PcProto_SendData(uint8_t cell)
     len = snprintf(pay, sizeof(pay),
                    "t=%lu,cell=%u,mode=%s,owner=%s,running=%u,"
                    "target=%.1f,command=%.1f,current=%.1f,"
-                   "t0=%.1f,t1=%.1f,duty=%.3f,error=%u,phase=0",
+                   "t0=%.1f,t1=%.1f,duty=%.3f,error=%u,phase=%u",
                    (unsigned long)osKernelGetTickCount(),
                    (unsigned int)cell,
-                   (g_app_control_cell_running[cell] != 0U) ? "NORMAL" : "STOP",
-                   "PANEL",
+                   PcProto_ModeString(cell),
+                   PcProto_OwnerString(cell),
                    (unsigned int)g_app_control_cell_running[cell],
                    (double)g_app_control_cell_target[cell],
-                   (double)g_app_control_cell_target[cell],
+                   (double)g_panel.cell[cell].command_temp,
                    (double)g_app_control_cell_temp[cell],
                    (double)((cell == 0U) ? g_app_control_pid_temp[0]
                                          : g_app_control_pid_temp[2]),
                    (double)((cell == 0U) ? g_app_control_pid_temp[1]
                                          : g_app_control_pid_temp[3]),
                    (double)g_app_control_cell_duty[cell],
-                   (unsigned int)g_app_control_cell_error[cell]);
+                   (unsigned int)g_app_control_cell_error[cell],
+                   (unsigned int)g_panel.cell[cell].program_phase);
 
     if (len > 0 && len < (int)sizeof(pay))
         PcProto_SendFrame(PC_FRAME_DATA, pay);
 }
 
 /**
- * @brief  发送事件通知
+ * @brief  鍙戦€佷簨浠堕€氱煡
  */
 void PcProto_SendEvent(uint8_t cell, const char *event_type)
 {
@@ -523,8 +544,7 @@ void PcProto_SendEvent(uint8_t cell, const char *event_type)
 }
 
 /* ============================================================
- * 命令处理（主循环中调用，非 ISR）
- * ============================================================ */
+ * 鍛戒护澶勭悊锛堜富寰幆涓皟鐢紝闈?ISR锛? * ============================================================ */
 
 void PcProto_Process(void)
 {
@@ -535,7 +555,7 @@ void PcProto_Process(void)
     uint8_t     cell;
     float       temp;
 
-    /* Fix #6: UART2 接收错误后自动恢复 */
+    /* Fix #6: UART2 鎺ユ敹閿欒鍚庤嚜鍔ㄦ仮澶?*/
     if (g_uart2_need_restart != 0U)
     {
         g_uart2_need_restart = 0U;
@@ -564,11 +584,11 @@ void PcProto_Process(void)
         return;
     }
 
-    /* 只处理 CMD 类型 */
+    /* 鍙鐞?CMD 绫诲瀷 */
     if (s_cmd_queue.type != PC_FRAME_CMD)
         return;
 
-    /* 解析 op */
+    /* 瑙ｆ瀽 op */
     if (!PcProto_GetValue(pay, "op", op_buf, sizeof(op_buf)))
         return;
 
@@ -581,7 +601,7 @@ void PcProto_Process(void)
         return;
     }
 
-    /* cell 参数 */
+    /* cell 鍙傛暟 */
     if (!PcProto_GetValue(pay, "cell", val_buf, sizeof(val_buf)))
         cell = 0xFFU;
     else
@@ -606,6 +626,7 @@ void PcProto_Process(void)
         temp = (float)atof(val_buf);
 
         Control_SetTargetTemp(cell, temp);
+        s_pc_owner[cell] = 1U;
         PcProto_SendFrameSeq(PC_FRAME_ACK, rcv_seq, "ok=1");
         PcProto_SendState(cell);
         return;
@@ -621,6 +642,7 @@ void PcProto_Process(void)
         }
 
         Control_StartPid(cell);
+        s_pc_owner[cell] = 1U;
         PcProto_SendFrameSeq(PC_FRAME_ACK, rcv_seq, "ok=1");
         PcProto_SendEvent(cell, "START");
         PcProto_SendState(cell);
@@ -630,7 +652,8 @@ void PcProto_Process(void)
     /* ---- STOP ---- */
     if (strcmp(op_buf, "STOP") == 0)
     {
-        Control_StopPid(cell);
+        TempPanel_Stop(&g_panel, cell);
+        s_pc_owner[cell] = 1U;
         PcProto_SendFrameSeq(PC_FRAME_ACK, rcv_seq, "ok=1");
         PcProto_SendEvent(cell, "STOP");
         PcProto_SendState(cell);
@@ -640,31 +663,99 @@ void PcProto_Process(void)
     /* ---- STOP_ALL ---- */
     if (strcmp(op_buf, "STOP_ALL") == 0)
     {
-        Control_StopPid(0);
-        Control_StopPid(1);
+        TempPanel_Stop(&g_panel, 0);
+        TempPanel_Stop(&g_panel, 1);
+        s_pc_owner[0] = 1U;
+        s_pc_owner[1] = 1U;
         PcProto_SendFrameSeq(PC_FRAME_ACK, rcv_seq, "ok=1");
         PcProto_SendEvent(0, "STOP");
         PcProto_SendEvent(1, "STOP");
         return;
     }
-
-    /* ---- SET_PROGRAM (占位，后续完善) ---- */
+    /* ---- SET_PROGRAM ---- */
     if (strcmp(op_buf, "SET_PROGRAM") == 0)
     {
-        PcProto_SendFrameSeq(PC_FRAME_NACK, rcv_seq,
-                             "ok=0,err=1003,msg=NOT_IMPL");
+        TempProgram_t program;
+
+        if (!PcProto_GetValue(pay, "start", val_buf, sizeof(val_buf)))
+        {
+            PcProto_SendFrameSeq(PC_FRAME_NACK, rcv_seq,
+                                 "ok=0,err=1002,msg=MISSING_START");
+            return;
+        }
+        program.start_temp = (float)atof(val_buf);
+
+        if (!PcProto_GetValue(pay, "hold", val_buf, sizeof(val_buf)))
+        {
+            PcProto_SendFrameSeq(PC_FRAME_NACK, rcv_seq,
+                                 "ok=0,err=1002,msg=MISSING_HOLD");
+            return;
+        }
+        program.start_hold_s = (uint16_t)atoi(val_buf);
+
+        if (!PcProto_GetValue(pay, "rate", val_buf, sizeof(val_buf)))
+        {
+            PcProto_SendFrameSeq(PC_FRAME_NACK, rcv_seq,
+                                 "ok=0,err=1002,msg=MISSING_RATE");
+            return;
+        }
+        program.ramp_rate = (float)atof(val_buf);
+
+        if (!PcProto_GetValue(pay, "next", val_buf, sizeof(val_buf)))
+        {
+            PcProto_SendFrameSeq(PC_FRAME_NACK, rcv_seq,
+                                 "ok=0,err=1002,msg=MISSING_NEXT");
+            return;
+        }
+        program.next_temp = (float)atof(val_buf);
+
+        if (!PcProto_GetValue(pay, "wait", val_buf, sizeof(val_buf)))
+        {
+            PcProto_SendFrameSeq(PC_FRAME_NACK, rcv_seq,
+                                 "ok=0,err=1002,msg=MISSING_WAIT");
+            return;
+        }
+        program.wait_s = (uint16_t)atoi(val_buf);
+
+        if (!PcProto_GetValue(pay, "repeat", val_buf, sizeof(val_buf)))
+        {
+            PcProto_SendFrameSeq(PC_FRAME_NACK, rcv_seq,
+                                 "ok=0,err=1002,msg=MISSING_REPEAT");
+            return;
+        }
+        program.repeat_times = (uint16_t)atoi(val_buf);
+
+        if (TempPanel_SetProgram(&g_panel, cell, &program) == 0U)
+        {
+            PcProto_SendFrameSeq(PC_FRAME_NACK, rcv_seq,
+                                 "ok=0,err=1002,msg=BAD_STATE");
+            return;
+        }
+
+        s_pc_owner[cell] = 1U;
+        PcProto_SendFrameSeq(PC_FRAME_ACK, rcv_seq, "ok=1");
+        PcProto_SendEvent(cell, "PROGRAM_PARAM");
+        PcProto_SendState(cell);
         return;
     }
 
-    /* ---- START_PROGRAM (占位，后续完善) ---- */
+    /* ---- START_PROGRAM ---- */
     if (strcmp(op_buf, "START_PROGRAM") == 0)
     {
-        PcProto_SendFrameSeq(PC_FRAME_NACK, rcv_seq,
-                             "ok=0,err=1003,msg=NOT_IMPL");
+        if (TempPanel_StartProgram(&g_panel, cell) == 0U)
+        {
+            PcProto_SendFrameSeq(PC_FRAME_NACK, rcv_seq,
+                                 "ok=0,err=1002,msg=BAD_STATE");
+            return;
+        }
+
+        s_pc_owner[cell] = 1U;
+        PcProto_SendFrameSeq(PC_FRAME_ACK, rcv_seq, "ok=1");
+        PcProto_SendEvent(cell, "START_PROGRAM");
+        PcProto_SendState(cell);
         return;
     }
-
-    /* ---- LOG_START / LOG_STOP (占位) ---- */
+/* ---- LOG_START / LOG_STOP (鍗犱綅) ---- */
     if (strcmp(op_buf, "LOG_START") == 0
         || strcmp(op_buf, "LOG_STOP") == 0)
     {
@@ -672,7 +763,10 @@ void PcProto_Process(void)
         return;
     }
 
-    /* 未知命令 */
+    /* 鏈煡鍛戒护 */
     PcProto_SendFrameSeq(PC_FRAME_NACK, rcv_seq,
                          "ok=0,err=1003,msg=UNKNOWN_OP");
 }
+
+
+

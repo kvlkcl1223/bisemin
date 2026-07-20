@@ -1,4 +1,4 @@
-#ifndef TEMP_PANEL_H
+﻿#ifndef TEMP_PANEL_H
 #define TEMP_PANEL_H
 
 #include <stdint.h>
@@ -11,29 +11,29 @@ extern "C"
 #endif
 
     /* ============================================================
-     * 1. 系统基础配置
+     * 1. 绯荤粺鍩虹閰嶇疆
      * ============================================================ */
 
 #define PANEL_CELL_NUM 2
 
-/* 温度范围: 直接使用 float 摄氏�?*/
+/* 娓╁害鑼冨洿: 鐩存帴浣跨敤 float 鎽勬皬锟?*/
 #define PANEL_TEMP_MIN -10.0f
 #define PANEL_TEMP_MAX 110.0f
 
-/* 外部测温通信超时时间 (ms) */
+/* 澶栭儴娴嬫俯閫氫俊瓒呮椂鏃堕棿 (ms) */
 #define PANEL_SENSOR_TIMEOUT_MS 3000
 
-/* Normal 模式 当前/设定温度自动切换间隔 (ms) */
+/* Normal 妯″紡 褰撳墠/璁惧畾娓╁害鑷姩鍒囨崲闂撮殧 (ms) */
 #define PANEL_DISPLAY_SWITCH_MS 3000
 
-/* 编辑超时 (5秒无按键自动退出编�? */
+/* 缂栬緫瓒呮椂 (5绉掓棤鎸夐敭鑷姩閫€鍑虹紪锟? */
 #define PANEL_EDIT_TIMEOUT_MS 5000
 
-/* Jump 模式升降温速度: 5.0�?min */
+/* Jump 妯″紡鍗囬檷娓╅€熷害: 5.0锟?min */
 #define PANEL_JUMP_RAMP_PER_MIN 100.0f
 
     /* ============================================================
-     * 2. 按键定义
+     * 2. 鎸夐敭瀹氫箟
      * ============================================================ */
 
     typedef enum
@@ -55,7 +55,7 @@ extern "C"
     } PanelKeyEvent_t;
 
     /* ============================================================
-     * 3. 面板模式定义
+     * 3. 闈㈡澘妯″紡瀹氫箟
      * ============================================================ */
 
     typedef enum
@@ -66,7 +66,7 @@ extern "C"
     } PanelMode_t;
 
     /* ============================================================
-     * 4. 单个恒温池运行状�?
+     * 4. 鍗曚釜鎭掓俯姹犺繍琛岀姸锟?
      * ============================================================ */
 
     typedef enum
@@ -78,7 +78,7 @@ extern "C"
     } CellRunMode_t;
 
     /* ============================================================
-     * 5. 数码管当前显示内容类�?
+     * 5. 鏁扮爜绠″綋鍓嶆樉绀哄唴瀹圭被锟?
      * ============================================================ */
 
     typedef enum
@@ -90,7 +90,7 @@ extern "C"
     } PanelShowType_t;
 
     /* ============================================================
-     * 6. 错误代码定义
+     * 6. 閿欒浠ｇ爜瀹氫箟
      * ============================================================ */
 
     typedef enum
@@ -186,7 +186,7 @@ extern "C"
     } PanelUiError_t;
 
     /* ============================================================
-     * 7. 程序控温参数编号
+     * 7. 绋嬪簭鎺ф俯鍙傛暟缂栧彿
      * ============================================================ */
 
     typedef enum
@@ -201,28 +201,28 @@ extern "C"
     } ProgramParamIndex_t;
 
     /* ============================================================
-     * 8. 程序控温参数结构�?(温度直接�?float)
+     * 8. 绋嬪簭鎺ф俯鍙傛暟缁撴瀯锟?(娓╁害鐩存帴锟?float)
      * ============================================================ */
 
     typedef struct
     {
-        float start_temp;      // 起始温度 (�?
-        uint16_t start_hold_s; // 起始温度保持时间 (�?
-        float ramp_rate;       // 升降温速率 (�?min)
-        float next_temp;       // 下一目标温度 (�?
-        uint16_t wait_s;       // 到达每个温度点后等待时间 (�?
-        uint16_t repeat_times; // 重复次数
+        float start_temp;      // 璧峰娓╁害 (锟?
+        uint16_t start_hold_s; // 璧峰娓╁害淇濇寔鏃堕棿 (锟?
+        float ramp_rate;       // 鍗囬檷娓╅€熺巼 (锟?min)
+        float next_temp;       // 涓嬩竴鐩爣娓╁害 (锟?
+        uint16_t wait_s;       // 鍒拌揪姣忎釜娓╁害鐐瑰悗绛夊緟鏃堕棿 (锟?
+        uint16_t repeat_times; // 閲嶅娆℃暟
     } TempProgram_t;
 
     /* ============================================================
-     * 9. 单个恒温池的数据结构
+     * 9. 鍗曚釜鎭掓俯姹犵殑鏁版嵁缁撴瀯
      * ============================================================ */
 
     typedef struct
     {
-        float current_temp; // 当前实测温度 (�?
-        float target_temp;  // 用户设定的目标温�?(�?
-        float command_temp; // 带斜坡限制后发给 PID 的目标温�?(�?
+        float current_temp; // 褰撳墠瀹炴祴娓╁害 (锟?
+        float target_temp;  // 鐢ㄦ埛璁惧畾鐨勭洰鏍囨俯锟?(锟?
+        float command_temp; // 甯︽枩鍧￠檺鍒跺悗鍙戠粰 PID 鐨勭洰鏍囨俯锟?(锟?
 
         uint32_t last_temp_update_ms;
 
@@ -231,7 +231,7 @@ extern "C"
 
         TempProgram_t program;
 
-        /* 程序控温内部状�?*/
+        /* 绋嬪簭鎺ф俯鍐呴儴鐘讹拷?*/
         uint8_t program_phase;
         uint16_t program_timer_s;
         uint16_t program_interval_done;
@@ -243,7 +243,7 @@ extern "C"
     } TempCell_t;
 
     /* ============================================================
-     * 10. 整个面板系统的数据结�?
+     * 10. 鏁翠釜闈㈡澘绯荤粺鐨勬暟鎹粨锟?
      * ============================================================ */
 
     typedef struct
@@ -265,7 +265,7 @@ extern "C"
     } TempPanel_t;
 
     /* ============================================================
-     * 11. 对外函数声明
+     * 11. 瀵瑰鍑芥暟澹版槑
      * ============================================================ */
 
     void TempPanel_Init(TempPanel_t *p);
@@ -286,6 +286,13 @@ extern "C"
                                 uint8_t cell,
                                 PanelError_t err);
 
+    void TempPanel_Stop(TempPanel_t *p, uint8_t cell);
+    uint8_t TempPanel_SetProgram(TempPanel_t *p,
+                                 uint8_t cell,
+                                 const TempProgram_t *program);
+    uint8_t TempPanel_StartProgram(TempPanel_t *p,
+                                   uint8_t cell);
+
     PanelKey_t PanelKey_FromTM1638(TM1638_Key_t key);
 
     extern TempPanel_t g_panel;
@@ -298,3 +305,4 @@ extern "C"
 #endif
 
 #endif
+
