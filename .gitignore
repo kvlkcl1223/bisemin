@@ -61,6 +61,8 @@ __pycache__/
 # PyInstaller 构建
 pc_software/build/
 pc_software/dist/
+!pc_software/dist/
+!pc_software/dist/BiseminPC.exe
 
 # 虚拟环境 (如后续创建)
 .venv/
