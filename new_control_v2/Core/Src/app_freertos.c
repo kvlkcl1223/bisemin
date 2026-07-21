@@ -200,6 +200,8 @@ void StartControlTask(void *argument)
   AppDebug_UartSend("SYS,ADS1220_INIT_DONE\r\n");
 
   /* 读取并输出两个 Cell 的上一次标定数据 */
+  CalibMode_ImportLegacyCell1IfMissing();
+
   CalibMode_DumpFlashData(0);
   CalibMode_DumpFlashData(1);
 

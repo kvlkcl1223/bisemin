@@ -234,6 +234,12 @@ extern "C"
    */
   void CalibMode_DumpFlashData(uint8_t cell);
 
+  /**
+   * @brief  Import saved legacy calibration data for Cell 1 if Flash is empty/invalid.
+   * @note   Safe to call at boot. Existing valid Cell 1 data is not overwritten.
+   */
+  void CalibMode_ImportLegacyCell1IfMissing(void);
+
 #ifdef __cplusplus
 }
 #endif

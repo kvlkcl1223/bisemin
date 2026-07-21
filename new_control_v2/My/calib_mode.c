@@ -987,6 +987,168 @@ void CalibMode_FlashTest(uint8_t cell)
 
 /* Flash 标定数据读取与串口输出 ------------------------------------------------*/
 
+static const CalibStep_t s_legacy_cell1_calib[CALIB_DUTY_COUNT] = {
+    {  0.45f, -14.0f, -10.9f, 1U, 1U, 0U },
+    {  0.43f, -13.7f, -10.6f, 1U, 1U, 0U },
+    {  0.41f, -13.5f, -10.3f, 1U, 1U, 0U },
+    {  0.39f, -13.2f,  -9.9f, 1U, 1U, 0U },
+    {  0.37f, -12.8f,  -9.5f, 1U, 1U, 0U },
+    {  0.35f, -12.3f,  -9.0f, 1U, 1U, 0U },
+    {  0.33f, -11.8f,  -8.6f, 1U, 1U, 0U },
+    {  0.31f, -11.0f,  -8.0f, 1U, 1U, 0U },
+    {  0.29f, -10.3f,  -7.3f, 1U, 1U, 0U },
+    {  0.27f,  -9.0f,  -6.2f, 1U, 1U, 0U },
+    {  0.25f,  -7.6f,  -5.0f, 1U, 1U, 0U },
+    {  0.23f,  -5.9f,  -3.4f, 1U, 1U, 0U },
+    {  0.21f,  -4.3f,  -1.8f, 1U, 1U, 0U },
+    {  0.19f,  -2.5f,  -0.2f, 1U, 1U, 0U },
+    {  0.17f,  -0.7f,   1.1f, 1U, 1U, 0U },
+    {  0.15f,   0.8f,   2.9f, 1U, 1U, 0U },
+    {  0.13f,   3.7f,   5.0f, 1U, 1U, 0U },
+    {  0.11f,   6.7f,   7.7f, 1U, 1U, 0U },
+    {  0.09f,  10.3f,  10.8f, 1U, 1U, 0U },
+    {  0.07f,  14.0f,  13.9f, 1U, 1U, 0U },
+    {  0.05f,  17.7f,  16.8f, 1U, 1U, 0U },
+    {  0.03f,  21.2f,  19.8f, 1U, 1U, 0U },
+    {  0.01f,  23.4f,  22.7f, 1U, 1U, 0U },
+    { -0.01f,  24.2f,  24.8f, 1U, 1U, 0U },
+    { -0.03f,  27.4f,  28.9f, 1U, 1U, 0U },
+    { -0.05f,  32.3f,  33.3f, 1U, 1U, 0U },
+    { -0.07f,  37.8f,  38.2f, 1U, 1U, 0U },
+    { -0.09f,  43.9f,  43.4f, 1U, 1U, 0U },
+    { -0.11f,  49.3f,  48.1f, 1U, 1U, 0U },
+    { -0.13f,  54.1f,  52.6f, 1U, 1U, 0U },
+    { -0.15f,  59.0f,  57.3f, 1U, 1U, 0U },
+    { -0.17f,  63.9f,  62.0f, 1U, 1U, 0U },
+    { -0.19f,  69.3f,  67.0f, 1U, 1U, 0U },
+    { -0.21f,  74.9f,  72.1f, 1U, 1U, 0U },
+    { -0.23f,  80.8f,  77.5f, 1U, 1U, 0U },
+    { -0.25f,  86.5f,  82.9f, 1U, 1U, 0U },
+    { -0.27f,  91.9f,  87.6f, 1U, 1U, 0U },
+    { -0.29f,  97.0f,  92.4f, 1U, 1U, 0U },
+    { -0.31f, 102.0f,  97.0f, 1U, 1U, 0U },
+    { -0.33f, 107.3f, 102.1f, 1U, 1U, 0U },
+    { -0.35f, 112.8f, 107.5f, 1U, 1U, 0U },
+    { -0.37f, 118.6f, 112.8f, 1U, 1U, 0U },
+    { -0.39f, 124.3f, 118.3f, 1U, 1U, 0U },
+    { -0.41f, 130.0f, 123.4f, 1U, 1U, 0U },
+    { -0.43f, 135.1f, 128.0f, 1U, 1U, 0U },
+    { -0.45f, 140.4f, 133.0f, 1U, 1U, 0U }
+};
+
+void CalibMode_ImportLegacyCell1IfMissing(void)
+{
+    static CalibFlashData_t existing;
+    static CalibFlashData_t write_data;
+    static CalibFlashData_t verify_data;
+    FlashStorage_Status_t flash_ret;
+    uint32_t calib_offset;
+    uint32_t primask;
+    uint8_t page_idx;
+    uint8_t load_ret;
+    uint8_t i;
+    char buf[128];
+    int len;
+
+    CalibMode_UartSend("CALIB,IMPORT,CELL:1,BEGIN\r\n");
+
+    memset(&existing, 0, sizeof(existing));
+    load_ret = CalibMode_LoadFromFlash(1U, &existing);
+    if (load_ret == 0U)
+    {
+        len = snprintf(buf, sizeof(buf),
+                       "CALIB,IMPORT,CELL:1,SKIP,EXISTING_CRC:0x%04X\r\n",
+                       (unsigned int)existing.crc16);
+        if (len > 0 && len < (int)sizeof(buf))
+            CalibMode_UartSend(buf);
+        CalibMode_UartSend("CALIB,IMPORT,CELL:1,END\r\n");
+        return;
+    }
+
+    len = snprintf(buf, sizeof(buf),
+                   "CALIB,IMPORT,CELL:1,MISSING,ERR:%u\r\n",
+                   (unsigned int)load_ret);
+    if (len > 0 && len < (int)sizeof(buf))
+        CalibMode_UartSend(buf);
+
+    memset(&write_data, 0, sizeof(write_data));
+    write_data.magic = CALIB_FLASH_MAGIC;
+    write_data.cell = 1U;
+    for (i = 0U; i < CALIB_DUTY_COUNT; i++)
+    {
+        write_data.step[i] = s_legacy_cell1_calib[i];
+    }
+    write_data.crc16 = CalibMode_CRC16((const uint8_t *)&write_data,
+                                       offsetof(CalibFlashData_t, crc16));
+
+    calib_offset = CalibMode_GetFlashOffset(1U);
+    page_idx = (uint8_t)(calib_offset / FLASH_STORAGE_PAGE_SIZE);
+
+    len = snprintf(buf, sizeof(buf),
+                   "CALIB,IMPORT,CELL:1,ERASE,PAGE:%u,ADDR:0x%08lX\r\n",
+                   (unsigned int)page_idx,
+                   (unsigned long)(FLASH_STORAGE_START_ADDR + calib_offset));
+    if (len > 0 && len < (int)sizeof(buf))
+        CalibMode_UartSend(buf);
+
+    primask = __get_PRIMASK();
+    __disable_irq();
+    flash_ret = FlashStorage_ErasePage(page_idx);
+    __set_PRIMASK(primask);
+
+    len = snprintf(buf, sizeof(buf),
+                   "CALIB,IMPORT,CELL:1,ERASE_DONE,STATUS:%u\r\n",
+                   (unsigned int)flash_ret);
+    if (len > 0 && len < (int)sizeof(buf))
+        CalibMode_UartSend(buf);
+    if (flash_ret != FLASH_STORAGE_OK)
+    {
+        CalibMode_UartSend("CALIB,IMPORT,CELL:1,FAIL,ERASE\r\n");
+        CalibMode_UartSend("CALIB,IMPORT,CELL:1,END\r\n");
+        return;
+    }
+
+    primask = __get_PRIMASK();
+    __disable_irq();
+    flash_ret = FlashStorage_Write(calib_offset,
+                                   (const uint8_t *)&write_data,
+                                   sizeof(write_data));
+    __set_PRIMASK(primask);
+
+    len = snprintf(buf, sizeof(buf),
+                   "CALIB,IMPORT,CELL:1,WRITE_DONE,STATUS:%u,CRC:0x%04X\r\n",
+                   (unsigned int)flash_ret,
+                   (unsigned int)write_data.crc16);
+    if (len > 0 && len < (int)sizeof(buf))
+        CalibMode_UartSend(buf);
+    if (flash_ret != FLASH_STORAGE_OK)
+    {
+        CalibMode_UartSend("CALIB,IMPORT,CELL:1,FAIL,WRITE\r\n");
+        CalibMode_UartSend("CALIB,IMPORT,CELL:1,END\r\n");
+        return;
+    }
+
+    memset(&verify_data, 0, sizeof(verify_data));
+    load_ret = CalibMode_LoadFromFlash(1U, &verify_data);
+    if ((load_ret == 0U) && (memcmp(&write_data, &verify_data, sizeof(write_data)) == 0))
+    {
+        len = snprintf(buf, sizeof(buf),
+                       "CALIB,IMPORT,CELL:1,VERIFY_OK,CRC:0x%04X\r\n",
+                       (unsigned int)verify_data.crc16);
+        if (len > 0 && len < (int)sizeof(buf))
+            CalibMode_UartSend(buf);
+    }
+    else
+    {
+        len = snprintf(buf, sizeof(buf),
+                       "CALIB,IMPORT,CELL:1,FAIL,VERIFY,ERR:%u\r\n",
+                       (unsigned int)load_ret);
+        if (len > 0 && len < (int)sizeof(buf))
+            CalibMode_UartSend(buf);
+    }
+
+    CalibMode_UartSend("CALIB,IMPORT,CELL:1,END\r\n");
+}
 /**
  * @brief  读取指定 Cell 的 Flash 标定数据并通过 USART2 输出
  * @param  cell Cell 编号 (0 或 1)
