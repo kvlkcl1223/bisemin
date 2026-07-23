@@ -20,6 +20,9 @@ extern "C"
 #define PANEL_TEMP_MIN -10.0f
 #define PANEL_TEMP_MAX 110.0f
 
+#define PANEL_RAMP_RATE_MIN 0.1f
+#define PANEL_RAMP_RATE_MAX 60.0f
+
 /* 澶栭儴娴嬫俯閫氫俊瓒呮椂鏃堕棿 (ms) */
 #define PANEL_SENSOR_TIMEOUT_MS 3000
 
@@ -287,6 +290,9 @@ extern "C"
                                 PanelError_t err);
 
     void TempPanel_Stop(TempPanel_t *p, uint8_t cell);
+    uint8_t TempPanel_StartNormal(TempPanel_t *p,
+                                  uint8_t cell,
+                                  float target_temp);
     uint8_t TempPanel_SetProgram(TempPanel_t *p,
                                  uint8_t cell,
                                  const TempProgram_t *program);

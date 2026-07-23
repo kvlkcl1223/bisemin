@@ -2,22 +2,17 @@ from __future__ import annotations
 
 import csv
 from dataclasses import dataclass, asdict
-from datetime import datetime
 from pathlib import Path
 
 
 @dataclass
 class LogRow:
-    pc_time: str
     mcu_time_ms: int
-    cell: int
+    pool: str
     mode: str
     phase: int
     target: float
-    command: float
     current: float
-    t0: float
-    t1: float
     duty: float
     error: int
 
@@ -37,17 +32,14 @@ class DataLogger:
     def append_data_fields(self, fields: dict[str, str]) -> LogRow | None:
         if not self.active:
             return None
+        cell = int(fields.get("cell", "0"))
         row = LogRow(
-            pc_time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             mcu_time_ms=int(fields.get("t", "0")),
-            cell=int(fields.get("cell", "0")),
+            pool=f"Pool {cell + 1}",
             mode=fields.get("mode", ""),
             phase=int(fields.get("phase", "0")),
             target=float(fields.get("target", "0")),
-            command=float(fields.get("command", "0")),
             current=float(fields.get("current", "0")),
-            t0=float(fields.get("t0", "0")),
-            t1=float(fields.get("t1", "0")),
             duty=float(fields.get("duty", "0")),
             error=int(fields.get("error", "0")),
         )
@@ -58,7 +50,7 @@ class DataLogger:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("w", newline="", encoding="utf-8-sig") as f:
-            writer = csv.DictWriter(f, fieldnames=list(asdict(LogRow("", 0, 0, "", 0, 0, 0, 0, 0, 0, 0, 0)).keys()))
+            writer = csv.DictWriter(f, fieldnames=list(asdict(LogRow(0, "", "", 0, 0, 0, 0, 0)).keys()))
             writer.writeheader()
             for row in self.rows:
                 writer.writerow(asdict(row))

@@ -1,0 +1,183 @@
+[1mdiff --git a/new_control_v2/My/pc_protocol.c b/new_control_v2/My/pc_protocol.c[m
+[1mindex 7eef5aa..322dbf9 100644[m
+[1m--- a/new_control_v2/My/pc_protocol.c[m
+[1m+++ b/new_control_v2/My/pc_protocol.c[m
+[36m@@ -1,7 +1,7 @@[m
+[31m-/**[m
+[32m+[m[32m﻿/**[m
+  ******************************************************************************[m
+  * @file    pc_protocol.c[m
+[31m- * @brief   PC 上位机通信协议实现[m
+[32m+[m[32m * @brief   PC 涓婁綅鏈洪€氫俊鍗忚瀹炵幇[m
+  * @author  Bisemin Team[m
+  * @version V1.1.0[m
+  * @date    2026-07-12[m
+[36m@@ -19,7 +19,7 @@[m
+ #include <string.h>[m
+ [m
+ /* ============================================================[m
+[31m- * 常量[m
+[32m+[m[32m * 甯搁噺[m
+  * ============================================================ */[m
+ [m
+ #define PC_RX_BUF_SIZE      512U[m
+[36m@@ -32,7 +32,7 @@[m
+ #define PC_EOF0  0x0DU[m
+ #define PC_EOF1  0x0AU[m
+ [m
+[31m-/* 帧状态机 */[m
+[32m+[m[32m/* 甯х姸鎬佹満 */[m
+ #define PC_STATE_WAIT_SOF0  0U[m
+ #define PC_STATE_WAIT_SOF1  1U[m
+ #define PC_STATE_READ_LEN   2U[m
+[36m@@ -41,20 +41,20 @@[m
+ #define PC_STATE_READ_EOF   5U[m
+ [m
+ /* ============================================================[m
+[31m- * 全局变量[m
+[32m+[m[32m * 鍏ㄥ眬鍙橀噺[m
+  * ============================================================ */[m
+ [m
+ volatile uint8_t g_uart2_need_restart = 0U;[m
+ [m
+ /* ============================================================[m
+[31m- * 私有变量[m
+[32m+[m[32m * 绉佹湁鍙橀噺[m
+  * ============================================================ */[m
+ [m
+ static uint8_t s_rx_buf[PC_RX_BUF_SIZE];[m
+ [m
+[31m-/* 帧状态机 */[m
+[32m+[m[32m/* 甯х姸鎬佹満 */[m
+ static uint8_t  s_fsm_state       = PC_STATE_WAIT_SOF0;[m
+[31m-static uint16_t s_frm_len         = 0U;   /* LEN + TYPE + SEQ + PAYLOAD (含 LEN) */[m
+[32m+[m[32mstatic uint16_t s_frm_len         = 0U;   /* LEN + TYPE + SEQ + PAYLOAD (鍚?LEN) */[m
+ static uint8_t  s_len_buf[2];[m
+ static uint8_t  s_len_idx         = 0U;[m
+ static uint8_t  s_body_buf[PC_BODY_BUF_SIZE];[m
+[36m@@ -63,11 +63,35 @@[m [mstatic uint8_t  s_crc_buf[2];[m
+ static uint8_t  s_crc_idx         = 0U;[m
+ static uint8_t  s_eof_prev_0d     = 0U;[m
+ [m
+[31m-/* 命令队列 */[m
+[32m+[m[32m/* 鍛戒护闃熷垪 */[m
+ static volatile PcCmdQueue_t s_cmd_queue;[m
+ [m
+[31m-/* 发送序号（周期性帧用） */[m
+[32m+[m[32m/* 鍙戦€佸簭鍙凤紙鍛ㄦ湡鎬у抚鐢級 */[m
+ static uint16_t s_tx_seq = 0U;[m
+[32m+[m[32mstatic uint8_t  s_pc_owner[APP_CONTROL_CELL_COUNT] = {0U, 0U};[m
+[32m+[m
+[32m+[m[32mstatic const char *PcProto_ModeString(uint8_t cell)[m
+[32m+[m[32m{[m
+[32m+[m[32m    if (cell >= APP_CONTROL_CELL_COUNT)[m
+[32m+[m[32m        return "STOP";[m
+[32m+[m
+[32m+[m[32m    if (g_panel.cell[cell].run_mode == CELL_RUN_PROGRAM)[m
+[32m+[m[32m        return "PROGRAM";[m
+[32m+[m[32m    if (g_panel.cell[cell].run_mode == CELL_RUN_EXTERNAL)[m
+[32m+[m[32m        return "EXTERNAL";[m
+[32m+[m[32m    if (g_app_control_cell_running[cell] != 0U ||[m
+[32m+[m[32m        g_panel.cell[cell].run_mode == CELL_RUN_JUMP)[m
+[32m+[m[32m        return "NORMAL";[m
+[32m+[m
+[32m+[m[32m    return "STOP";[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32mstatic const char *PcProto_OwnerString(uint8_t cell)[m
+[32m+[m[32m{[m
+[32m+[m[32m    if (cell < APP_CONTROL_CELL_COUNT && s_pc_owner[cell] != 0U)[m
+[32m+[m[32m        return "PC";[m
+[32m+[m[32m    return "PANEL";[m
+[32m+[m[32m}[m
+ [m
+ /* ============================================================[m
+  * CRC16-CCITT[m
+[36m@@ -123,13 +147,12 @@[m [mstatic uint16_t PcProto_CRC16(const uint8_t *data, uint32_t len)[m
+ }[m
+ [m
+ /* ============================================================[m
+[31m- * payload key=value 解析[m
+[32m+[m[32m * payload key=value 瑙ｆ瀽[m
+  * ============================================================ */[m
+ [m
+ /**[m
+[31m- * @brief  从 payload 中取 key=value，拷贝到 dst 并补 \0[m
+[31m- * @return 1=找到, 0=未找到[m
+[31m- */[m
+[32m+[m[32m * @brief  浠?payload 涓彇 key=value锛屾嫹璐濆埌 dst 骞惰ˉ \0[m
+[32m+[m[32m * @return 1=鎵惧埌, 0=鏈壘鍒? */[m
+ static uint8_t PcProto_GetValue(const char *payload, const char *key,[m
+                                 char *dst, uint16_t dst_size)[m
+ {[m
+[36m@@ -147,7 +170,7 @@[m [mstatic uint8_t PcProto_GetValue(const char *payload, const char *key,[m
+     {[m
+         if (strncmp(p, key, key_len) == 0 && p[key_len] == '=')[m
+         {[m
+[31m-            /* 找到 key=，拷贝 value 直到逗号或结尾 */[m
+[32m+[m[32m            /* 鎵惧埌 key=锛屾嫹璐?value 鐩村埌閫楀彿鎴栫粨灏?*/[m
+             p += (key_len + 1U);[m
+             vi = 0U;[m
+             while (*p != '\0' && *p != ',' && vi < (dst_size - 1U))[m
+[36m@@ -159,7 +182,7 @@[m [mstatic uint8_t PcProto_GetValue(const char *payload, const char *key,[m
+             return 1U;[m
+         }[m
+ [m
+[31m-        /* 跳到下一个逗号 */[m
+[32m+[m[32m        /* 璺冲埌涓嬩竴涓€楀彿 */[m
+         while (*p != '\0' && *p != ',')[m
+             p++;[m
+         if (*p == ',')[m
+[36m@@ -170,7 +193,7 @@[m [mstatic uint8_t PcProto_GetValue(const char *payload, const char *key,[m
+ }[m
+ [m
+ /* ============================================================[m
+[31m- * 帧状态机（逐字节）[m
+[32m+[m[32m * 甯х姸鎬佹満锛堥€愬瓧鑺傦級[m
+  * ============================================================ */[m
+ [m
+ static void PcProto_FeedByte(uint8_t byte)[m
+[36m@@ -206,19 +229,19 @@[m [mstatic void PcProto_FeedByte(uint8_t byte)[m
+ [m
+             if (raw_len < 3U || raw_len > (PC_FRAME_LEN_MAX - 2U))[m
+             {[m
+[31m-                /* LEN 非法 */[m
+[32m+[m[32m                /* LEN 闈炴硶 */[m
+                 s_fsm_state = PC_STATE_WAIT_SOF0;[m
+             }[m
+             else[m
+             {[m
+                 /*[m
+[31m-                 * Fix #1: CRC 覆盖 LEN+TYPE+SEQ+PAYLOAD[m
+[31m-                 * 把 LEN 写入 body_buf 开头，CRC 校验时 s_body_buf[0..] 包含 LEN[m
+[32m+[m[32m                 * Fix #1: CRC 瑕嗙洊 LEN+TYPE+SEQ+PAYLOAD[m
+[32m+[m[32m                 * 鎶?LEN 鍐欏叆 body_buf 寮€澶达紝CRC 鏍￠獙鏃?s_body_buf[0..] 鍖呭惈 LEN[m
+                  */[m
+                 s_body_buf[0] = s_len_buf[0];[m
+                 s_body_buf[1] = s_len_buf[1];[m
+[31m-                s_body_idx    = 2U;               /* TYPE+SEQ+PAYLOAD 从偏移 2 开始 */[m
+[31m-                s_frm_len     = raw_len + 2U;     /* CRC 覆盖 LEN(2) + raw_len */[m
+[32m+[m[32m                s_body_idx    = 2U;               /* TYPE+SEQ+PAYLOAD 浠庡亸绉?2 寮€濮?*/[m
+[32m+[m[32m                s_frm_len     = raw_len + 2U;     /* CRC 瑕嗙洊 LEN(2) + raw_len */[m
+                 s_fsm_state   = PC_STATE_READ_BODY;[m
+             }[m
+         }[m
+[36m@@ -263,7 +286,7 @@[m [mstatic void PcProto_FeedByte(uint8_t byte)[m
+         {[m
+             if (byte == PC_EOF1)[m
+             {[m
+[31m-                /* 帧校验通过 → 入命令队列 */[m
+[32m+[m[32m                /* 甯ф牎楠岄€氳繃 鈫?鍏ュ懡浠ら槦鍒?*/[m
+                 if (s_cmd_queue.pending == 0U)[m
+                 {[m
+                     uint16_t pay_len;[m
+[36m@@ -274,7 +297,7 @@[m [mstatic void PcProto_FeedByte(uint8_t byte)[m
+                     s_cmd_queue.seq  = (uint16_t)s_body_buf[3][m
+                                      | ((uint16_t)s_body_buf[4] << 8U);[m
+ [m
+[31m-                    body_offset = 5U;  /* 跳过 LEN(2)+TYPE(1)+SEQ(2) */[m
+[32m+[m[32m                    body_offset = 5U;  /* 璺宠繃 LEN(2)+TYPE(1)+SEQ(2) */[m
+                     pay_len     = s_frm_len - body_offset;[m
+ [m
+                     if (pay_len > 0U && pay_len < sizeof(s_cmd_queue.payload))[m
+[36m@@ -310,7 +333,7 @@[m [

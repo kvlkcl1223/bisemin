@@ -21,7 +21,7 @@ class ProgramParams:
     start: float = 25.0
     hold: int = 60
     rate: float = 2.0
-    next: float = 65.0
+    next: float = 35.0
     wait: int = 30
     repeat: int = 3
 

@@ -38,10 +38,10 @@ class LogPanel(QWidget):
 
         self.table = QTableWidget(0, 8)
         self.table.setHorizontalHeaderLabels([
-            "PC Time",
             "MCU ms",
-            "Cell",
+            "Pool",
             "Mode",
+            "Phase",
             "Target",
             "Current",
             "Duty",
@@ -69,12 +69,12 @@ class LogPanel(QWidget):
         r = self.table.rowCount()
         self.table.insertRow(r)
         values = [
-            row.pc_time,
             str(row.mcu_time_ms),
-            str(row.cell),
+            row.pool,
             row.mode,
-            f"{row.target:.2f}",
-            f"{row.current:.2f}",
+            str(row.phase),
+            f"{row.target:.1f}",
+            f"{row.current:.1f}",
             f"{row.duty:.3f}",
             str(row.error),
         ]

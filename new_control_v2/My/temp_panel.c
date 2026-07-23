@@ -126,6 +126,32 @@ static float ramp_to_target(float current,
         return (-diff <= step) ? target : current - step;
 }
 
+static bool program_params_valid(const TempProgram_t *program)
+{
+    float step;
+    float final_target;
+
+    if (program == NULL)
+        return false;
+
+    if (program->start_temp < PANEL_TEMP_MIN ||
+        program->start_temp > PANEL_TEMP_MAX ||
+        program->next_temp < PANEL_TEMP_MIN ||
+        program->next_temp > PANEL_TEMP_MAX)
+        return false;
+
+    if (program->ramp_rate < PANEL_RAMP_RATE_MIN ||
+        program->ramp_rate > PANEL_RAMP_RATE_MAX)
+        return false;
+
+    step = program->next_temp - program->start_temp;
+    final_target = program->next_temp + step * (float)program->repeat_times;
+
+    if (final_target < PANEL_TEMP_MIN || final_target > PANEL_TEMP_MAX)
+        return false;
+
+    return true;
+}
 static void update_jump_control(TempPanel_t *p, uint8_t cell, uint32_t dt_ms)
 {
     TempCell_t *c = &p->cell[cell];
@@ -291,7 +317,7 @@ static void set_param_value(TempCell_t *c, ProgramParamIndex_t idx, float val)
         c->program.start_hold_s = (uint16_t)val;
         break;
     case PROG_PARAM_RAMP_RATE:
-        c->program.ramp_rate = clamp_f(val, 0.1f, 99.9f);
+        c->program.ramp_rate = clamp_f(val, PANEL_RAMP_RATE_MIN, PANEL_RAMP_RATE_MAX);
         break;
     case PROG_PARAM_NEXT_TEMP:
         c->program.next_temp = clamp_f(val, PANEL_TEMP_MIN, PANEL_TEMP_MAX);
@@ -318,7 +344,7 @@ static float get_param_step(ProgramParamIndex_t idx)
     case PROG_PARAM_START_TEMP:
     case PROG_PARAM_NEXT_TEMP:
     case PROG_PARAM_RAMP_RATE:
-        return 0.1f;
+        return PANEL_RAMP_RATE_MIN;
     default:
         return 1.0f;
     }
@@ -335,7 +361,7 @@ static float get_param_max(ProgramParamIndex_t idx)
     case PROG_PARAM_WAIT_TIME:
         return 9999.0f;
     case PROG_PARAM_RAMP_RATE:
-        return 99.9f;
+        return PANEL_RAMP_RATE_MAX;
     case PROG_PARAM_REPEAT_TIMES:
         return 9999.0f;
     default:
@@ -355,7 +381,7 @@ static float get_param_min(ProgramParamIndex_t idx)
     case PROG_PARAM_REPEAT_TIMES:
         return 1.0f;
     case PROG_PARAM_RAMP_RATE:
-        return 0.1f;
+        return PANEL_RAMP_RATE_MIN;
     default:
         return -9999.0f;
     }
@@ -462,11 +488,11 @@ void TempPanel_Init(TempPanel_t *p)
         c->program_step = 0.0f;
         c->program_next_target = 0.0f;
         c->program.start_temp = 25.0f;
-        c->program.start_hold_s = 300;
-        c->program.ramp_rate = 1.0f;
-        c->program.next_temp = 11.0f;
+        c->program.start_hold_s = 60;
+        c->program.ramp_rate = 2.0f;
+        c->program.next_temp = 35.0f;
         c->program.wait_s = 30;
-        c->program.repeat_times = 79;
+        c->program.repeat_times = 3;
     }
 
     refresh_display(p);
@@ -778,6 +804,35 @@ void TempPanel_Stop(TempPanel_t *p, uint8_t cell)
     cell_stop(p, cell);
 }
 
+uint8_t TempPanel_StartNormal(TempPanel_t *p, uint8_t cell, float target_temp)
+{
+    TempCell_t *c;
+
+    if (p == NULL || cell >= PANEL_CELL_NUM)
+        return 0U;
+
+    if (target_temp < PANEL_TEMP_MIN || target_temp > PANEL_TEMP_MAX)
+        return 0U;
+
+    c = &p->cell[cell];
+    if (cell_is_running(c) || c->error != PANEL_ERR_NONE)
+        return 0U;
+
+    c->target_temp = target_temp;
+
+    p->active_cell = cell;
+    p->mode = PANEL_MODE_NORMAL;
+    p->cell_mode[cell] = PANEL_MODE_NORMAL;
+    p->editing = false;
+    p->show_type = PANEL_SHOW_CURRENT;
+    p->display_tick_ms = 0;
+
+    cell_start_jump(p, cell);
+    refresh_display(p);
+
+    return (c->run_mode == CELL_RUN_JUMP) ? 1U : 0U;
+}
+
 uint8_t TempPanel_SetProgram(TempPanel_t *p,
                              uint8_t cell,
                              const TempProgram_t *program)
@@ -787,18 +842,17 @@ uint8_t TempPanel_SetProgram(TempPanel_t *p,
     if (p == NULL || program == NULL || cell >= PANEL_CELL_NUM)
         return 0U;
 
+    if (!program_params_valid(program))
+        return 0U;
+
     c = &p->cell[cell];
     if (cell_is_running(c))
         return 0U;
 
-    c->program.start_temp = clamp_f(program->start_temp,
-                                    PANEL_TEMP_MIN,
-                                    PANEL_TEMP_MAX);
+    c->program.start_temp = program->start_temp;
     c->program.start_hold_s = program->start_hold_s;
-    c->program.ramp_rate = clamp_f(program->ramp_rate, 0.1f, 99.9f);
-    c->program.next_temp = clamp_f(program->next_temp,
-                                   PANEL_TEMP_MIN,
-                                   PANEL_TEMP_MAX);
+    c->program.ramp_rate = program->ramp_rate;
+    c->program.next_temp = program->next_temp;
     c->program.wait_s = program->wait_s;
     c->program.repeat_times = program->repeat_times;
 

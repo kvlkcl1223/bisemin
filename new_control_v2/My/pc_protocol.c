@@ -10,6 +10,7 @@
 
 #include "pc_protocol.h"
 #include "app_control.h"
+#include "temp_panel.h"
 #include "main.h"
 #include "usart.h"
 #include "cmsis_os.h"
@@ -27,6 +28,34 @@
 #define PC_FRAME_LEN_MAX    (2U + 1U + 2U + PC_PAYLOAD_MAX)  /* LEN+TYPE+SEQ+PAYLOAD */
 #define PC_BODY_BUF_SIZE    (PC_FRAME_LEN_MAX)
 
+static uint8_t PcProto_TempInRange(float temp)
+{
+    return (temp >= PANEL_TEMP_MIN && temp <= PANEL_TEMP_MAX) ? 1U : 0U;
+}
+
+static uint8_t PcProto_RateInRange(float rate)
+{
+    return (rate >= PANEL_RAMP_RATE_MIN && rate <= PANEL_RAMP_RATE_MAX) ? 1U : 0U;
+}
+
+static uint8_t PcProto_ProgramInRange(const TempProgram_t *program)
+{
+    float step;
+    float final_target;
+
+    if (program == NULL)
+        return 0U;
+
+    if (!PcProto_TempInRange(program->start_temp) ||
+        !PcProto_TempInRange(program->next_temp) ||
+        !PcProto_RateInRange(program->ramp_rate))
+        return 0U;
+
+    step = program->next_temp - program->start_temp;
+    final_target = program->next_temp + step * (float)program->repeat_times;
+
+    return PcProto_TempInRange(final_target);
+}
 #define PC_SOF0  0xA5U
 #define PC_SOF1  0x5AU
 #define PC_EOF0  0x0DU
@@ -635,13 +664,28 @@ void PcProto_Process(void)
     /* ---- START_NORMAL ---- */
     if (strcmp(op_buf, "START_NORMAL") == 0)
     {
-        if (PcProto_GetValue(pay, "temp", val_buf, sizeof(val_buf)))
+        if (!PcProto_GetValue(pay, "temp", val_buf, sizeof(val_buf)))
         {
-            temp = (float)atof(val_buf);
-            Control_SetTargetTemp(cell, temp);
+            PcProto_SendFrameSeq(PC_FRAME_NACK, rcv_seq,
+                                 "ok=0,err=1002,msg=MISSING_TEMP");
+            return;
         }
 
-        Control_StartPid(cell);
+        temp = (float)atof(val_buf);
+        if (!PcProto_TempInRange(temp))
+        {
+            PcProto_SendFrameSeq(PC_FRAME_NACK, rcv_seq,
+                                 "ok=0,err=1002,msg=BAD_TEMP_RANGE");
+            return;
+        }
+
+        if (TempPanel_StartNormal(&g_panel, cell, temp) == 0U)
+        {
+            PcProto_SendFrameSeq(PC_FRAME_NACK, rcv_seq,
+                                 "ok=0,err=1002,msg=BAD_STATE");
+            return;
+        }
+
         s_pc_owner[cell] = 1U;
         PcProto_SendFrameSeq(PC_FRAME_ACK, rcv_seq, "ok=1");
         PcProto_SendEvent(cell, "START");
@@ -724,6 +768,13 @@ void PcProto_Process(void)
             return;
         }
         program.repeat_times = (uint16_t)atoi(val_buf);
+
+        if (!PcProto_ProgramInRange(&program))
+        {
+            PcProto_SendFrameSeq(PC_FRAME_NACK, rcv_seq,
+                                 "ok=0,err=1002,msg=BAD_PROGRAM_PARAM");
+            return;
+        }
 
         if (TempPanel_SetProgram(&g_panel, cell, &program) == 0U)
         {

@@ -30,6 +30,9 @@
 #define APP_CONTROL_TEMP_PID_DT_MIN_S 0.02f
 #define APP_CONTROL_TEMP_PID_DT_MAX_S 1.0f
 #define APP_CONTROL_ERROR_DISPLAY_MS 5000U
+#define APP_CONTROL_NORMAL_PID_DELAY_ENABLE 1U
+#define APP_CONTROL_NORMAL_PID_ENTER_BAND_C 2.0f
+#define APP_CONTROL_NORMAL_PID_ENTER_TIMEOUT_MS 10000U
 
 /*
  * DRV8703 FAULT bit7 is only a summary flag. Stop the cell only for faults
@@ -220,6 +223,8 @@ static uint32_t s_last_reg_snapshot_ms = 0U;
 static uint8_t s_temp_pid_update_pending[APP_CONTROL_CLOSED_LOOP_COUNT] = {0};
 static float s_temp_channel_temp[APP_CONTROL_CLOSED_LOOP_COUNT] = {25.0f, 25.0f, 25.0f, 25.0f};
 static float s_temp_channel_duty[APP_CONTROL_CLOSED_LOOP_COUNT] = {0.0f, 0.0f, 0.0f, 0.0f};
+static uint8_t s_cell_pid_feedback_enabled[APP_CONTROL_CELL_COUNT] = {0U, 0U};
+static uint32_t s_cell_pid_feedback_start_ms[APP_CONTROL_CELL_COUNT] = {0U, 0U};
 static uint32_t s_temp_last_pid_count[APP_CONTROL_CLOSED_LOOP_COUNT] = {0U, 0U, 0U, 0U};
 static uint32_t s_temp_last_pid_ms[APP_CONTROL_CLOSED_LOOP_COUNT] = {0U, 0U, 0U, 0U};
 static uint32_t s_temp_freq_last_count[APP_CONTROL_TEMP_INPUT_COUNT] = {0U, 0U, 0U, 0U};
@@ -1210,6 +1215,8 @@ static void AppControl_StopCell(uint8_t cell)
     s_temp_pid_update_pending[first + 1U] = 0U;
     s_temp_channel_duty[first] = 0.0f;
     s_temp_channel_duty[first + 1U] = 0.0f;
+    s_cell_pid_feedback_enabled[cell] = 0U;
+    s_cell_pid_feedback_start_ms[cell] = 0U;
 
     (void)AppControl_SetDrvDuty(first, 0.0f);
     (void)AppControl_SetDrvDuty((uint8_t)(first + 1U), 0.0f);
@@ -1306,6 +1313,8 @@ static void AppControl_StartCell(uint8_t cell)
     s_temp_pid_update_pending[first + 1U] = 0U;
     s_temp_channel_duty[first] = 0.0f;
     s_temp_channel_duty[first + 1U] = 0.0f;
+    s_cell_pid_feedback_enabled[cell] = 0U;
+    s_cell_pid_feedback_start_ms[cell] = osKernelGetTickCount();
     s_cell[cell].pid_update_pending = 0U;
     s_cell[cell].running = 1U;
     s_cell[cell].requested = 1U;
@@ -1689,6 +1698,41 @@ static float AppControl_FeedforwardDuty(uint8_t drv, float target_temp)
     return dutys[CALIB_DUTY_COUNT - 1U];
 }
 
+static uint8_t AppControl_NormalPidFeedbackReady(uint8_t cell)
+{
+#if APP_CONTROL_NORMAL_PID_DELAY_ENABLE
+    uint8_t first;
+    uint32_t now_ms;
+    float error;
+
+    if (cell >= APP_CONTROL_CELL_COUNT)
+        return 1U;
+
+    if (g_panel.cell[cell].run_mode == CELL_RUN_PROGRAM)
+        return 1U;
+
+    if (s_cell_pid_feedback_enabled[cell] != 0U)
+        return 1U;
+
+    now_ms = osKernelGetTickCount();
+    error = AppControl_Abs(s_cell[cell].target_temp - s_cell[cell].current_temp);
+    if ((error <= APP_CONTROL_NORMAL_PID_ENTER_BAND_C) ||
+        ((now_ms - s_cell_pid_feedback_start_ms[cell]) >= APP_CONTROL_NORMAL_PID_ENTER_TIMEOUT_MS))
+    {
+        first = AppControl_CellFirstDrv(cell);
+        PID_Reset(&s_temp_pid[first]);
+        PID_Reset(&s_temp_pid[first + 1U]);
+        s_cell_pid_feedback_enabled[cell] = 1U;
+        return 1U;
+    }
+
+    return 0U;
+#else
+    (void)cell;
+    return 1U;
+#endif
+}
+
 /**
  * @brief Run the closed-loop PID control for all active cells.
  *
@@ -1749,7 +1793,16 @@ static void AppControl_RunClosedLoop(void)
 
             {
                 float ff_duty = AppControl_FeedforwardDuty(drv, s_cell[cell].target_temp);
-                float pid_duty = -PID_Compute(&s_temp_pid[drv], s_temp_channel_temp[drv]);
+                float pid_duty = 0.0f;
+
+                if (AppControl_NormalPidFeedbackReady(cell) != 0U)
+                {
+                    pid_duty = -PID_Compute(&s_temp_pid[drv], s_temp_channel_temp[drv]);
+                }
+                else
+                {
+                    PID_Reset(&s_temp_pid[drv]);
+                }
 
                 duty = AppControl_Clamp(ff_duty + pid_duty,
                                         -APP_CONTROL_MAX_ABS_DUTY,
@@ -1844,6 +1897,8 @@ AppControl_Status_t AppControl_Init(void)
         s_cell[i].duty = 0.0f;
         s_cell[i].error = PANEL_ERR_NONE;
         s_cell[i].error_set_ms = 0U;
+        s_cell_pid_feedback_enabled[i] = 0U;
+        s_cell_pid_feedback_start_ms[i] = 0U;
     }
 
     for (i = 0U; i < APP_CONTROL_CLOSED_LOOP_COUNT; i++)
