@@ -577,6 +577,7 @@ void PcProto_SendEvent(uint8_t cell, const char *event_type)
 
 void PcProto_Process(void)
 {
+    PcCmdQueue_t cmd;
     char        op_buf[32];
     char        val_buf[32];
     uint16_t    rcv_seq;
@@ -591,15 +592,28 @@ void PcProto_Process(void)
         PcProto_RestartRx();
     }
 
+    __disable_irq();
     if (s_cmd_queue.pending == 0U)
+    {
+        __enable_irq();
         return;
-
+    }
+    cmd.pending = s_cmd_queue.pending;
+    cmd.type = s_cmd_queue.type;
+    cmd.seq = s_cmd_queue.seq;
+    {
+        uint16_t i;
+        for (i = 0U; i < sizeof(cmd.payload); i++)
+            cmd.payload[i] = s_cmd_queue.payload[i];
+    }
     s_cmd_queue.pending = 0U;
-    rcv_seq = s_cmd_queue.seq;
-    pay     = (const char *)s_cmd_queue.payload;
+    __enable_irq();
+
+    rcv_seq = cmd.seq;
+    pay     = (const char *)cmd.payload;
 
     /* ---- HELLO ---- */
-    if (s_cmd_queue.type == PC_FRAME_HELLO)
+    if (cmd.type == PC_FRAME_HELLO)
     {
         PcProto_SendFrameSeq(PC_FRAME_HELLO, rcv_seq,
                              "role=MCU,proto=1,fw=1.0.0,cells=2");
@@ -607,14 +621,14 @@ void PcProto_Process(void)
     }
 
     /* ---- HEARTBEAT ---- */
-    if (s_cmd_queue.type == PC_FRAME_HEARTBEAT)
+    if (cmd.type == PC_FRAME_HEARTBEAT)
     {
         PcProto_SendFrameSeq(PC_FRAME_HEARTBEAT, rcv_seq, "ok=1");
         return;
     }
 
     /* 鍙鐞?CMD 绫诲瀷 */
-    if (s_cmd_queue.type != PC_FRAME_CMD)
+    if (cmd.type != PC_FRAME_CMD)
         return;
 
     /* 瑙ｆ瀽 op */
@@ -636,7 +650,9 @@ void PcProto_Process(void)
     else
         cell = (uint8_t)atoi(val_buf);
 
-    if (cell >= APP_CONTROL_CELL_COUNT && strcmp(op_buf, "STOP_ALL") != 0)
+    if (cell >= APP_CONTROL_CELL_COUNT &&
+        strcmp(op_buf, "STOP_ALL") != 0 &&
+        strcmp(op_buf, "ESTOP_ALL") != 0)
     {
         PcProto_SendFrameSeq(PC_FRAME_NACK, rcv_seq,
                              "ok=0,err=1002,msg=BAD_CELL");
@@ -696,24 +712,45 @@ void PcProto_Process(void)
     /* ---- STOP ---- */
     if (strcmp(op_buf, "STOP") == 0)
     {
-        TempPanel_Stop(&g_panel, cell);
+        Control_StopPid(cell);
+        TempPanel_RequestStop(cell);
         s_pc_owner[cell] = 1U;
         PcProto_SendFrameSeq(PC_FRAME_ACK, rcv_seq, "ok=1");
-        PcProto_SendEvent(cell, "STOP");
-        PcProto_SendState(cell);
         return;
     }
 
     /* ---- STOP_ALL ---- */
     if (strcmp(op_buf, "STOP_ALL") == 0)
     {
-        TempPanel_Stop(&g_panel, 0);
-        TempPanel_Stop(&g_panel, 1);
+        Control_StopPid(0);
+        Control_StopPid(1);
+        TempPanel_RequestStop(0);
+        TempPanel_RequestStop(1);
         s_pc_owner[0] = 1U;
         s_pc_owner[1] = 1U;
         PcProto_SendFrameSeq(PC_FRAME_ACK, rcv_seq, "ok=1");
-        PcProto_SendEvent(0, "STOP");
-        PcProto_SendEvent(1, "STOP");
+        return;
+    }
+
+    /* ---- ESTOP ---- */
+    if (strcmp(op_buf, "ESTOP") == 0)
+    {
+        Control_EmergencyStopPid(cell);
+        TempPanel_RequestStop(cell);
+        s_pc_owner[cell] = 1U;
+        PcProto_SendFrameSeq(PC_FRAME_ACK, rcv_seq, "ok=1");
+        return;
+    }
+
+    /* ---- ESTOP_ALL ---- */
+    if (strcmp(op_buf, "ESTOP_ALL") == 0)
+    {
+        Control_EmergencyStopAll();
+        TempPanel_RequestStop(0);
+        TempPanel_RequestStop(1);
+        s_pc_owner[0] = 1U;
+        s_pc_owner[1] = 1U;
+        PcProto_SendFrameSeq(PC_FRAME_ACK, rcv_seq, "ok=1");
         return;
     }
     /* ---- SET_PROGRAM ---- */

@@ -293,6 +293,8 @@ extern "C"
                                 PanelError_t err);
 
     void TempPanel_Stop(TempPanel_t *p, uint8_t cell);
+    void TempPanel_RequestStop(uint8_t cell);
+    void TempPanel_ServiceRequests(TempPanel_t *p);
     uint8_t TempPanel_StartNormal(TempPanel_t *p,
                                   uint8_t cell,
                                   float target_temp);

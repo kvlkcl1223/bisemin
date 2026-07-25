@@ -29,6 +29,7 @@
 #define APP_CONTROL_TEMP_PID_DT_DEFAULT_S 0.05f
 #define APP_CONTROL_TEMP_PID_DT_MIN_S 0.02f
 #define APP_CONTROL_TEMP_PID_DT_MAX_S 1.0f
+#define APP_CONTROL_DUTY_SLEW_RATE_PER_S 1.0f
 #define APP_CONTROL_ERROR_DISPLAY_MS 5000U
 #define APP_CONTROL_NORMAL_PID_DELAY_ENABLE 1U
 #define APP_CONTROL_NORMAL_PID_ENTER_BAND_C 2.0f
@@ -49,6 +50,7 @@ typedef struct
 {
     uint8_t running;
     uint8_t requested;
+    uint8_t stopping;
     uint8_t pid_update_pending;
     uint8_t sensor_reset_count;
     float target_temp;
@@ -223,6 +225,7 @@ static uint32_t s_last_reg_snapshot_ms = 0U;
 static uint8_t s_temp_pid_update_pending[APP_CONTROL_CLOSED_LOOP_COUNT] = {0};
 static float s_temp_channel_temp[APP_CONTROL_CLOSED_LOOP_COUNT] = {25.0f, 25.0f, 25.0f, 25.0f};
 static float s_temp_channel_duty[APP_CONTROL_CLOSED_LOOP_COUNT] = {0.0f, 0.0f, 0.0f, 0.0f};
+static float s_drv_output_duty[APP_CONTROL_DRV_COUNT] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 static uint8_t s_cell_pid_feedback_enabled[APP_CONTROL_CELL_COUNT] = {0U, 0U};
 static uint32_t s_cell_pid_feedback_start_ms[APP_CONTROL_CELL_COUNT] = {0U, 0U};
 static uint32_t s_temp_last_pid_count[APP_CONTROL_CLOSED_LOOP_COUNT] = {0U, 0U, 0U, 0U};
@@ -321,6 +324,32 @@ static float AppControl_Clamp(float v, float min_v, float max_v)
     if (v > max_v)
         return max_v;
     return v;
+}
+
+static float AppControl_ApplyDutySlew(uint8_t drv, float target_duty, float dt_s)
+{
+    float prev;
+    float max_delta;
+
+    if (drv >= APP_CONTROL_DRV_COUNT)
+        return target_duty;
+
+    if (dt_s <= 0.0f)
+        dt_s = APP_CONTROL_TEMP_PID_DT_DEFAULT_S;
+    dt_s = AppControl_Clamp(dt_s,
+                            APP_CONTROL_TEMP_PID_DT_MIN_S,
+                            APP_CONTROL_TEMP_PID_DT_MAX_S);
+
+    prev = s_drv_output_duty[drv];
+    max_delta = APP_CONTROL_DUTY_SLEW_RATE_PER_S * dt_s;
+
+    if (target_duty > (prev + max_delta))
+        target_duty = prev + max_delta;
+    else if (target_duty < (prev - max_delta))
+        target_duty = prev - max_delta;
+
+    s_drv_output_duty[drv] = target_duty;
+    return target_duty;
 }
 
 /**
@@ -1379,11 +1408,19 @@ static uint8_t AppControl_SharedDrvNeeded(void)
     return (s_cell[0].running != 0U) || (s_cell[1].running != 0U);
 }
 
+static uint8_t AppControl_ActiveCellNeedsSharedDrv(void)
+{
+    return ((s_cell[0].running != 0U && s_cell[0].stopping == 0U) ||
+            (s_cell[1].running != 0U && s_cell[1].stopping == 0U))
+               ? 1U
+               : 0U;
+}
+
 /**
  * @brief Stop a temperature cell: zero duty, sleep its DRV8703 channels,
  *        sleep the shared channel if no other cell needs it.
  */
-static void AppControl_StopCell(uint8_t cell)
+static void AppControl_StopCell(uint8_t cell, AppControlStopMode_t mode)
 {
     uint8_t first;
     uint8_t was_running;
@@ -1393,8 +1430,30 @@ static void AppControl_StopCell(uint8_t cell)
 
     was_running = s_cell[cell].running;
     first = AppControl_CellFirstDrv(cell);
+
+    if (mode == APP_CONTROL_STOP_NORMAL)
+    {
+        if (was_running == 0U)
+        {
+            s_cell[cell].requested = 0U;
+            s_cell[cell].stopping = 0U;
+            return;
+        }
+        s_cell[cell].requested = 0U;
+        s_cell[cell].stopping = 1U;
+        s_cell[cell].pid_update_pending = 0U;
+        PID_Reset(&s_temp_pid[first]);
+        PID_Reset(&s_temp_pid[first + 1U]);
+        s_temp_pid_update_pending[first] = 0U;
+        s_temp_pid_update_pending[first + 1U] = 0U;
+        s_cell_pid_feedback_enabled[cell] = 0U;
+        s_cell_pid_feedback_start_ms[cell] = 0U;
+        return;
+    }
+
     s_cell[cell].running = 0U;
     s_cell[cell].requested = 0U;
+    s_cell[cell].stopping = 0U;
     s_cell[cell].pid_update_pending = 0U;
     s_cell[cell].duty = 0.0f;
     PID_Reset(&s_temp_pid[first]);
@@ -1403,6 +1462,8 @@ static void AppControl_StopCell(uint8_t cell)
     s_temp_pid_update_pending[first + 1U] = 0U;
     s_temp_channel_duty[first] = 0.0f;
     s_temp_channel_duty[first + 1U] = 0.0f;
+    s_drv_output_duty[first] = 0.0f;
+    s_drv_output_duty[first + 1U] = 0.0f;
     s_cell_pid_feedback_enabled[cell] = 0U;
     s_cell_pid_feedback_start_ms[cell] = 0U;
 
@@ -1413,6 +1474,7 @@ static void AppControl_StopCell(uint8_t cell)
 
     if (!AppControl_SharedDrvNeeded())
     {
+        s_drv_output_duty[4U] = 0.0f;
         (void)AppControl_SetDrvDuty(4U, 0.0f);
         AppControl_SleepDrv(4U);
     }
@@ -1423,6 +1485,44 @@ static void AppControl_StopCell(uint8_t cell)
         PcProto_SendEvent(cell, "STOP");
         PcProto_SendState(cell);
     }
+}
+
+static void AppControl_ServiceStoppingCell(uint8_t cell)
+{
+    uint8_t first;
+    float duty0;
+    float duty1;
+
+    if (cell >= APP_CONTROL_CELL_COUNT)
+        return;
+
+    first = AppControl_CellFirstDrv(cell);
+    s_temp_pid_update_pending[first] = 0U;
+    s_temp_pid_update_pending[first + 1U] = 0U;
+    PID_Reset(&s_temp_pid[first]);
+    PID_Reset(&s_temp_pid[first + 1U]);
+
+    duty0 = AppControl_ApplyDutySlew(first, 0.0f, APP_CONTROL_TEMP_PID_DT_MIN_S);
+    duty1 = AppControl_ApplyDutySlew((uint8_t)(first + 1U), 0.0f, APP_CONTROL_TEMP_PID_DT_MIN_S);
+
+    if (AppControl_Abs(duty0) < 0.001f)
+        duty0 = 0.0f;
+    if (AppControl_Abs(duty1) < 0.001f)
+        duty1 = 0.0f;
+
+    s_temp_channel_duty[first] = duty0;
+    s_temp_channel_duty[first + 1U] = duty1;
+    s_cell[cell].duty = (duty0 + duty1) * 0.5f;
+
+    if (AppControl_SetDrvDuty(first, duty0) != DRV8703_OK ||
+        AppControl_SetDrvDuty((uint8_t)(first + 1U), duty1) != DRV8703_OK)
+    {
+        AppControl_StopCell(cell, APP_CONTROL_STOP_EMERGENCY);
+        return;
+    }
+
+    if (duty0 == 0.0f && duty1 == 0.0f)
+        AppControl_StopCell(cell, APP_CONTROL_STOP_EMERGENCY);
 }
 
 /**
@@ -1454,7 +1554,7 @@ static void AppControl_StartCell(uint8_t cell)
 
     if (!AppControl_CellHardwareOk(cell))
     {
-        AppControl_StopCell(cell);
+        AppControl_StopCell(cell, APP_CONTROL_STOP_EMERGENCY);
         return;
     }
 
@@ -1478,13 +1578,13 @@ static void AppControl_StartCell(uint8_t cell)
         {
             AppControl_SetCellError(0U, PANEL_ERR_E315_SHARED_DRV);
             AppControl_SetCellError(1U, PANEL_ERR_E315_SHARED_DRV);
-            AppControl_StopCell(0U);
-            AppControl_StopCell(1U);
+            AppControl_StopCell(0U, APP_CONTROL_STOP_EMERGENCY);
+            AppControl_StopCell(1U, APP_CONTROL_STOP_EMERGENCY);
         }
         else
         {
             AppControl_SetCellError(cell, AppControl_CellDrvError(cell));
-            AppControl_StopCell(cell);
+            AppControl_StopCell(cell, APP_CONTROL_STOP_EMERGENCY);
         }
         return;
     }
@@ -1501,11 +1601,14 @@ static void AppControl_StartCell(uint8_t cell)
     s_temp_pid_update_pending[first + 1U] = 0U;
     s_temp_channel_duty[first] = 0.0f;
     s_temp_channel_duty[first + 1U] = 0.0f;
+    s_drv_output_duty[first] = 0.0f;
+    s_drv_output_duty[first + 1U] = 0.0f;
     s_cell_pid_feedback_enabled[cell] = 0U;
     s_cell_pid_feedback_start_ms[cell] = osKernelGetTickCount();
     s_cell[cell].pid_update_pending = 0U;
     s_cell[cell].running = 1U;
     s_cell[cell].requested = 1U;
+    s_cell[cell].stopping = 0U;
 
     /* PC 协议：通知上位机 Cell 启动 */
     PcProto_SendEvent(cell, "START");
@@ -1528,7 +1631,7 @@ static void AppControl_ProcessCommands(void)
         if (cmd.type == APP_CONTROL_CMD_START)
             AppControl_StartCell(cmd.cell);
         else if (cmd.type == APP_CONTROL_CMD_STOP)
-            AppControl_StopCell(cmd.cell);
+            AppControl_StopCell(cmd.cell, cmd.stop_mode);
     }
 }
 
@@ -1646,7 +1749,7 @@ static void AppControl_UpdateTemperatureInputs(uint32_t now_ms)
             {
                 g_app_control_temp_fault_sensor[cell] = bad_sensor;
                 AppControl_SetCellError(cell, AppControl_TempSensorError(bad_sensor));
-                AppControl_StopCell(cell);
+                AppControl_StopCell(cell, APP_CONTROL_STOP_EMERGENCY);
             }
         }
     }
@@ -1752,18 +1855,18 @@ static void AppControl_CheckDrvFaults(uint32_t now_ms)
             {
                 AppControl_SetCellError(0U, PANEL_ERR_E315_SHARED_DRV);
                 AppControl_SetCellError(1U, PANEL_ERR_E315_SHARED_DRV);
-                AppControl_StopCell(0U);
-                AppControl_StopCell(1U);
+                AppControl_StopCell(0U, APP_CONTROL_STOP_EMERGENCY);
+                AppControl_StopCell(1U, APP_CONTROL_STOP_EMERGENCY);
             }
             else if (drv <= 1U)
             {
                 AppControl_SetCellError(0U, PANEL_ERR_E311_CELL1_DRV);
-                AppControl_StopCell(0U);
+                AppControl_StopCell(0U, APP_CONTROL_STOP_EMERGENCY);
             }
             else
             {
                 AppControl_SetCellError(1U, PANEL_ERR_E312_CELL2_DRV);
-                AppControl_StopCell(1U);
+                AppControl_StopCell(1U, APP_CONTROL_STOP_EMERGENCY);
             }
         }
     }
@@ -1948,6 +2051,12 @@ static void AppControl_RunClosedLoop(void)
         }
 
         any_running = 1U;
+        if (s_cell[cell].stopping != 0U)
+        {
+            AppControl_ServiceStoppingCell(cell);
+            continue;
+        }
+
         s_cell[cell].pid_update_pending = 0U;
         for (drv = first; drv <= (uint8_t)(first + 1U); drv++)
         {
@@ -2000,11 +2109,15 @@ static void AppControl_RunClosedLoop(void)
             if (AppControl_Abs(duty) < 0.001f)
                 duty = 0.0f;
 
+            duty = AppControl_ApplyDutySlew(drv, duty, s_temp_pid[drv].dt);
+            if (AppControl_Abs(duty) < 0.001f)
+                duty = 0.0f;
+
             s_temp_channel_duty[drv] = duty;
             if (AppControl_SetDrvDuty(drv, duty) != DRV8703_OK)
             {
                 AppControl_SetCellError(cell, AppControl_CellDrvError(cell));
-                AppControl_StopCell(cell);
+                AppControl_StopCell(cell, APP_CONTROL_STOP_EMERGENCY);
                 break;
             }
         }
@@ -2014,12 +2127,18 @@ static void AppControl_RunClosedLoop(void)
 
     if (any_running != 0U)
     {
-        if (AppControl_SetDrvDuty(4U, APP_CONTROL_SHARED_CH5_DUTY) != DRV8703_OK)
+        float shared_target = (AppControl_ActiveCellNeedsSharedDrv() != 0U)
+                                  ? APP_CONTROL_SHARED_CH5_DUTY
+                                  : 0.0f;
+        float shared_duty = AppControl_ApplyDutySlew(4U,
+                                                     shared_target,
+                                                     APP_CONTROL_TEMP_PID_DT_MIN_S);
+        if (AppControl_SetDrvDuty(4U, shared_duty) != DRV8703_OK)
         {
             AppControl_SetCellError(0U, PANEL_ERR_E315_SHARED_DRV);
             AppControl_SetCellError(1U, PANEL_ERR_E315_SHARED_DRV);
-            AppControl_StopCell(0U);
-            AppControl_StopCell(1U);
+            AppControl_StopCell(0U, APP_CONTROL_STOP_EMERGENCY);
+            AppControl_StopCell(1U, APP_CONTROL_STOP_EMERGENCY);
         }
     }
 }
@@ -2078,6 +2197,7 @@ AppControl_Status_t AppControl_Init(void)
     {
         s_cell[i].running = 0U;
         s_cell[i].requested = 0U;
+        s_cell[i].stopping = 0U;
         s_cell[i].pid_update_pending = 0U;
         s_cell[i].sensor_reset_count = 0U;
         s_cell[i].target_temp = -10.0f;
@@ -2112,6 +2232,7 @@ AppControl_Status_t AppControl_Init(void)
     {
         uint8_t reg;
 
+        s_drv_output_duty[i] = 0.0f;
         g_app_control_drv_fault_snapshot_valid[i] = 0U;
         g_app_control_drv_fault_capture_count[i] = 0U;
         g_app_control_drv_fault_read_status[i] = DRV8703_OK;
@@ -2355,7 +2476,9 @@ void AppControl_UpdatePanel(TempPanel_t *panel, uint32_t now_ms)
 /**
  * @brief Post a start or stop command to the control task's message queue.
  */
-static void AppControl_PostCommand(AppControlCommandType_t type, uint8_t cell)
+static void AppControl_PostCommand(AppControlCommandType_t type,
+                                   uint8_t cell,
+                                   AppControlStopMode_t stop_mode)
 {
     AppControlCommand_t cmd;
 
@@ -2369,6 +2492,7 @@ static void AppControl_PostCommand(AppControlCommandType_t type, uint8_t cell)
 
     cmd.type = type;
     cmd.cell = cell;
+    cmd.stop_mode = stop_mode;
     if (osMessageQueuePut(s_cmd_queue, &cmd, 0U, 0U) != osOK)
         g_app_control_cmd_drop_count++;
 }
@@ -2376,13 +2500,24 @@ static void AppControl_PostCommand(AppControlCommandType_t type, uint8_t cell)
 /** @brief Public API: request PID start for a cell. */
 void Control_StartPid(uint8_t cell)
 {
-    AppControl_PostCommand(APP_CONTROL_CMD_START, cell);
+    AppControl_PostCommand(APP_CONTROL_CMD_START, cell, APP_CONTROL_STOP_NORMAL);
 }
 
 /** @brief Public API: request PID stop for a cell. */
 void Control_StopPid(uint8_t cell)
 {
-    AppControl_PostCommand(APP_CONTROL_CMD_STOP, cell);
+    AppControl_PostCommand(APP_CONTROL_CMD_STOP, cell, APP_CONTROL_STOP_NORMAL);
+}
+
+void Control_EmergencyStopPid(uint8_t cell)
+{
+    AppControl_PostCommand(APP_CONTROL_CMD_STOP, cell, APP_CONTROL_STOP_EMERGENCY);
+}
+
+void Control_EmergencyStopAll(void)
+{
+    Control_EmergencyStopPid(0U);
+    Control_EmergencyStopPid(1U);
 }
 
 /** @brief Public API: set the target temperature for a cell. */

@@ -1,4 +1,5 @@
 ﻿#include "temp_panel.h"
+#include "main.h"
 #include "pid_controller.h"
 
 /* ============================================================
@@ -11,7 +12,10 @@ __attribute__((weak)) void PanelHW_SetLed(uint8_t led_id, bool on);
 __attribute__((weak)) void PanelHW_BlinkOnce(void);
 __attribute__((weak)) void Control_StartPid(uint8_t cell);
 __attribute__((weak)) void Control_StopPid(uint8_t cell);
+__attribute__((weak)) void Control_EmergencyStopPid(uint8_t cell);
 __attribute__((weak)) void Control_SetTargetTemp(uint8_t cell, float target);
+
+static volatile uint8_t s_panel_stop_request_mask = 0U;
 
 /* ============================================================
  * 1. 鍐呴儴杈呭姪鍑芥暟
@@ -52,6 +56,16 @@ static void cell_stop(TempPanel_t *p, uint8_t cell)
     Control_StopPid(cell);
 }
 
+static void cell_stop_ui_only(TempPanel_t *p, uint8_t cell)
+{
+    TempCell_t *c = &p->cell[cell];
+    c->run_mode = CELL_STOP;
+    c->pid_enabled = false;
+    c->program_phase = 0;
+    c->program_timer_s = 0;
+    c->program_interval_done = 0;
+}
+
 static void cell_start_jump(TempPanel_t *p, uint8_t cell)
 {
     TempCell_t *c = &p->cell[cell];
@@ -62,7 +76,7 @@ static void cell_start_jump(TempPanel_t *p, uint8_t cell)
     }
     c->run_mode = CELL_RUN_JUMP;
     c->pid_enabled = true;
-    c->command_temp = c->current_temp;
+    c->command_temp = c->target_temp;
     Control_StartPid(cell);
     Control_SetTargetTemp(cell, c->command_temp);
 }
@@ -155,10 +169,8 @@ static bool program_params_valid(const TempProgram_t *program)
 static void update_jump_control(TempPanel_t *p, uint8_t cell, uint32_t dt_ms)
 {
     TempCell_t *c = &p->cell[cell];
-    c->command_temp = ramp_to_target(c->command_temp,
-                                     c->target_temp,
-                                     PANEL_JUMP_RAMP_PER_MIN,
-                                     dt_ms);
+    (void)dt_ms;
+    c->command_temp = c->target_temp;
     Control_SetTargetTemp(cell, c->command_temp);
 }
 
@@ -239,7 +251,10 @@ static void set_error_and_stop(TempPanel_t *p, uint8_t cell, PanelError_t err)
     TempCell_t *c = &p->cell[cell];
     c->error = err;
     if (err != PANEL_ERR_NONE)
-        cell_stop(p, cell);
+    {
+        cell_stop_ui_only(p, cell);
+        Control_EmergencyStopPid(cell);
+    }
 }
 
 static void show_ui_error(TempPanel_t *p, PanelUiError_t err, uint32_t now_ms)
@@ -804,6 +819,45 @@ void TempPanel_Stop(TempPanel_t *p, uint8_t cell)
     cell_stop(p, cell);
 }
 
+void TempPanel_RequestStop(uint8_t cell)
+{
+    if (cell >= PANEL_CELL_NUM)
+        return;
+    __disable_irq();
+    s_panel_stop_request_mask |= (uint8_t)(1U << cell);
+    __enable_irq();
+}
+
+void TempPanel_ServiceRequests(TempPanel_t *p)
+{
+    uint8_t mask;
+    uint8_t cell;
+
+    if (p == NULL)
+        return;
+
+    __disable_irq();
+    mask = s_panel_stop_request_mask;
+    s_panel_stop_request_mask = 0U;
+    __enable_irq();
+    if (mask == 0U)
+        return;
+
+    for (cell = 0U; cell < PANEL_CELL_NUM; cell++)
+    {
+        if ((mask & (uint8_t)(1U << cell)) != 0U)
+        {
+            cell_stop_ui_only(p, cell);
+            if (p->active_cell == cell)
+            {
+                p->show_type = (p->mode == PANEL_MODE_NORMAL)
+                                   ? PANEL_SHOW_TARGET
+                                   : PANEL_SHOW_CURRENT;
+            }
+        }
+    }
+}
+
 uint8_t TempPanel_StartNormal(TempPanel_t *p, uint8_t cell, float target_temp)
 {
     TempCell_t *c;
@@ -978,6 +1032,11 @@ __attribute__((weak)) void Control_StopPid(uint8_t cell)
 {
     (void)cell;
     /* HAL_TIM_PWM_Stop(...); PID_Reset(pid); */
+}
+
+__attribute__((weak)) void Control_EmergencyStopPid(uint8_t cell)
+{
+    (void)cell;
 }
 
 __attribute__((weak)) void Control_SetTargetTemp(uint8_t cell, float target)

@@ -328,6 +328,7 @@ void StartHMITask(void *argument)
         TM1638_ProcessKeys(&htm1638);
         CheckKeyHoldEvents();
         AppControl_UpdatePanel(&g_panel, now);
+        TempPanel_ServiceRequests(&g_panel);
         TempPanel_Task(&g_panel, now);
       }
 

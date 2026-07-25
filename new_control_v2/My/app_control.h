@@ -35,10 +35,17 @@ extern "C"
         APP_CONTROL_CMD_STOP
     } AppControlCommandType_t;
 
+    typedef enum
+    {
+        APP_CONTROL_STOP_NORMAL = 0,
+        APP_CONTROL_STOP_EMERGENCY
+    } AppControlStopMode_t;
+
     typedef struct
     {
         AppControlCommandType_t type;
         uint8_t cell;
+        AppControlStopMode_t stop_mode;
     } AppControlCommand_t;
 
     extern volatile uint8_t g_app_control_simulate_drv8703;
@@ -138,6 +145,8 @@ extern "C"
 
     void Control_StartPid(uint8_t cell);
     void Control_StopPid(uint8_t cell);
+    void Control_EmergencyStopPid(uint8_t cell);
+    void Control_EmergencyStopAll(void);
     void Control_SetTargetTemp(uint8_t cell, float target);
 
 #ifdef __cplusplus
