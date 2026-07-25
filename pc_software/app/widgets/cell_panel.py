@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtWidgets import (
@@ -18,7 +18,7 @@ from PyQt5.QtWidgets import (
 from app.models import CellState
 
 
-TEMP_MIN_C = -10.0
+TEMP_MIN_C = -20.0
 TEMP_MAX_C = 110.0
 RAMP_RATE_MIN_C_PER_MIN = 0.1
 RAMP_RATE_MAX_C_PER_MIN = 60.0
@@ -188,3 +188,4 @@ class CellPanel(QWidget):
             )
 
         return None
+

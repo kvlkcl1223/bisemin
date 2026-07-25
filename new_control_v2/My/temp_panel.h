@@ -17,8 +17,11 @@ extern "C"
 #define PANEL_CELL_NUM 2
 
 /* 娓╁害鑼冨洿: 鐩存帴浣跨敤 float 鎽勬皬锟?*/
-#define PANEL_TEMP_MIN -10.0f
+#define TEMP_VIRTUAL_LOW_ENABLE 1U
+#define PANEL_TEMP_REAL_MIN -10.0f
+#define PANEL_TEMP_DISPLAY_MIN -20.0f
 #define PANEL_TEMP_MAX 110.0f
+#define PANEL_TEMP_MIN PANEL_TEMP_DISPLAY_MIN
 
 #define PANEL_RAMP_RATE_MIN 0.1f
 #define PANEL_RAMP_RATE_MAX 60.0f

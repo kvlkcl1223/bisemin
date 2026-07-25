@@ -231,6 +231,35 @@ static uint32_t s_temp_freq_last_count[APP_CONTROL_TEMP_INPUT_COUNT] = {0U, 0U, 
 static uint32_t s_temp_freq_last_tick[APP_CONTROL_TEMP_INPUT_COUNT] = {0U, 0U, 0U, 0U};
 static uint32_t s_pid_freq_last_count[APP_CONTROL_CLOSED_LOOP_COUNT] = {0U, 0U, 0U, 0U};
 static uint32_t s_pid_freq_last_tick[APP_CONTROL_CLOSED_LOOP_COUNT] = {0U, 0U, 0U, 0U};
+
+#if TEMP_VIRTUAL_LOW_ENABLE
+typedef struct
+{
+    uint8_t active;
+    uint8_t started;
+    float last_real_temp;
+    float learned_rate_cps;
+    float virtual_temp;
+    float noise;
+    uint32_t last_ms;
+    uint32_t rng;
+} AppControlVirtualLowTemp_t;
+
+#define APP_CONTROL_VIRTUAL_ENTER_TEMP_C (PANEL_TEMP_REAL_MIN + 0.5f)
+#define APP_CONTROL_VIRTUAL_DEFAULT_RATE_CPS 0.03f
+#define APP_CONTROL_VIRTUAL_RATE_MIN_CPS 0.005f
+#define APP_CONTROL_VIRTUAL_RATE_MAX_CPS 0.20f
+#define APP_CONTROL_VIRTUAL_NOISE_MAX_C 0.12f
+
+static AppControlVirtualLowTemp_t s_virtual_low[APP_CONTROL_CELL_COUNT] =
+{
+    {0U, 0U, 25.0f, APP_CONTROL_VIRTUAL_DEFAULT_RATE_CPS, 25.0f, 0.0f, 0U, 0x13572468UL},
+    {0U, 0U, 25.0f, APP_CONTROL_VIRTUAL_DEFAULT_RATE_CPS, 25.0f, 0.0f, 0U, 0x24681357UL}
+};
+
+static float s_cell_display_temp[APP_CONTROL_CELL_COUNT] = {25.0f, 25.0f};
+static float s_temp_channel_display_temp[APP_CONTROL_CLOSED_LOOP_COUNT] = {25.0f, 25.0f, 25.0f, 25.0f};
+#endif
 static uint32_t s_temp_reset_release_ms = 0U;
 static uint32_t s_temp_last_reset_ms = 0U;
 static uint32_t s_last_raw_poll_ms = 0U;
@@ -941,6 +970,153 @@ static void AppControl_ServiceErrorDisplayTimeout(uint32_t now_ms)
     }
 }
 
+#if TEMP_VIRTUAL_LOW_ENABLE
+static float AppControl_VirtualClamp(float value, float min_value, float max_value)
+{
+    if (value < min_value)
+        return min_value;
+    if (value > max_value)
+        return max_value;
+    return value;
+}
+
+static float AppControl_VirtualNoise(AppControlVirtualLowTemp_t *state)
+{
+    float rnd;
+
+    state->rng = state->rng * 1664525UL + 1013904223UL;
+    rnd = (float)((state->rng >> 16) & 0x7FFFU) / 16383.5f - 1.0f;
+    state->noise = state->noise * 0.92f + rnd * APP_CONTROL_VIRTUAL_NOISE_MAX_C * 0.08f;
+    return state->noise;
+}
+
+static void AppControl_VirtualReset(uint8_t cell, float real_temp, uint32_t now_ms)
+{
+    AppControlVirtualLowTemp_t *state;
+
+    if (cell >= APP_CONTROL_CELL_COUNT)
+        return;
+
+    state = &s_virtual_low[cell];
+    state->active = 0U;
+    state->started = 0U;
+    state->last_real_temp = real_temp;
+    state->learned_rate_cps = APP_CONTROL_VIRTUAL_DEFAULT_RATE_CPS;
+    state->virtual_temp = real_temp;
+    state->noise = 0.0f;
+    state->last_ms = now_ms;
+}
+
+static float AppControl_VirtualLowDisplay(uint8_t cell,
+                                          float real_temp,
+                                          float target_temp,
+                                          uint32_t now_ms)
+{
+    AppControlVirtualLowTemp_t *state;
+    float dt_s;
+    float target;
+
+    if (cell >= APP_CONTROL_CELL_COUNT)
+        return real_temp;
+
+    state = &s_virtual_low[cell];
+
+    if ((s_cell[cell].running == 0U) || (target_temp >= PANEL_TEMP_REAL_MIN))
+    {
+        AppControl_VirtualReset(cell, real_temp, now_ms);
+        return real_temp;
+    }
+
+    target = AppControl_VirtualClamp(target_temp, PANEL_TEMP_DISPLAY_MIN, PANEL_TEMP_REAL_MIN);
+
+    if (state->active == 0U)
+    {
+        state->last_ms = now_ms;
+        state->last_real_temp = real_temp;
+        state->virtual_temp = real_temp;
+    }
+
+    dt_s = (float)(now_ms - state->last_ms) * 0.001f;
+    if (dt_s < 0.0f)
+        dt_s = 0.0f;
+    if (dt_s > 2.0f)
+        dt_s = 2.0f;
+
+    if (dt_s > 0.0f)
+    {
+        float real_rate = (state->last_real_temp - real_temp) / dt_s;
+        if (real_rate > 0.0f)
+        {
+            real_rate = AppControl_VirtualClamp(real_rate,
+                                                APP_CONTROL_VIRTUAL_RATE_MIN_CPS,
+                                                APP_CONTROL_VIRTUAL_RATE_MAX_CPS);
+            state->learned_rate_cps = state->learned_rate_cps * 0.90f + real_rate * 0.10f;
+        }
+    }
+
+    state->last_ms = now_ms;
+    state->last_real_temp = real_temp;
+    state->active = 1U;
+
+    if (state->started == 0U)
+    {
+        state->virtual_temp = real_temp;
+        if (real_temp > APP_CONTROL_VIRTUAL_ENTER_TEMP_C)
+            return real_temp;
+
+        state->started = 1U;
+        if (state->virtual_temp > PANEL_TEMP_REAL_MIN)
+            state->virtual_temp = PANEL_TEMP_REAL_MIN;
+    }
+
+    if (dt_s > 0.0f)
+    {
+        if (state->virtual_temp > target)
+        {
+            float distance = state->virtual_temp - target;
+            float slow = AppControl_VirtualClamp(distance / 5.0f, 0.15f, 1.0f);
+            float rate = state->learned_rate_cps;
+            if (rate < APP_CONTROL_VIRTUAL_RATE_MIN_CPS)
+                rate = APP_CONTROL_VIRTUAL_DEFAULT_RATE_CPS;
+            state->virtual_temp -= rate * slow * dt_s;
+            if (state->virtual_temp < target)
+                state->virtual_temp = target;
+        }
+        else if (state->virtual_temp < target)
+        {
+            state->virtual_temp = target;
+        }
+    }
+
+    return AppControl_VirtualClamp(state->virtual_temp + AppControl_VirtualNoise(state),
+                                   target - 0.15f,
+                                   PANEL_TEMP_REAL_MIN + 0.20f);
+}
+
+static void AppControl_UpdateDisplayTemperatures(uint32_t now_ms)
+{
+    uint8_t cell;
+
+    for (cell = 0U; cell < APP_CONTROL_CELL_COUNT; cell++)
+    {
+        uint8_t first = AppControl_CellFirstDrv(cell);
+        float real_cell = s_cell[cell].current_temp;
+        float display_cell = AppControl_VirtualLowDisplay(cell,
+                                                          real_cell,
+                                                          s_cell[cell].target_temp,
+                                                          now_ms);
+        float delta = display_cell - real_cell;
+        uint8_t drv;
+
+        s_cell_display_temp[cell] = display_cell;
+        for (drv = first; drv <= (uint8_t)(first + 1U); drv++)
+        {
+            s_temp_channel_display_temp[drv] = s_temp_channel_temp[drv] + delta;
+        }
+    }
+}
+#endif
+
 /**
  * @brief Copy internal variables into the g_ prefixed volatile debug arrays
  *        so they can be inspected via Keil Watch windows.
@@ -949,10 +1125,18 @@ static void AppControl_ApplyDebugState(void)
 {
     uint8_t i;
 
+#if TEMP_VIRTUAL_LOW_ENABLE
+    AppControl_UpdateDisplayTemperatures(osKernelGetTickCount());
+#endif
+
     for (i = 0U; i < APP_CONTROL_CELL_COUNT; i++)
     {
         g_app_control_cell_running[i] = s_cell[i].running;
+#if TEMP_VIRTUAL_LOW_ENABLE
+        g_app_control_cell_temp[i] = s_cell_display_temp[i];
+#else
         g_app_control_cell_temp[i] = s_cell[i].current_temp;
+#endif
         g_app_control_cell_target[i] = s_cell[i].target_temp;
         g_app_control_cell_duty[i] = s_cell[i].duty;
         g_app_control_cell_error[i] = s_cell[i].error;
@@ -960,7 +1144,11 @@ static void AppControl_ApplyDebugState(void)
 
     for (i = 0U; i < APP_CONTROL_CLOSED_LOOP_COUNT; i++)
     {
+#if TEMP_VIRTUAL_LOW_ENABLE
+        g_app_control_pid_temp[i] = s_temp_channel_display_temp[i];
+#else
         g_app_control_pid_temp[i] = s_temp_channel_temp[i];
+#endif
         g_app_control_pid_duty[i] = s_temp_channel_duty[i];
         g_app_control_pid_update_pending[i] = s_temp_pid_update_pending[i];
     }
@@ -2112,6 +2300,7 @@ void AppControl_Task(uint32_t now_ms)
     }
 
     AppControl_WaterCheck(now_ms);
+    AppControl_ApplyDebugState();
     Ads1220_Test(); /* 临时：ADS1220 测试，验证通过后删除 */
 
     /* PC 协议：每 1s 发送一次过程数据 */
@@ -2125,7 +2314,6 @@ void AppControl_Task(uint32_t now_ms)
         }
     }
 
-    AppControl_ApplyDebugState();
     g_app_control_loop_count++;
     AppControl_Unlock();
 }
@@ -2148,7 +2336,11 @@ void AppControl_UpdatePanel(TempPanel_t *panel, uint32_t now_ms)
     AppControl_Lock();
     for (cell = 0U; cell < APP_CONTROL_CELL_COUNT; cell++)
     {
+#if TEMP_VIRTUAL_LOW_ENABLE
+        temp[cell] = g_app_control_cell_temp[cell];
+#else
         temp[cell] = s_cell[cell].current_temp;
+#endif
         err[cell] = s_cell[cell].error;
     }
     AppControl_Unlock();
