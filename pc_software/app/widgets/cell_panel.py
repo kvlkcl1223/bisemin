@@ -22,6 +22,8 @@ TEMP_MIN_C = -20.0
 TEMP_MAX_C = 110.0
 RAMP_RATE_MIN_C_PER_MIN = 0.1
 RAMP_RATE_MAX_C_PER_MIN = 60.0
+PROGRAM_HEAT_RAMP_MAX_C_PER_MIN = 60.0
+PROGRAM_COOL_RAMP_MAX_C_PER_MIN = 5.0
 
 
 class CellPanel(QWidget):
@@ -179,6 +181,11 @@ class CellPanel(QWidget):
             )
 
         step = next_temp - start
+        if step > 0.0 and rate > PROGRAM_HEAT_RAMP_MAX_C_PER_MIN:
+            return f"Heating rate must not exceed {PROGRAM_HEAT_RAMP_MAX_C_PER_MIN:.1f} °C/min."
+        if step < 0.0 and rate > PROGRAM_COOL_RAMP_MAX_C_PER_MIN:
+            return f"Cooling rate must not exceed {PROGRAM_COOL_RAMP_MAX_C_PER_MIN:.1f} °C/min."
+
         final_target = next_temp + step * repeat
         if not TEMP_MIN_C <= final_target <= TEMP_MAX_C:
             return (

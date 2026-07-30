@@ -22,6 +22,7 @@
 #include "adc.h"
 #include "dac.h"
 #include "dma.h"
+#include "iwdg.h"
 #include "opamp.h"
 #include "spi.h"
 #include "tim.h"
@@ -73,6 +74,7 @@ volatile uint32_t g_temp_uart_error_count = 0U;
 volatile uint32_t g_temp_uart_restart_fail_count = 0U;
 volatile uint32_t g_temp_uart_last_error_code = 0U;
 volatile HAL_StatusTypeDef g_temp_uart_last_restart_status = HAL_OK;
+volatile uint8_t g_system_reset_by_iwdg = 0U;
 #define RX_BUFFER_SIZE 256
 uint8_t rx_buffer[RX_BUFFER_SIZE];
 uint16_t rx_length = 0;
@@ -238,6 +240,9 @@ int main(void)
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
 
+  g_system_reset_by_iwdg = (__HAL_RCC_GET_FLAG(RCC_FLAG_IWDGRST) != RESET) ? 1U : 0U;
+  __HAL_RCC_CLEAR_RESET_FLAGS();
+
   /* USER CODE BEGIN Init */
 
   /* USER CODE END Init */
@@ -271,6 +276,8 @@ int main(void)
   MX_USART2_UART_Init();
   MX_SPI3_Init();
   MX_TIM7_Init();
+  MX_IWDG_Init();
+  (void)HAL_IWDG_Refresh(&hiwdg);
   /* USER CODE BEGIN 2 */
   // 开启 TIM3 的 PWM 输出，开启水泵的电机
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
@@ -283,12 +290,15 @@ int main(void)
   TemperatureUart_RestartReceive();
   /* 启动 USART2 PC 协议 DMA 空闲线接收 */
   PcProto_Init();
+  (void)HAL_IWDG_Refresh(&hiwdg);
   HAL_Delay(20);
   HAL_GPIO_WritePin(NRST_OTHER_GPIO_Port, NRST_OTHER_Pin, GPIO_PIN_RESET);
   HAL_Delay(200);
   HAL_GPIO_WritePin(NRST_OTHER_GPIO_Port, NRST_OTHER_Pin, GPIO_PIN_SET);
+  (void)HAL_IWDG_Refresh(&hiwdg);
   /* 一键初始化: TM1638 + Panel + PID + 默认显示 */
   Panel_Init();
+  (void)HAL_IWDG_Refresh(&hiwdg);
 
   /* 注册所有按键回调 */
   TM1638_RegisterKeyCallback(&htm1638, KEY_MODE, OnModeKeyPressed);
@@ -374,8 +384,9 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLM = RCC_PLLM_DIV2;

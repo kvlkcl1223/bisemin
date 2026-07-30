@@ -35,6 +35,7 @@
 #include "calib_mode.h"
 #include "ads1220.h"
 #include "pc_protocol.h"
+#include "iwdg.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -71,29 +72,41 @@ volatile HAL_StatusTypeDef g_app_tim_sync_start_result = HAL_OK;
 volatile uint32_t g_app_tim1_trgo2_compare = 0U;
 volatile AdcMeasure_Status_t g_app_adc_measure_start_result = ADC_MEASURE_ERROR_ADC1;
 volatile AppControl_Status_t g_app_control_start_result = APP_CONTROL_ERROR_QUEUE;
+extern volatile uint8_t g_system_reset_by_iwdg;
+volatile uint32_t g_app_watchdog_refresh_count = 0U;
+volatile uint32_t g_app_watchdog_block_count = 0U;
+volatile uint8_t g_app_watchdog_control_alive = 0U;
+volatile uint8_t g_app_watchdog_hmi_alive = 0U;
 /* USER CODE END Variables */
 /* Definitions for ControlTask */
 osThreadId_t ControlTaskHandle;
 const osThreadAttr_t ControlTask_attributes = {
-    .name = "ControlTask",
-    .priority = (osPriority_t)osPriorityHigh,
-    .stack_size = 512 * 4};
+  .name = "ControlTask",
+  .priority = (osPriority_t) osPriorityHigh,
+  .stack_size = 512 * 4
+};
 /* Definitions for HMITask */
 osThreadId_t HMITaskHandle;
 const osThreadAttr_t HMITask_attributes = {
-    .name = "HMITask",
-    .priority = (osPriority_t)osPriorityLow,
-    .stack_size = 256 * 4};
+  .name = "HMITask",
+  .priority = (osPriority_t) osPriorityLow,
+  .stack_size = 256 * 4
+};
 /* Definitions for SysStateMutex */
 osMutexId_t SysStateMutexHandle;
 const osMutexAttr_t SysStateMutex_attributes = {
-    .name = "SysStateMutex"};
+  .name = "SysStateMutex"
+};
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
 static HAL_StatusTypeDef App_StartSynchronizedPwmTimebase(void);
 static void AppDebug_UartSend(const char *str);
 static void AppDebug_LogNormal(uint32_t now_ms);
+static void AppWatchdog_Init(uint32_t now_ms);
+static void AppWatchdog_KickControl(uint32_t now_ms);
+static void AppWatchdog_KickHmi(uint32_t now_ms);
+static void AppWatchdog_Service(uint32_t now_ms);
 /* USER CODE END FunctionPrototypes */
 
 void StartControlTask(void *argument);
@@ -102,12 +115,11 @@ void StartHMITask(void *argument);
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
 /**
- * @brief  FreeRTOS initialization
- * @param  None
- * @retval None
- */
-void MX_FREERTOS_Init(void)
-{
+  * @brief  FreeRTOS initialization
+  * @param  None
+  * @retval None
+  */
+void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN Init */
 
   /* USER CODE END Init */
@@ -145,6 +157,7 @@ void MX_FREERTOS_Init(void)
   /* USER CODE BEGIN RTOS_EVENTS */
   /* add events, ... */
   /* USER CODE END RTOS_EVENTS */
+
 }
 
 /* USER CODE BEGIN Header_StartControlTask */
@@ -160,8 +173,17 @@ void StartControlTask(void *argument)
   (void)argument;
 
   osDelay(1000);
+  AppWatchdog_Init(osKernelGetTickCount());
+  (void)HAL_IWDG_Refresh(&hiwdg);
 
   AppDebug_UartSend("SYS,CONTROL_INIT_BEGIN\r\n");
+  {
+    char buf[40];
+    (void)snprintf(buf, sizeof(buf),
+                   "SYS,RESET,IWDG:%u\r\n",
+                   (unsigned int)g_system_reset_by_iwdg);
+    AppDebug_UartSend(buf);
+  }
 
   g_app_tim_sync_start_result = App_StartSynchronizedPwmTimebase();
   {
@@ -196,14 +218,17 @@ void StartControlTask(void *argument)
   }
 
   /* 初始化 ADS1220 温度采集 */
+  (void)HAL_IWDG_Refresh(&hiwdg);
   Ads1220_InitAll();
   AppDebug_UartSend("SYS,ADS1220_INIT_DONE\r\n");
+  (void)HAL_IWDG_Refresh(&hiwdg);
 
   /* 读取并输出两个 Cell 的上一次标定数据 */
   CalibMode_ImportLegacyCell1IfMissing();
 
   CalibMode_DumpFlashData(0);
   CalibMode_DumpFlashData(1);
+  (void)HAL_IWDG_Refresh(&hiwdg);
 
   // AppDebug_UartSend("CALIB,AUTO_START,CELL:0\r\n");
   // CalibMode_Start(0);
@@ -230,6 +255,11 @@ void StartControlTask(void *argument)
      */
     g_app_drv8703_loop_counter++;
     PcProto_Process(); /* 处理 PC 协议收到的命令 */
+    {
+      uint32_t wd_now = osKernelGetTickCount();
+      AppWatchdog_KickControl(wd_now);
+      AppWatchdog_Service(wd_now);
+    }
     osDelay(20);
   }
   /* USER CODE END StartControlTask */
@@ -332,6 +362,8 @@ void StartHMITask(void *argument)
         TempPanel_Task(&g_panel, now);
       }
 
+      AppWatchdog_KickHmi(now);
+
       static uint32_t last_blink = 0;
       if (now - last_blink >= 500)
       {
@@ -348,6 +380,54 @@ void StartHMITask(void *argument)
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
+#define APP_WATCHDOG_CONTROL_TIMEOUT_MS 500U
+#define APP_WATCHDOG_HMI_TIMEOUT_MS 1000U
+
+static volatile uint32_t s_app_watchdog_control_ms = 0U;
+static volatile uint32_t s_app_watchdog_hmi_ms = 0U;
+
+static void AppWatchdog_Init(uint32_t now_ms)
+{
+  s_app_watchdog_control_ms = now_ms;
+  s_app_watchdog_hmi_ms = now_ms;
+  g_app_watchdog_control_alive = 1U;
+  g_app_watchdog_hmi_alive = 1U;
+}
+
+static void AppWatchdog_KickControl(uint32_t now_ms)
+{
+  s_app_watchdog_control_ms = now_ms;
+  g_app_watchdog_control_alive = 1U;
+}
+
+static void AppWatchdog_KickHmi(uint32_t now_ms)
+{
+  s_app_watchdog_hmi_ms = now_ms;
+  g_app_watchdog_hmi_alive = 1U;
+}
+
+static void AppWatchdog_Service(uint32_t now_ms)
+{
+  uint8_t control_ok;
+  uint8_t hmi_ok;
+
+  control_ok = ((now_ms - s_app_watchdog_control_ms) <= APP_WATCHDOG_CONTROL_TIMEOUT_MS) ? 1U : 0U;
+  hmi_ok = ((now_ms - s_app_watchdog_hmi_ms) <= APP_WATCHDOG_HMI_TIMEOUT_MS) ? 1U : 0U;
+
+  g_app_watchdog_control_alive = control_ok;
+  g_app_watchdog_hmi_alive = hmi_ok;
+
+  if ((control_ok != 0U) && (hmi_ok != 0U))
+  {
+    (void)HAL_IWDG_Refresh(&hiwdg);
+    g_app_watchdog_refresh_count++;
+  }
+  else
+  {
+    g_app_watchdog_block_count++;
+  }
+}
+
 static HAL_StatusTypeDef App_TIM_BaseStartIfStopped(TIM_HandleTypeDef *htim)
 {
   if ((htim->Instance->CR1 & TIM_CR1_CEN) != 0U)

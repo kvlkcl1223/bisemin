@@ -17,7 +17,7 @@ extern "C"
 #define PANEL_CELL_NUM 2
 
 /* 娓╁害鑼冨洿: 鐩存帴浣跨敤 float 鎽勬皬锟?*/
-#define TEMP_VIRTUAL_LOW_ENABLE 1U
+#define TEMP_VIRTUAL_LOW_ENABLE 0U
 #define PANEL_TEMP_REAL_MIN -10.0f
 #define PANEL_TEMP_DISPLAY_MIN -20.0f
 #define PANEL_TEMP_MAX 110.0f
@@ -25,6 +25,8 @@ extern "C"
 
 #define PANEL_RAMP_RATE_MIN 0.1f
 #define PANEL_RAMP_RATE_MAX 60.0f
+#define PANEL_PROGRAM_HEAT_RAMP_MAX_PER_MIN 60.0f
+#define PANEL_PROGRAM_COOL_RAMP_MAX_PER_MIN 5.0f
 
 /* 澶栭儴娴嬫俯閫氫俊瓒呮椂鏃堕棿 (ms) */
 #define PANEL_SENSOR_TIMEOUT_MS 3000
@@ -184,11 +186,12 @@ extern "C"
     typedef enum
     {
         PANEL_UI_ERR_NONE = 0,
-        PANEL_UI_ERR_MODE_LOCKED = 201,         /* E201: selected cell is running, MODE is locked */
-        PANEL_UI_ERR_PARAM_EDIT_RUNNING = 202,  /* E202: param mode is running, UP/DOWN ignored */
-        PANEL_UI_ERR_PARAM_ENTER_RUNNING = 203, /* E203: param mode is running, ENTER ignored */
-        PANEL_UI_ERR_NORMAL_EDIT_RUNNING = 204, /* E204: normal mode is running, UP/DOWN ignored */
-        PANEL_UI_ERR_NORMAL_ENTER_RUNNING = 205 /* E205: normal mode is running, ENTER ignored */
+        PANEL_UI_ERR_MODE_LOCKED = 201,          /* E201: selected cell is running, MODE is locked */
+        PANEL_UI_ERR_PARAM_EDIT_RUNNING = 202,   /* E202: param mode is running, UP/DOWN ignored */
+        PANEL_UI_ERR_PARAM_ENTER_RUNNING = 203,  /* E203: param mode is running, ENTER ignored */
+        PANEL_UI_ERR_NORMAL_EDIT_RUNNING = 204,  /* E204: normal mode is running, UP/DOWN ignored */
+        PANEL_UI_ERR_NORMAL_ENTER_RUNNING = 205, /* E205: normal mode is running, ENTER ignored */
+        PANEL_UI_ERR_PROGRAM_RATE_RANGE = 206    /* E206: program ramp rate exceeds direction limit */
     } PanelUiError_t;
 
     /* ============================================================
@@ -316,4 +319,3 @@ extern "C"
 #endif
 
 #endif
-

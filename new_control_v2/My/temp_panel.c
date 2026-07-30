@@ -91,11 +91,20 @@ static void cell_start_jump(TempPanel_t *p, uint8_t cell)
 #define PROG_PHASE_FINISHED 5
 #define PANEL_UI_ERROR_DISPLAY_MS 1000U
 
+static bool program_params_valid(const TempProgram_t *program);
+static void show_ui_error(TempPanel_t *p, PanelUiError_t err, uint32_t now_ms);
+
 static void cell_start_program(TempPanel_t *p, uint8_t cell)
 {
     TempCell_t *c = &p->cell[cell];
     if (c->error != PANEL_ERR_NONE)
     {
+        PanelHW_BlinkOnce();
+        return;
+    }
+    if (!program_params_valid(&c->program))
+    {
+        show_ui_error(p, PANEL_UI_ERR_PROGRAM_RATE_RANGE, HAL_GetTick());
         PanelHW_BlinkOnce();
         return;
     }
@@ -159,6 +168,13 @@ static bool program_params_valid(const TempProgram_t *program)
         return false;
 
     step = program->next_temp - program->start_temp;
+    if ((step > 0.0f) &&
+        (program->ramp_rate > PANEL_PROGRAM_HEAT_RAMP_MAX_PER_MIN))
+        return false;
+    if ((step < 0.0f) &&
+        (program->ramp_rate > PANEL_PROGRAM_COOL_RAMP_MAX_PER_MIN))
+        return false;
+
     final_target = program->next_temp + step * (float)program->repeat_times;
 
     if (final_target < PANEL_TEMP_MIN || final_target > PANEL_TEMP_MAX)

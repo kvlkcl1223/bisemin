@@ -11,6 +11,7 @@ from PyQt5.QtWidgets import (
     QMainWindow,
     QPushButton,
     QPlainTextEdit,
+    QMessageBox,
     QSplitter,
     QStatusBar,
     QTabWidget,
@@ -22,7 +23,15 @@ from app.logger import DataLogger
 from app.models import CellState
 from app.protocol import Frame, ProtocolError, bytes_to_hex, encode_frame, frame_to_text
 from app.serial_worker import SerialClient
-from app.widgets.cell_panel import CellPanel
+from app.widgets.cell_panel import (
+    CellPanel,
+    PROGRAM_COOL_RAMP_MAX_C_PER_MIN,
+    PROGRAM_HEAT_RAMP_MAX_C_PER_MIN,
+    RAMP_RATE_MAX_C_PER_MIN,
+    RAMP_RATE_MIN_C_PER_MIN,
+    TEMP_MAX_C,
+    TEMP_MIN_C,
+)
 from app.widgets.log_panel import LogPanel
 
 
@@ -176,6 +185,11 @@ class MainWindow(QMainWindow):
         wait: int,
         repeat: int,
     ) -> None:
+        error = self.program_range_error(start, next_temp, rate, repeat)
+        if error:
+            QMessageBox.warning(self, "Invalid Program", error)
+            return
+
         self.send_cmd(
             "SET_PROGRAM",
             cell=cell,
@@ -189,6 +203,39 @@ class MainWindow(QMainWindow):
 
     def start_program(self, cell: int) -> None:
         self.send_cmd("START_PROGRAM", cell=cell)
+
+    def program_range_error(
+        self,
+        start: float,
+        next_temp: float,
+        rate: float,
+        repeat: int,
+    ) -> str | None:
+        if not TEMP_MIN_C <= start <= TEMP_MAX_C:
+            return f"Start must be between {TEMP_MIN_C:.1f} and {TEMP_MAX_C:.1f} °C."
+        if not TEMP_MIN_C <= next_temp <= TEMP_MAX_C:
+            return f"Next must be between {TEMP_MIN_C:.1f} and {TEMP_MAX_C:.1f} °C."
+        if not RAMP_RATE_MIN_C_PER_MIN <= rate <= RAMP_RATE_MAX_C_PER_MIN:
+            return (
+                f"Rate must be between {RAMP_RATE_MIN_C_PER_MIN:.1f} and "
+                f"{RAMP_RATE_MAX_C_PER_MIN:.1f} °C/min."
+            )
+
+        step = next_temp - start
+        if step > 0.0 and rate > PROGRAM_HEAT_RAMP_MAX_C_PER_MIN:
+            return f"Heating rate must not exceed {PROGRAM_HEAT_RAMP_MAX_C_PER_MIN:.1f} °C/min."
+        if step < 0.0 and rate > PROGRAM_COOL_RAMP_MAX_C_PER_MIN:
+            return f"Cooling rate must not exceed {PROGRAM_COOL_RAMP_MAX_C_PER_MIN:.1f} °C/min."
+
+        final_target = next_temp + step * repeat
+        if not TEMP_MIN_C <= final_target <= TEMP_MAX_C:
+            return (
+                "Program range exceeds the temperature limit. "
+                f"Final target would be {final_target:.1f} °C, but allowed range is "
+                f"{TEMP_MIN_C:.1f} to {TEMP_MAX_C:.1f} °C."
+            )
+
+        return None
 
     def on_frame_received(self, frame: Frame) -> None:
         self.rx_log.appendPlainText(f"{frame_to_text(frame)}\nHEX={bytes_to_hex(frame.raw)}")

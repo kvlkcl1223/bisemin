@@ -38,6 +38,18 @@ static uint8_t PcProto_RateInRange(float rate)
     return (rate >= PANEL_RAMP_RATE_MIN && rate <= PANEL_RAMP_RATE_MAX) ? 1U : 0U;
 }
 
+static uint8_t PcProto_RateFitsDirection(float from, float to, float rate)
+{
+    float diff = to - from;
+
+    if ((diff > 0.0f) && (rate > PANEL_PROGRAM_HEAT_RAMP_MAX_PER_MIN))
+        return 0U;
+    if ((diff < 0.0f) && (rate > PANEL_PROGRAM_COOL_RAMP_MAX_PER_MIN))
+        return 0U;
+
+    return 1U;
+}
+
 static uint8_t PcProto_ProgramInRange(const TempProgram_t *program)
 {
     float step;
@@ -49,6 +61,11 @@ static uint8_t PcProto_ProgramInRange(const TempProgram_t *program)
     if (!PcProto_TempInRange(program->start_temp) ||
         !PcProto_TempInRange(program->next_temp) ||
         !PcProto_RateInRange(program->ramp_rate))
+        return 0U;
+
+    if (!PcProto_RateFitsDirection(program->start_temp,
+                                   program->next_temp,
+                                   program->ramp_rate))
         return 0U;
 
     step = program->next_temp - program->start_temp;
