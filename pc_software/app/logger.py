@@ -35,7 +35,7 @@ class DataLogger:
         cell = int(fields.get("cell", "0"))
         row = LogRow(
             mcu_time_ms=int(fields.get("t", "0")),
-            pool=f"Pool {cell + 1}",
+            pool=f"单元 {cell}",
             mode=fields.get("mode", ""),
             phase=int(fields.get("phase", "0")),
             target=float(fields.get("target", "0")),

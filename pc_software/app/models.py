@@ -8,12 +8,27 @@ class ControlMode(str, Enum):
     STOP = "STOP"
     NORMAL = "NORMAL"
     PROGRAM = "PROGRAM"
+    EXTERNAL = "EXTERNAL"
 
 
 class ControlOwner(str, Enum):
     NONE = "NONE"
     PANEL = "PANEL"
     PC = "PC"
+
+
+MODE_TEXT = {
+    ControlMode.STOP: "停止",
+    ControlMode.NORMAL: "普通控温",
+    ControlMode.PROGRAM: "程序控温",
+    ControlMode.EXTERNAL: "外部控制",
+}
+
+OWNER_TEXT = {
+    ControlOwner.NONE: "无",
+    ControlOwner.PANEL: "面板",
+    ControlOwner.PC: "上位机",
+}
 
 
 @dataclass

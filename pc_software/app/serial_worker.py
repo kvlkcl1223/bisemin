@@ -36,7 +36,7 @@ class SerialClient(QObject):
         self.port.setStopBits(QSerialPort.OneStop)
         self.port.setFlowControl(QSerialPort.NoFlowControl)
         ok = self.port.open(QSerialPort.ReadWrite)
-        self.status_changed.emit("connected" if ok else "open failed")
+        self.status_changed.emit("已连接" if ok else "打开失败")
         if not ok:
             self.error_reported.emit(self.port.errorString())
         return ok
@@ -45,18 +45,18 @@ class SerialClient(QObject):
         if self.port.isOpen():
             self.port.close()
         self._parser.clear()
-        self.status_changed.emit("disconnected")
+        self.status_changed.emit("已断开")
 
     def write(self, data: bytes) -> None:
         if not self.port.isOpen():
-            self.error_reported.emit("serial port is not open")
+            self.error_reported.emit("串口未打开")
             return
         self.port.write(data)
 
     def _on_ready_read(self) -> None:
         frames, errors = self._parser.feed(bytes(self.port.readAll()))
         for error in errors:
-            self.error_reported.emit(f"protocol: {error}")
+            self.error_reported.emit(f"协议错误：{error}")
         for frame in frames:
             self.frame_received.emit(frame)
 

@@ -60,11 +60,11 @@ def _frame_type_value(frame_type: str | int | FrameType) -> int:
         return int(frame_type)
     if isinstance(frame_type, int):
         if frame_type < 0 or frame_type > 0xFF:
-            raise ProtocolError("frame type out of range")
+            raise ProtocolError("帧类型超出范围")
         return frame_type
     name = frame_type.upper()
     if name not in TYPE_BY_NAME:
-        raise ProtocolError(f"unknown frame type: {frame_type}")
+        raise ProtocolError(f"未知帧类型：{frame_type}")
     return int(TYPE_BY_NAME[name])
 
 
@@ -83,14 +83,14 @@ def encode_payload(**fields: object) -> str:
         text_key = str(key)
         text_value = str(value)
         if any(ch in text_key for ch in ",="):
-            raise ProtocolError(f"bad payload key: {text_key}")
+            raise ProtocolError(f"载荷字段名无效：{text_key}")
         if any(ch in text_value for ch in ",\r\n"):
-            raise ProtocolError(f"bad payload value for {text_key}")
+            raise ProtocolError(f"载荷字段值无效：{text_key}")
         parts.append(f"{text_key}={text_value}")
     payload = ",".join(parts)
     payload.encode("ascii")
     if len(payload.encode("ascii")) > PAYLOAD_MAX:
-        raise ProtocolError("payload too large")
+        raise ProtocolError("载荷过长")
     return payload
 
 
@@ -112,12 +112,12 @@ def parse_payload(payload: str) -> dict[str, str]:
 def encode_frame(frame_type: str | int | FrameType, seq: int = 0, **fields: object) -> bytes:
     type_value = _frame_type_value(frame_type)
     if seq < 0 or seq > 0xFFFF:
-        raise ProtocolError("seq out of range")
+        raise ProtocolError("序号超出范围")
 
     payload = encode_payload(**fields).encode("ascii")
     length = 1 + 2 + len(payload)
     if length > LEN_MAX:
-        raise ProtocolError("frame too large")
+        raise ProtocolError("帧过长")
 
     body = bytearray()
     body.extend(length.to_bytes(2, "little"))
@@ -136,24 +136,24 @@ def encode_frame(frame_type: str | int | FrameType, seq: int = 0, **fields: obje
 def decode_frame(raw: bytes | bytearray) -> Frame:
     data = bytes(raw)
     if len(data) < FRAME_MIN:
-        raise ProtocolError("frame too short")
+        raise ProtocolError("帧过短")
     if not data.startswith(SOF):
-        raise ProtocolError("missing frame start")
+        raise ProtocolError("缺少帧头")
     if data[-2:] != EOF:
-        raise ProtocolError("bad frame end")
+        raise ProtocolError("帧尾错误")
 
     length = int.from_bytes(data[2:4], "little")
     if length < LEN_MIN or length > LEN_MAX:
-        raise ProtocolError(f"bad length: {length}")
+        raise ProtocolError(f"长度错误：{length}")
 
     expected_size = 2 + 2 + length + 2 + 2
     if len(data) != expected_size:
-        raise ProtocolError(f"bad frame size: got {len(data)} expected {expected_size}")
+        raise ProtocolError(f"帧大小错误：收到 {len(data)}，应为 {expected_size}")
 
     crc_expected = int.from_bytes(data[4 + length : 4 + length + 2], "little")
     crc_actual = crc16_ccitt(data[2 : 4 + length])
     if crc_expected != crc_actual:
-        raise ProtocolError(f"crc mismatch expected={crc_expected:04X} actual={crc_actual:04X}")
+        raise ProtocolError(f"CRC 不匹配：收到={crc_expected:04X} 计算={crc_actual:04X}")
 
     type_value = data[4]
     seq = int.from_bytes(data[5:7], "little")
@@ -161,7 +161,7 @@ def decode_frame(raw: bytes | bytearray) -> Frame:
     try:
         payload = payload_bytes.decode("ascii")
     except UnicodeDecodeError as exc:
-        raise ProtocolError("payload is not ascii") from exc
+        raise ProtocolError("载荷不是 ASCII 编码") from exc
 
     return Frame(
         frame_type=_frame_type_name(type_value),
@@ -174,7 +174,7 @@ def decode_frame(raw: bytes | bytearray) -> Frame:
 
 
 def frame_to_text(frame: Frame) -> str:
-    return f'TYPE={frame.frame_type}(0x{frame.frame_type_value:02X}), SEQ={frame.seq}, PAYLOAD="{frame.payload}"'
+    return f'类型={frame.frame_type}(0x{frame.frame_type_value:02X}), 序号={frame.seq}, 载荷="{frame.payload}"'
 
 
 def bytes_to_hex(data: Iterable[int]) -> str:
@@ -197,11 +197,11 @@ class FrameParser:
             start = self._buffer.find(SOF)
             if start < 0:
                 if self._buffer:
-                    errors.append(f"discarded {len(self._buffer)} byte(s) before SOF")
+                    errors.append(f"丢弃帧头前 {len(self._buffer)} 个字节")
                     self._buffer.clear()
                 break
             if start > 0:
-                errors.append(f"discarded {start} byte(s) before SOF")
+                errors.append(f"丢弃帧头前 {start} 个字节")
                 del self._buffer[:start]
 
             if len(self._buffer) < 4:
@@ -209,7 +209,7 @@ class FrameParser:
 
             length = int.from_bytes(self._buffer[2:4], "little")
             if length < LEN_MIN or length > LEN_MAX:
-                errors.append(f"bad length: {length}")
+                errors.append(f"长度错误：{length}")
                 del self._buffer[0]
                 continue
 
@@ -225,7 +225,7 @@ class FrameParser:
                 errors.append(str(exc))
 
         if len(self._buffer) > FRAME_MIN + LEN_MAX + 32:
-            errors.append("receive buffer overflow, cleared")
+            errors.append("接收缓冲区溢出，已清空")
             self._buffer.clear()
 
         return frames, errors

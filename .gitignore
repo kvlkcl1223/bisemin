@@ -55,6 +55,7 @@
 
 # 字节码缓存
 __pycache__/
+pc_software/_pycache_check/
 *.py[cod]
 *$py.class
 

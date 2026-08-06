@@ -25,10 +25,10 @@ class LogPanel(QWidget):
 
         root = QVBoxLayout(self)
         toolbar = QHBoxLayout()
-        self.status = QLabel("Log stopped")
-        self.start_btn = QPushButton("Start Log")
-        self.stop_btn = QPushButton("Stop Log")
-        self.export_btn = QPushButton("Export CSV")
+        self.status = QLabel("记录已停止")
+        self.start_btn = QPushButton("开始记录")
+        self.stop_btn = QPushButton("停止记录")
+        self.export_btn = QPushButton("导出 CSV")
         toolbar.addWidget(self.status)
         toolbar.addStretch(1)
         toolbar.addWidget(self.start_btn)
@@ -38,14 +38,14 @@ class LogPanel(QWidget):
 
         self.table = QTableWidget(0, 8)
         self.table.setHorizontalHeaderLabels([
-            "MCU ms",
-            "Pool",
-            "Mode",
-            "Phase",
-            "Target",
-            "Current",
-            "Duty",
-            "Error",
+            "MCU 时间 ms",
+            "单元",
+            "模式",
+            "阶段",
+            "目标温度",
+            "当前温度",
+            "占空比",
+            "错误码",
         ])
         self.table.horizontalHeader().setStretchLastSection(True)
         root.addWidget(self.table)
@@ -57,12 +57,12 @@ class LogPanel(QWidget):
     def start_log(self) -> None:
         self.logger.start()
         self.table.setRowCount(0)
-        self.status.setText("Logging")
+        self.status.setText("正在记录")
         self.log_started.emit()
 
     def stop_log(self) -> None:
         self.logger.stop()
-        self.status.setText(f"Log stopped, rows={len(self.logger.rows)}")
+        self.status.setText(f"记录已停止，行数={len(self.logger.rows)}")
         self.log_stopped.emit()
 
     def append_row(self, row: LogRow) -> None:
@@ -85,11 +85,11 @@ class LogPanel(QWidget):
     def export_csv(self) -> None:
         path, _ = QFileDialog.getSaveFileName(
             self,
-            "Export CSV",
+            "导出 CSV",
             "bisemin_log.csv",
-            "CSV Files (*.csv)",
+            "CSV 文件 (*.csv)",
         )
         if not path:
             return
         self.logger.export_csv(path)
-        self.status.setText(f"Exported {path}")
+        self.status.setText(f"已导出 {path}")

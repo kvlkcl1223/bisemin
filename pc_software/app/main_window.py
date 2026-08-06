@@ -38,7 +38,7 @@ from app.widgets.log_panel import LogPanel
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("Bisemin PC Control")
+        self.setWindowTitle("Bisemin 上位机控制软件")
         self.resize(1280, 760)
 
         self.serial = SerialClient()
@@ -59,14 +59,14 @@ class MainWindow(QMainWindow):
         self.baud_combo = QComboBox()
         self.baud_combo.addItems(["1000000", "921600", "115200"])
         self.baud_combo.setCurrentText("1000000")
-        self.refresh_btn = QPushButton("Refresh")
-        self.connect_btn = QPushButton("Connect")
-        self.hello_btn = QPushButton("HELLO")
-        self.state_btn = QPushButton("GET_STATE")
-        self.link_label = QLabel("Disconnected")
-        top.addWidget(QLabel("Port"))
+        self.refresh_btn = QPushButton("刷新")
+        self.connect_btn = QPushButton("连接")
+        self.hello_btn = QPushButton("握手")
+        self.state_btn = QPushButton("读取状态")
+        self.link_label = QLabel("未连接")
+        top.addWidget(QLabel("串口"))
         top.addWidget(self.port_combo)
-        top.addWidget(QLabel("Baud"))
+        top.addWidget(QLabel("波特率"))
         top.addWidget(self.baud_combo)
         top.addWidget(self.refresh_btn)
         top.addWidget(self.connect_btn)
@@ -96,9 +96,9 @@ class MainWindow(QMainWindow):
         self.rx_log.setReadOnly(True)
         self.tx_log = QPlainTextEdit()
         self.tx_log.setReadOnly(True)
-        tabs.addTab(self.log_panel, "Data Log")
-        tabs.addTab(self.rx_log, "RX")
-        tabs.addTab(self.tx_log, "TX")
+        tabs.addTab(self.log_panel, "数据记录")
+        tabs.addTab(self.rx_log, "接收")
+        tabs.addTab(self.tx_log, "发送")
         splitter.addWidget(tabs)
         splitter.setSizes([760, 520])
 
@@ -128,14 +128,14 @@ class MainWindow(QMainWindow):
         if self.serial.is_open():
             self.serial.close()
             self.heartbeat_timer.stop()
-            self.connect_btn.setText("Connect")
+            self.connect_btn.setText("连接")
             return
         port = self.port_combo.currentText()
         if not port:
-            self.statusBar().showMessage("No serial port selected", 3000)
+            self.statusBar().showMessage("未选择串口", 3000)
             return
         if self.serial.open(port, int(self.baud_combo.currentText())):
-            self.connect_btn.setText("Disconnect")
+            self.connect_btn.setText("断开")
             self.heartbeat_timer.start()
 
     def next_seq(self) -> int:
@@ -147,12 +147,12 @@ class MainWindow(QMainWindow):
         try:
             data = encode_frame(frame_type, seq=seq, **fields)
         except (ProtocolError, UnicodeEncodeError, ValueError) as exc:
-            self.statusBar().showMessage(f"Protocol encode error: {exc}", 5000)
+            self.statusBar().showMessage(f"协议编码错误：{exc}", 5000)
             return
 
         payload = ",".join(f"{key}={value}" for key, value in fields.items() if value is not None)
         self.tx_log.appendPlainText(
-            f'TYPE={frame_type}, SEQ={seq}, PAYLOAD="{payload}"\nHEX={bytes_to_hex(data)}'
+            f'类型={frame_type}, 序号={seq}, 载荷="{payload}"\n十六进制={bytes_to_hex(data)}'
         )
         self.serial.write(data)
 
@@ -187,7 +187,7 @@ class MainWindow(QMainWindow):
     ) -> None:
         error = self.program_range_error(start, next_temp, rate, repeat)
         if error:
-            QMessageBox.warning(self, "Invalid Program", error)
+            QMessageBox.warning(self, "程序参数无效", error)
             return
 
         self.send_cmd(
@@ -212,27 +212,27 @@ class MainWindow(QMainWindow):
         repeat: int,
     ) -> str | None:
         if not TEMP_MIN_C <= start <= TEMP_MAX_C:
-            return f"Start must be between {TEMP_MIN_C:.1f} and {TEMP_MAX_C:.1f} °C."
+            return f"起始温度必须在 {TEMP_MIN_C:.1f} 到 {TEMP_MAX_C:.1f} °C 之间。"
         if not TEMP_MIN_C <= next_temp <= TEMP_MAX_C:
-            return f"Next must be between {TEMP_MIN_C:.1f} and {TEMP_MAX_C:.1f} °C."
+            return f"下一目标温度必须在 {TEMP_MIN_C:.1f} 到 {TEMP_MAX_C:.1f} °C 之间。"
         if not RAMP_RATE_MIN_C_PER_MIN <= rate <= RAMP_RATE_MAX_C_PER_MIN:
             return (
-                f"Rate must be between {RAMP_RATE_MIN_C_PER_MIN:.1f} and "
-                f"{RAMP_RATE_MAX_C_PER_MIN:.1f} °C/min."
+                f"升降速率必须在 {RAMP_RATE_MIN_C_PER_MIN:.1f} 到 "
+                f"{RAMP_RATE_MAX_C_PER_MIN:.1f} °C/min 之间。"
             )
 
         step = next_temp - start
         if step > 0.0 and rate > PROGRAM_HEAT_RAMP_MAX_C_PER_MIN:
-            return f"Heating rate must not exceed {PROGRAM_HEAT_RAMP_MAX_C_PER_MIN:.1f} °C/min."
+            return f"升温速率不能超过 {PROGRAM_HEAT_RAMP_MAX_C_PER_MIN:.1f} °C/min。"
         if step < 0.0 and rate > PROGRAM_COOL_RAMP_MAX_C_PER_MIN:
-            return f"Cooling rate must not exceed {PROGRAM_COOL_RAMP_MAX_C_PER_MIN:.1f} °C/min."
+            return f"降温速率不能超过 {PROGRAM_COOL_RAMP_MAX_C_PER_MIN:.1f} °C/min。"
 
         final_target = next_temp + step * repeat
         if not TEMP_MIN_C <= final_target <= TEMP_MAX_C:
             return (
-                "Program range exceeds the temperature limit. "
-                f"Final target would be {final_target:.1f} °C, but allowed range is "
-                f"{TEMP_MIN_C:.1f} to {TEMP_MAX_C:.1f} °C."
+                "程序最终目标超出温度限制。"
+                f"最终目标将达到 {final_target:.1f} °C，允许范围是 "
+                f"{TEMP_MIN_C:.1f} 到 {TEMP_MAX_C:.1f} °C。"
             )
 
         return None
@@ -246,19 +246,19 @@ class MainWindow(QMainWindow):
             self.handle_state(frame.fields)
             self.handle_data(frame.fields)
         elif frame.frame_type == "ACK":
-            self.statusBar().showMessage(f"ACK seq={frame.seq}", 2000)
+            self.statusBar().showMessage(f"确认 seq={frame.seq}", 2000)
         elif frame.frame_type == "NACK":
             self.statusBar().showMessage(
-                f"NACK seq={frame.seq} err={frame.fields.get('err', '')}",
+                f"拒绝 seq={frame.seq} 错误={frame.fields.get('err', '')}",
                 5000,
             )
         elif frame.frame_type == "EVENT":
             self.statusBar().showMessage(
-                f"EVENT {frame.fields.get('type', '')} cell={frame.fields.get('cell', '')}",
+                f"事件 {frame.fields.get('type', '')} 单元={frame.fields.get('cell', '')}",
                 3000,
             )
         elif frame.frame_type == "HELLO":
-            self.statusBar().showMessage(f"MCU HELLO fw={frame.fields.get('fw', '')}", 3000)
+            self.statusBar().showMessage(f"MCU 握手成功，固件版本={frame.fields.get('fw', '')}", 3000)
 
     def handle_state(self, fields: dict[str, str]) -> None:
         cell = int(fields.get("cell", "0"))
@@ -267,7 +267,7 @@ class MainWindow(QMainWindow):
         try:
             self.cells[cell].update_from_fields(fields)
         except (ValueError, KeyError) as exc:
-            self.statusBar().showMessage(f"Bad STATE: {exc}", 5000)
+            self.statusBar().showMessage(f"状态帧解析失败：{exc}", 5000)
             return
         self.cell_panels[cell].apply_state(self.cells[cell])
 
