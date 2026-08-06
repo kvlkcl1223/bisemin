@@ -1,26 +1,37 @@
-﻿#include "temp_panel.h"
+#include "temp_panel.h"
 #include "main.h"
 #include "pid_controller.h"
 
 /* ============================================================
- * 0. 纭欢鎺ュ彛鍑芥暟鍓嶇疆澹版槑
+ * 0. 硬件/控制层弱函数前置声明
  * ============================================================ */
+/** @brief 弱声明：显示温度，默认实现使用 TM1638_ShowFloat。 */
 __attribute__((weak)) void PanelHW_DisplayTemp(float temp);
+/** @brief 弱声明：显示整数参数，默认实现限制到数码管可显示范围。 */
 __attribute__((weak)) void PanelHW_DisplayNumber(int16_t value);
+/** @brief 弱声明：显示错误码，默认显示 E + 数字。 */
 __attribute__((weak)) void PanelHW_DisplayError(PanelError_t err);
+/** @brief 弱声明：设置指定 LED 亮灭。 */
 __attribute__((weak)) void PanelHW_SetLed(uint8_t led_id, bool on);
+/** @brief 弱声明：短闪一次，用于提示按键无效。 */
 __attribute__((weak)) void PanelHW_BlinkOnce(void);
+/** @brief 弱声明：请求控制层启动指定 cell 的 PID。真实实现位于 app_control。 */
 __attribute__((weak)) void Control_StartPid(uint8_t cell);
+/** @brief 弱声明：请求控制层正常停止指定 cell 的 PID。 */
 __attribute__((weak)) void Control_StopPid(uint8_t cell);
+/** @brief 弱声明：请求控制层紧急停止指定 cell。 */
 __attribute__((weak)) void Control_EmergencyStopPid(uint8_t cell);
+/** @brief 弱声明：设置控制层目标温度。 */
 __attribute__((weak)) void Control_SetTargetTemp(uint8_t cell, float target);
 
+/** @brief 异步停止请求位图，每一位对应一个 cell，由其他上下文置位。 */
 static volatile uint8_t s_panel_stop_request_mask = 0U;
 
 /* ============================================================
- * 1. 鍐呴儴杈呭姪鍑芥暟
+ * 1. 内部辅助函数
  * ============================================================ */
 
+/** @brief 将 float 数值限制在指定上下限内。 */
 static float clamp_f(float v, float min, float max)
 {
     if (v < min)
@@ -30,21 +41,25 @@ static float clamp_f(float v, float min, float max)
     return v;
 }
 
+/** @brief 返回当前面板正在操作的 cell 编号。 */
 static uint8_t active(TempPanel_t *p)
 {
     return p->active_cell;
 }
 
+/** @brief 获取当前 active_cell 对应的 TempCell_t 指针。 */
 static TempCell_t *cur_cell(TempPanel_t *p)
 {
     return &p->cell[p->active_cell];
 }
 
+/** @brief 判断指定 cell 是否处于非停止状态。 */
 static bool cell_is_running(const TempCell_t *c)
 {
     return c->run_mode != CELL_STOP;
 }
 
+/** @brief 面板侧正常停止 cell，并同步请求控制层停止 PID。 */
 static void cell_stop(TempPanel_t *p, uint8_t cell)
 {
     TempCell_t *c = &p->cell[cell];
@@ -56,6 +71,7 @@ static void cell_stop(TempPanel_t *p, uint8_t cell)
     Control_StopPid(cell);
 }
 
+/** @brief 只清除面板侧运行状态，不再重复调用控制层停止。 */
 static void cell_stop_ui_only(TempPanel_t *p, uint8_t cell)
 {
     TempCell_t *c = &p->cell[cell];
@@ -66,6 +82,7 @@ static void cell_stop_ui_only(TempPanel_t *p, uint8_t cell)
     c->program_interval_done = 0;
 }
 
+/** @brief 启动普通定点控温模式。 */
 static void cell_start_jump(TempPanel_t *p, uint8_t cell)
 {
     TempCell_t *c = &p->cell[cell];
@@ -82,15 +99,22 @@ static void cell_start_jump(TempPanel_t *p, uint8_t cell)
 }
 
 /* ============================================================
- * 2. 绋嬪簭鎺ф俯闃舵瀹氫箟
+ * 2. 程序控温阶段定义
  * ============================================================ */
+/** @brief 程序控温阶段：先从当前温度逼近起始温度。 */
 #define PROG_PHASE_TO_START 1
+/** @brief 程序控温阶段：起始温度保持。 */
 #define PROG_PHASE_START_HOLD 2
+/** @brief 程序控温阶段：按设定速率逼近下一目标温度。 */
 #define PROG_PHASE_RAMP_NEXT 3
+/** @brief 程序控温阶段：到达目标后等待。 */
 #define PROG_PHASE_WAIT_NEXT 4
+/** @brief 程序控温阶段：程序完成，保持最后目标。 */
 #define PROG_PHASE_FINISHED 5
+/** @brief 临时 UI 错误显示持续时间，单位 ms。 */
 #define PANEL_UI_ERROR_DISPLAY_MS 1000U
 
+/** @brief 启动程序控温，初始化程序阶段并启动控制层 PID。 */
 static void cell_start_program(TempPanel_t *p, uint8_t cell)
 {
     TempCell_t *c = &p->cell[cell];
@@ -112,10 +136,11 @@ static void cell_start_program(TempPanel_t *p, uint8_t cell)
 }
 
 /*
- * 鏂滃潯鍑芥暟: 璁?current 鎸夋寚瀹氶€熺巼閫艰繎 target銆?
- * ramp_per_min: 鈩?min
- * dt_ms: 璺濅笂娆℃洿鏂版绉掓暟
+ * 斜坡函数：让 current 按指定速率逼近 target。
+ * ramp_per_min: degC/min。
+ * dt_ms: 距离上次更新的毫秒数。
  */
+/** @brief 按 degC/min 斜率将当前命令温度推进到目标温度。 */
 static float ramp_to_target(float current,
                             float target,
                             float ramp_per_min,
@@ -132,7 +157,7 @@ static float ramp_to_target(float current,
 
     float step = ramp_per_min * (float)dt_ms / 60000.0f;
     if (step < 0.1f)
-        step = 0.1f; /* 鏈€灏忔杩?0.1鈩?*/
+        step = 0.1f; /* 最小步进 0.1 degC，避免显示/命令长时间不动。 */
 
     if (diff > 0.0f)
         return (diff <= step) ? target : current + step;
@@ -140,6 +165,7 @@ static float ramp_to_target(float current,
         return (-diff <= step) ? target : current - step;
 }
 
+/** @brief 检查程序控温参数是否合法，包含温度范围、速率和最终目标。 */
 static bool program_params_valid(const TempProgram_t *program)
 {
     float step;
@@ -166,6 +192,7 @@ static bool program_params_valid(const TempProgram_t *program)
 
     return true;
 }
+/** @brief 普通模式 1 秒节拍更新，把目标温度同步给控制层。 */
 static void update_jump_control(TempPanel_t *p, uint8_t cell, uint32_t dt_ms)
 {
     TempCell_t *c = &p->cell[cell];
@@ -174,6 +201,7 @@ static void update_jump_control(TempPanel_t *p, uint8_t cell, uint32_t dt_ms)
     Control_SetTargetTemp(cell, c->command_temp);
 }
 
+/** @brief 程序控温 1 秒节拍状态机，更新 command_temp 并下发控制层。 */
 static void update_program_control_1s(TempPanel_t *p, uint8_t cell)
 {
     TempCell_t *c = &p->cell[cell];
@@ -246,6 +274,7 @@ static void update_program_control_1s(TempPanel_t *p, uint8_t cell)
     Control_SetTargetTemp(cell, c->command_temp);
 }
 
+/** @brief 设置 cell 错误码；非 NONE 时清除面板运行状态并紧急停止控制层。 */
 static void set_error_and_stop(TempPanel_t *p, uint8_t cell, PanelError_t err)
 {
     TempCell_t *c = &p->cell[cell];
@@ -257,6 +286,7 @@ static void set_error_and_stop(TempPanel_t *p, uint8_t cell, PanelError_t err)
     }
 }
 
+/** @brief 显示临时 UI 错误，例如运行中禁止编辑。 */
 static void show_ui_error(TempPanel_t *p, PanelUiError_t err, uint32_t now_ms)
 {
     if (p == NULL || err == PANEL_UI_ERR_NONE)
@@ -265,6 +295,7 @@ static void show_ui_error(TempPanel_t *p, PanelUiError_t err, uint32_t now_ms)
     p->ui_error_until_ms = now_ms + PANEL_UI_ERROR_DISPLAY_MS;
 }
 
+/** @brief 判断错误码是否为测温传感器类错误。 */
 static bool panel_error_is_temp_sensor(PanelError_t err)
 {
     return (err == PANEL_ERR_E121_TEMP_CH1) ||
@@ -276,9 +307,10 @@ static bool panel_error_is_temp_sensor(PanelError_t err)
 
 
 /* ============================================================
- * 3. LED 鍒锋柊閫昏緫
+ * 3. LED 刷新逻辑
  * ============================================================ */
 
+/** @brief 根据当前模式、运行状态、显示内容和 active_cell 刷新 9 个 LED。 */
 static void refresh_leds(TempPanel_t *p)
 {
     TempCell_t *c = cur_cell(p);
@@ -295,9 +327,10 @@ static void refresh_leds(TempPanel_t *p)
 }
 
 /* ============================================================
- * 4. 鍙傛暟璇诲啓杈呭姪
+ * 4. 参数读写辅助
  * ============================================================ */
 
+/** @brief 读取当前程序参数项的数值，统一转成 float 便于显示/编辑。 */
 static float get_param_value(const TempCell_t *c, ProgramParamIndex_t idx)
 {
     switch (idx)
@@ -319,6 +352,7 @@ static float get_param_value(const TempCell_t *c, ProgramParamIndex_t idx)
     }
 }
 
+/** @brief 写入当前程序参数项，并按参数类型做范围限制。 */
 static void set_param_value(TempCell_t *c, ProgramParamIndex_t idx, float val)
 {
     switch (idx)
@@ -352,6 +386,7 @@ static void set_param_value(TempCell_t *c, ProgramParamIndex_t idx, float val)
     }
 }
 
+/** @brief 获取当前程序参数项每次按键调整的基础步进。 */
 static float get_param_step(ProgramParamIndex_t idx)
 {
     switch (idx)
@@ -365,6 +400,7 @@ static float get_param_step(ProgramParamIndex_t idx)
     }
 }
 
+/** @brief 获取当前程序参数项允许的最大值。 */
 static float get_param_max(ProgramParamIndex_t idx)
 {
     switch (idx)
@@ -384,6 +420,7 @@ static float get_param_max(ProgramParamIndex_t idx)
     }
 }
 
+/** @brief 获取当前程序参数项允许的最小值。 */
 static float get_param_min(ProgramParamIndex_t idx)
 {
     switch (idx)
@@ -403,9 +440,10 @@ static float get_param_min(ProgramParamIndex_t idx)
 }
 
 /* ============================================================
- * 5. Display refresh
+ * 5. 数码管显示刷新
  * ============================================================ */
 
+/** @brief 根据当前模式、显示类型、错误状态刷新 TM1638 数码管和 LED。 */
 static void refresh_display(TempPanel_t *p)
 {
     TempCell_t *c = cur_cell(p);
@@ -460,13 +498,16 @@ static void refresh_display(TempPanel_t *p)
 }
 
 /* ============================================================
- * 6. Public API
+ * 6. 对外 API
  * ============================================================ */
 
+/** @brief 全局面板状态实例。 */
 TempPanel_t g_panel;
 
+/** @brief 面板上电默认选中的 cell。 */
 #define PANEL_DEFAULT_ACTIVE_CELL 0U
 
+/** @brief 初始化面板状态、默认温度、默认程序参数并刷新显示。 */
 void TempPanel_Init(TempPanel_t *p)
 {
     int i;
@@ -513,6 +554,7 @@ void TempPanel_Init(TempPanel_t *p)
     refresh_display(p);
 }
 
+/** @brief 面板周期任务，处理程序节拍、显示切换、编辑超时和临时错误显示。 */
 void TempPanel_Task(TempPanel_t *p, uint32_t now_ms)
 {
     TempCell_t *c;
@@ -590,6 +632,7 @@ void TempPanel_Task(TempPanel_t *p, uint32_t now_ms)
 
     refresh_display(p);
 }
+/** @brief 处理一个抽象按键事件，完成模式切换、参数编辑、启停和 cell 切换。 */
 void TempPanel_KeyEvent(TempPanel_t *p,
                         PanelKey_t key,
                         PanelKeyEvent_t evt,
@@ -613,7 +656,7 @@ void TempPanel_KeyEvent(TempPanel_t *p,
     if (p->mode == PANEL_MODE_PARAM_SET)
         p->param_inactive_tick_ms = now_ms;
 
-    /* 姝ヨ繘鍊嶆暟 */
+    /* 步进倍率：短按 1 倍，重复 5 倍，长按 20 倍。 */
     float mult = 1.0f;
     if (evt == PANEL_KEY_EVT_REPEAT)
         mult = 5.0f;
@@ -776,6 +819,7 @@ void TempPanel_KeyEvent(TempPanel_t *p,
     }
 }
 
+/** @brief 更新指定 cell 的当前温度；测温类错误在收到新温度后自动清除。 */
 void TempPanel_UpdateMeasuredTemp(TempPanel_t *p,
                                   uint8_t cell_idx,
                                   float temp,
@@ -790,6 +834,7 @@ void TempPanel_UpdateMeasuredTemp(TempPanel_t *p,
         c->error = PANEL_ERR_NONE;
 }
 
+/** @brief 设置水路/公共错误；置位时停止全部 cell。 */
 void TempPanel_SetWaterError(TempPanel_t *p, bool error)
 {
     if (p == NULL)
@@ -798,6 +843,7 @@ void TempPanel_SetWaterError(TempPanel_t *p, bool error)
         set_error_and_stop(p, i, error ? PANEL_ERR_E1_WATER : PANEL_ERR_NONE);
 }
 
+/** @brief 设置旧版冷热片错误；置位时停止指定 cell。 */
 void TempPanel_SetPeltierError(TempPanel_t *p, uint8_t cell, bool error)
 {
     if (p == NULL || cell >= PANEL_CELL_NUM)
@@ -805,6 +851,7 @@ void TempPanel_SetPeltierError(TempPanel_t *p, uint8_t cell, bool error)
     set_error_and_stop(p, cell, error ? PANEL_ERR_E3_PELTIER : PANEL_ERR_NONE);
 }
 
+/** @brief 设置控制层传入的 cell 错误码。 */
 void TempPanel_SetCellError(TempPanel_t *p, uint8_t cell, PanelError_t err)
 {
     if (p == NULL || cell >= PANEL_CELL_NUM)
@@ -812,6 +859,7 @@ void TempPanel_SetCellError(TempPanel_t *p, uint8_t cell, PanelError_t err)
     set_error_and_stop(p, cell, err);
 }
 
+/** @brief 面板侧正常停止指定 cell。 */
 void TempPanel_Stop(TempPanel_t *p, uint8_t cell)
 {
     if (p == NULL || cell >= PANEL_CELL_NUM)
@@ -819,6 +867,7 @@ void TempPanel_Stop(TempPanel_t *p, uint8_t cell)
     cell_stop(p, cell);
 }
 
+/** @brief 从中断或其他任务请求停止指定 cell，使用位图延迟到面板任务处理。 */
 void TempPanel_RequestStop(uint8_t cell)
 {
     if (cell >= PANEL_CELL_NUM)
@@ -828,6 +877,7 @@ void TempPanel_RequestStop(uint8_t cell)
     __enable_irq();
 }
 
+/** @brief 服务异步停止请求，清除面板侧运行状态。 */
 void TempPanel_ServiceRequests(TempPanel_t *p)
 {
     uint8_t mask;
@@ -858,6 +908,7 @@ void TempPanel_ServiceRequests(TempPanel_t *p)
     }
 }
 
+/** @brief 外部接口：设置目标温度并启动普通定点控温。 */
 uint8_t TempPanel_StartNormal(TempPanel_t *p, uint8_t cell, float target_temp)
 {
     TempCell_t *c;
@@ -887,6 +938,7 @@ uint8_t TempPanel_StartNormal(TempPanel_t *p, uint8_t cell, float target_temp)
     return (c->run_mode == CELL_RUN_JUMP) ? 1U : 0U;
 }
 
+/** @brief 外部接口：写入指定 cell 的程序控温参数。 */
 uint8_t TempPanel_SetProgram(TempPanel_t *p,
                              uint8_t cell,
                              const TempProgram_t *program)
@@ -921,6 +973,7 @@ uint8_t TempPanel_SetProgram(TempPanel_t *p,
     return 1U;
 }
 
+/** @brief 外部接口：启动指定 cell 的程序控温。 */
 uint8_t TempPanel_StartProgram(TempPanel_t *p, uint8_t cell)
 {
     TempCell_t *c;
@@ -942,6 +995,7 @@ uint8_t TempPanel_StartProgram(TempPanel_t *p, uint8_t cell)
     return (c->run_mode == CELL_RUN_PROGRAM) ? 1U : 0U;
 }
 
+/** @brief 将 TM1638 物理键值映射为面板抽象按键。 */
 PanelKey_t PanelKey_FromTM1638(TM1638_Key_t key)
 {
     switch (key)
@@ -964,14 +1018,16 @@ PanelKey_t PanelKey_FromTM1638(TM1638_Key_t key)
 }
 
 /* ============================================================
- * 7. 寮卞嚱鏁板疄鐜?(Weak Implementation)
+ * 7. 弱函数默认实现
  * ============================================================ */
 
+/** @brief 默认弱实现：显示一位小数温度。 */
 __attribute__((weak)) void PanelHW_DisplayTemp(float temp)
 {
     TM1638_ShowFloat(&htm1638, temp, 1);
 }
 
+/** @brief 默认弱实现：显示整数参数，并限制到数码管范围。 */
 __attribute__((weak)) void PanelHW_DisplayNumber(int16_t value)
 {
     float v = (float)value;
@@ -982,6 +1038,7 @@ __attribute__((weak)) void PanelHW_DisplayNumber(int16_t value)
     TM1638_ShowFloat(&htm1638, v, 0);
 }
 
+/** @brief 默认弱实现：显示 E + 错误码数字。 */
 __attribute__((weak)) void PanelHW_DisplayError(PanelError_t err)
 {
     TM1638_ClearDisplay(&htm1638);
@@ -1006,12 +1063,14 @@ __attribute__((weak)) void PanelHW_DisplayError(PanelError_t err)
     }
 }
 
+/** @brief 默认弱实现：设置 TM1638 的 LED1..LED9。 */
 __attribute__((weak)) void PanelHW_SetLed(uint8_t led_id, bool on)
 {
     if (led_id >= 1 && led_id <= 9)
         TM1638_SetLED(&htm1638, led_id, on);
 }
 
+/** @brief 默认弱实现：短闪运行 LED，提示无效操作。 */
 __attribute__((weak)) void PanelHW_BlinkOnce(void)
 {
     TM1638_SetLED(&htm1638, 4, true);
@@ -1020,6 +1079,7 @@ __attribute__((weak)) void PanelHW_BlinkOnce(void)
 
 extern PID_TypeDef temp_pid;
 
+/** @brief 控制层启动 PID 的弱实现，占位用；真实实现由 app_control 覆盖。 */
 __attribute__((weak)) void Control_StartPid(uint8_t cell)
 {
     (void)cell;
@@ -1028,17 +1088,20 @@ __attribute__((weak)) void Control_StartPid(uint8_t cell)
        HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3); ... */
 }
 
+/** @brief 控制层正常停止 PID 的弱实现，占位用。 */
 __attribute__((weak)) void Control_StopPid(uint8_t cell)
 {
     (void)cell;
     /* HAL_TIM_PWM_Stop(...); PID_Reset(pid); */
 }
 
+/** @brief 控制层紧急停止 PID 的弱实现，占位用。 */
 __attribute__((weak)) void Control_EmergencyStopPid(uint8_t cell)
 {
     (void)cell;
 }
 
+/** @brief 控制层设置目标温度的弱实现，占位用。 */
 __attribute__((weak)) void Control_SetTargetTemp(uint8_t cell, float target)
 {
     (void)cell;
@@ -1046,6 +1109,7 @@ __attribute__((weak)) void Control_SetTargetTemp(uint8_t cell, float target)
     /* PID_SetTarget(pid, target); */
 }
 
+/** @brief 初始化 TM1638 硬件、面板状态和旧版 temp_pid 默认参数。 */
 void Panel_Init(void)
 {
     TM1638_HW_Init();
