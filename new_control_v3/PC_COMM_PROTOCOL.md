@@ -823,3 +823,8 @@ aux_temp=25.34,aux_valid=1
 `aux_temp` is the environment/water temperature converted from the existing ADS1220 PT1000 resistance measurement. `aux_valid=1` means the last timed measurement succeeded; `aux_valid=0` means ADS1220 data was not ready or the latest read was invalid.
 
 The firmware updates this value periodically through `Ads1220_Service(now_ms)`, currently once per 1000 ms.
+## Current Temperature Limits
+
+Target temperature commands (`SET_TARGET`, `START_NORMAL`, `SET_PROGRAM`) use the MCU limits from `PANEL_TEMP_MIN` and `PANEL_TEMP_MAX`.
+Current range: `-20.0..120.0 degC`.
+Out-of-range command values return `BAD_TEMP_RANGE`.

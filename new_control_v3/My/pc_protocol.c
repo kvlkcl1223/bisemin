@@ -853,6 +853,12 @@ void PcProto_Process(void)
             return;
         }
         temp = (float)atof(val_buf);
+        if (!PcProto_TempInRange(temp))
+        {
+            PcProto_SendFrameSeq(PC_FRAME_NACK, rcv_seq,
+                                 "ok=0,err=1002,msg=BAD_TEMP_RANGE");
+            return;
+        }
 
         Control_SetTargetTemp(cell, temp);
         s_pc_owner[cell] = 1U;

@@ -18,8 +18,8 @@ from PyQt5.QtWidgets import (
 from app.models import MODE_TEXT, OWNER_TEXT, CellState
 
 
-TEMP_MIN_C = -10.0
-TEMP_MAX_C = 110.0
+TEMP_MIN_C = -20.0
+TEMP_MAX_C = 120.0
 RAMP_RATE_MIN_C_PER_MIN = 0.1
 RAMP_RATE_MAX_C_PER_MIN = 60.0
 PROGRAM_HEAT_RAMP_MAX_C_PER_MIN = 60.0
