@@ -69,6 +69,13 @@ float Ads1220_FetchResistance(const Ads1220_Cfg_t *cfg);
  */
 float Ads1220_ResistanceToTemp(float resistance);
 
+extern volatile float g_ads1220_env_temp_c;
+extern volatile float g_ads1220_env_res_ohm;
+extern volatile uint8_t g_ads1220_env_valid;
+extern volatile uint32_t g_ads1220_env_update_ms;
+
+void Ads1220_Service(uint32_t now_ms);
+
 /**
  * @brief  测试函数：每秒轮询所有通道，通过 USART2 输出阻值和温度
  * @note   放在 AppControl_Task 中周期调用。验证通过后可删除。

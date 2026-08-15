@@ -52,6 +52,8 @@ class CellState:
     current: float = 25.0
     t0: float = 25.0
     t1: float = 25.0
+    aux_temp: float = 0.0
+    aux_valid: bool = False
     duty: float = 0.0
     error: int = 0
     phase: int = 0
@@ -78,6 +80,10 @@ class CellState:
             self.t0 = float(fields["t0"])
         if "t1" in fields:
             self.t1 = float(fields["t1"])
+        if "aux_temp" in fields:
+            self.aux_temp = float(fields["aux_temp"])
+        if "aux_valid" in fields:
+            self.aux_valid = fields["aux_valid"] == "1"
         if "duty" in fields:
             self.duty = float(fields["duty"])
         if "error" in fields:

@@ -4,13 +4,13 @@
 
 ## 当前控制方案
 
-系统共有 2 个 cell、4 路闭环 DRV8703、1 路共享 DRV8703：
+系统共有 2 个 cell、5 路 DRV8703；当前临时配置关闭 DRV1，使用 DRV5 作为 Cell 0 主路，并关闭共享通道逻辑：
 
 | Cell | 测温输入 | 控制温度 | 外层 DRV | 内层 DRV | 默认内层比例 |
 |---|---|---|---|---|---|
-| Cell 0 | CH1 + CH2 | `(CH1 + CH2) / 2` | DRV1 | DRV2 | `0.70` |
+| Cell 0 | CH1 + CH2 | `(CH1 + CH2) / 2` | DRV5 | DRV2 | `0.70` |
 | Cell 1 | CH3 + CH4 | `(CH3 + CH4) / 2` | DRV3 | DRV4 | `0.70` |
-| 共享 | - | - | DRV5 | - | 固定 `0.20` duty |
+| DRV1 | - | - | 禁用 | - | 不初始化/不唤醒 |
 
 PID 输出表示主路电压，也就是外层冷热片的 PWM duty。内层冷热片不再单独做 PID，而是跟随外层：
 
@@ -19,7 +19,7 @@ outer_duty = PID(mean_temp, target_temp) + feedforward
 inner_duty = outer_duty * inner_ratio
 ```
 
-默认配置里，内层 duty 是外层 duty 的 `0.70` 倍。DRV5 是堆叠方案中的共享通道，只要有 cell 在运行，就按固定 `0.20` duty 输出；全部 cell 停止后关闭。
+默认配置里，内层 duty 是外层 duty 的 `0.70` 倍。当前 `APP_CONTROL_SHARED_DRV_ENABLE` 为 `0`，DRV5 不再作为共享通道额外输出，而是作为 Cell 0 外层/主路 DRV 使用。
 
 ## 通道映射配置
 
@@ -28,7 +28,7 @@ inner_duty = outer_duty * inner_ratio
 ```c
 #define APP_CONTROL_CELL0_TEMP_OUTER 0U
 #define APP_CONTROL_CELL0_TEMP_INNER 1U
-#define APP_CONTROL_CELL0_DRV_OUTER 0U
+#define APP_CONTROL_CELL0_DRV_OUTER 4U
 #define APP_CONTROL_CELL0_DRV_INNER 1U
 #define APP_CONTROL_CELL0_INNER_DUTY_RATIO 0.70f
 
@@ -39,6 +39,8 @@ inner_duty = outer_duty * inner_ratio
 #define APP_CONTROL_CELL1_INNER_DUTY_RATIO 0.70f
 
 #define APP_CONTROL_SHARED_DRV 4U
+#define APP_CONTROL_DRV_ENABLE_MASK ((uint8_t)((1U << 1) | (1U << 2) | (1U << 3) | (1U << 4)))
+#define APP_CONTROL_SHARED_DRV_ENABLE 0U
 #define APP_CONTROL_SHARED_CH5_DUTY 0.20f
 ```
 
@@ -49,7 +51,8 @@ inner_duty = outer_duty * inner_ratio
 - 只改内外层比例：修改 `APP_CONTROL_CELLx_INNER_DUTY_RATIO`。
 - 互换某个 cell 的内外层 DRV：修改 `APP_CONTROL_CELLx_DRV_OUTER` 和 `APP_CONTROL_CELLx_DRV_INNER`。
 - 调整某个 cell 使用的两路测温：修改 `APP_CONTROL_CELLx_TEMP_OUTER` 和 `APP_CONTROL_CELLx_TEMP_INNER`。
-- 调整共享通道 duty：修改 `APP_CONTROL_SHARED_CH5_DUTY`。
+- 关闭/打开某路 DRV：修改 `APP_CONTROL_DRV_ENABLE_MASK`，bit0..bit4 对应 DRV1..DRV5。
+- 打开共享通道逻辑：将 `APP_CONTROL_SHARED_DRV_ENABLE` 改为 `1U`，再按需要修改 `APP_CONTROL_SHARED_CH5_DUTY`。
 
 ## 主要代码结构
 
@@ -72,12 +75,13 @@ inner_duty = outer_duty * inner_ratio
 
 标定数据用于生成前馈 duty。当前标定逻辑在 [My/calib_mode.h](My/calib_mode.h) 和 [My/calib_mode.c](My/calib_mode.c)：
 
-- duty 从 `+0.45` 扫到 `-0.45`。
-- 步长 `-0.02`，共 `46` 步。
+- duty 从 `+0.30` 扫到 `-0.40`。
+- 步长 `-0.02`，共 `36` 步。
 - 每步等待温度稳定，稳定条件是温度窗口波动小于 `0.1 degC` 并持续 `10 s`。
 - 单步最长等待 `600 s`，超时会记录当前值并标记为未稳定。
 - 每个 cell 记录两路测温和均值；闭环前馈使用均值曲线。
-- 标定时外层输出当前扫描 duty，内层按配置比例跟随，DRV5 输出固定 `0.20` duty。
+- 标定时外层输出当前扫描 duty，内层按配置比例跟随；当前共享通道逻辑关闭，不会额外输出共享 duty。
+- 当前虚拟低温显示已关闭，面板和上位机使用真实温度下限 `-10.0 degC`。
 
 Flash 存储布局见 [FLASH_LAYOUT.md](FLASH_LAYOUT.md)。当前代码使用内部 Flash 末尾 8 KB：
 
@@ -97,9 +101,23 @@ duty_inner  内层/跟随 duty
 ratio       内层跟随比例
 t0/t1       当前 cell 的两路测温
 temp        两路测温均值，也是 PID 使用的反馈温度
+aux_temp    ADS1220/PT1000 定时测得的环境/水温
+aux_valid   aux_temp 是否有效，1=有效，0=无效或暂未就绪
 ```
 
 上位机仍然只发送 cell 级目标温度和启动/停止意图，不直接控制单个 DRV 的 PWM。
+
+当前协议已支持从上位机发起和读取标定：
+
+```text
+op=START_CALIB,cell=0
+op=STOP_CALIB
+op=GET_CALIB_STATUS
+op=GET_CALIB_RESULT,cell=0
+op=GET_CALIB_RESULT,cell=0,index=0
+```
+
+读取结果时先读取 `CALIB_META` 获取 `count=36`，再逐条读取 `CALIB_STEP`，避免一次 payload 超过 256 字节。
 
 ## 运行流程
 
@@ -117,7 +135,7 @@ temp        两路测温均值，也是 PID 使用的反馈温度
 
 - 某个 cell 的任一路测温超时，会尝试复位测温串口；多次失败后进入温度错误。
 - 外层或内层 DRV8703 故障会停止对应 cell。
-- 共享 DRV5 故障会影响两个 cell，因为它是两个 cell 共同依赖的通道。
+- 当前共享逻辑关闭，DRV5 故障按 Cell 0 外层/主路 DRV 故障处理。
 - 电压/电流采样由 `adc_measure` 维护，相关错误码在 `temp_panel.h` 中定义。
 
 ## 构建方式

@@ -721,3 +721,105 @@ PC exports CSV/XLSX
 - Qt �?MCU 都必须忽略未知字段�?
 - 新增命令必须通过 `UNKNOWN_OP` 对旧固件优雅失败�?
 - 字段名固定使用小写或大写时需统一；本文建议字段名小写，`TYPE` �?`op` 值大写�?
+
+---
+
+## Current calibration commands
+
+The current firmware supports calibration control through normal `CMD` frames. The frame type is unchanged; only the ASCII payload `op` is extended.
+
+### Start calibration
+
+PC -> MCU:
+
+```text
+op=START_CALIB,cell=0
+```
+
+MCU accepts the command only when no calibration is active. On success it returns:
+
+```text
+ok=1,op=START_CALIB
+ok=1,op=CALIB_STATUS,state=1,running=1,active=1,cell=0,index=0,count=36,error=0
+```
+
+If another calibration is running, MCU returns:
+
+```text
+ok=0,err=1004,msg=CALIB_BUSY
+```
+
+### Stop calibration
+
+PC -> MCU:
+
+```text
+op=STOP_CALIB
+```
+
+MCU stops the active calibration, forces duty to 0, and returns `ok=1,op=STOP_CALIB` plus a `CALIB_STATUS` ACK.
+
+### Read calibration status
+
+PC -> MCU:
+
+```text
+op=GET_CALIB_STATUS
+```
+
+MCU -> PC:
+
+```text
+ok=1,op=CALIB_STATUS,state=3,running=1,active=1,cell=0,index=12,count=36,error=0
+```
+
+`state`: 0=IDLE, 1=INIT, 2=RUN, 3=WAIT_STABLE, 4=DONE, 5=FAULT.
+
+### Read calibration result
+
+Read metadata first:
+
+```text
+op=GET_CALIB_RESULT,cell=0
+```
+
+MCU -> PC:
+
+```text
+ok=1,op=CALIB_META,cell=0,count=36,start=0.30,end=-0.40,step=-0.02,magic=0x42495346,crc=0x1234
+```
+
+Then read one step at a time:
+
+```text
+op=GET_CALIB_RESULT,cell=0,index=0
+```
+
+MCU -> PC:
+
+```text
+ok=1,op=CALIB_STEP,cell=0,index=0,duty=0.300,t0=25.123,t1=25.456,valid=1,settled=1
+```
+
+The full 36-step table is not sent in one frame because `PAYLOAD_MAX` is 256 bytes. PC software should request the next step only after receiving the previous `CALIB_STEP` ACK.
+
+### Calibration NACK codes
+
+```text
+1004 CALIB_BUSY
+1005 CALIB_NOT_FOUND, detail=CalibMode_LoadFromFlash return code
+1006 BAD_INDEX
+```
+---
+
+## Current ADS1220/PT1000 auxiliary temperature fields
+
+`STATE` and `DATA` frames include these fields after the ADS1220/PT1000 service update:
+
+```text
+aux_temp=25.34,aux_valid=1
+```
+
+`aux_temp` is the environment/water temperature converted from the existing ADS1220 PT1000 resistance measurement. `aux_valid=1` means the last timed measurement succeeded; `aux_valid=0` means ADS1220 data was not ready or the latest read was invalid.
+
+The firmware updates this value periodically through `Ads1220_Service(now_ms)`, currently once per 1000 ms.

@@ -18,7 +18,7 @@ extern "C"
 #define PANEL_CELL_NUM 2
 
 /** @brief 是否启用低温虚拟显示。真实温度低于传感器下限后可继续显示估算值。 */
-#define TEMP_VIRTUAL_LOW_ENABLE 1U
+#define TEMP_VIRTUAL_LOW_ENABLE 0U
 /** @brief 真实测温输入的最低可信温度，单位 degC。 */
 #define PANEL_TEMP_REAL_MIN -10.0f
 /** @brief 面板允许显示的最低温度，单位 degC。 */
@@ -26,7 +26,11 @@ extern "C"
 /** @brief 面板允许设置/显示的最高温度，单位 degC。 */
 #define PANEL_TEMP_MAX 110.0f
 /** @brief 面板目标温度下限。当前使用显示下限，允许虚拟低温目标。 */
+#if TEMP_VIRTUAL_LOW_ENABLE
 #define PANEL_TEMP_MIN PANEL_TEMP_DISPLAY_MIN
+#else
+#define PANEL_TEMP_MIN PANEL_TEMP_REAL_MIN
+#endif
 
 /** @brief 程序控温升降温速率最小值，单位 degC/min。 */
 #define PANEL_RAMP_RATE_MIN 0.1f

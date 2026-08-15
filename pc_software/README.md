@@ -32,5 +32,20 @@ pc_software/
     serial_worker.py
     widgets/
       cell_panel.py
+      calib_panel.py
       log_panel.py
 ```
+
+## Calibration commands
+
+The calibration tab uses these MCU commands:
+
+```text
+op=START_CALIB,cell=0
+op=STOP_CALIB
+op=GET_CALIB_STATUS
+op=GET_CALIB_RESULT,cell=0
+op=GET_CALIB_RESULT,cell=0,index=0
+```
+
+Read result first requests `CALIB_META`, then requests each `CALIB_STEP` sequentially.

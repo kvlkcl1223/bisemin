@@ -32,6 +32,7 @@ from app.widgets.cell_panel import (
     TEMP_MAX_C,
     TEMP_MIN_C,
 )
+from app.widgets.calib_panel import CalibPanel
 from app.widgets.log_panel import LogPanel
 
 
@@ -49,6 +50,9 @@ class MainWindow(QMainWindow):
         self.seq = 1
         self.cells = [CellState(0), CellState(1)]
         self.logger = DataLogger()
+        self._calib_read_cell: int | None = None
+        self._calib_next_index = 0
+        self._calib_step_count = 0
 
         root = QWidget()
         self.setCentralWidget(root)
@@ -91,11 +95,13 @@ class MainWindow(QMainWindow):
         splitter.addWidget(left)
 
         tabs = QTabWidget()
+        self.calib_panel = CalibPanel()
         self.log_panel = LogPanel(self.logger)
         self.rx_log = QPlainTextEdit()
         self.rx_log.setReadOnly(True)
         self.tx_log = QPlainTextEdit()
         self.tx_log.setReadOnly(True)
+        tabs.addTab(self.calib_panel, "校准")
         tabs.addTab(self.log_panel, "数据记录")
         tabs.addTab(self.rx_log, "接收")
         tabs.addTab(self.tx_log, "发送")
@@ -108,6 +114,10 @@ class MainWindow(QMainWindow):
         self.connect_btn.clicked.connect(self.toggle_connection)
         self.hello_btn.clicked.connect(self.send_hello)
         self.state_btn.clicked.connect(self.get_state)
+        self.calib_panel.start_calib.connect(self.start_calib)
+        self.calib_panel.stop_calib.connect(self.stop_calib)
+        self.calib_panel.refresh_status.connect(self.get_calib_status)
+        self.calib_panel.read_result.connect(self.get_calib_result)
 
         self.heartbeat_timer = QTimer(self)
         self.heartbeat_timer.setInterval(1000)
@@ -204,6 +214,43 @@ class MainWindow(QMainWindow):
     def start_program(self, cell: int) -> None:
         self.send_cmd("START_PROGRAM", cell=cell)
 
+    def start_calib(self, cell: int) -> None:
+        self.send_cmd("START_CALIB", cell=cell)
+
+    def stop_calib(self) -> None:
+        self._reset_calib_read()
+        self.send_cmd("STOP_CALIB")
+
+    def get_calib_status(self) -> None:
+        self.send_cmd("GET_CALIB_STATUS")
+
+    def get_calib_result(self, cell: int) -> None:
+        self._calib_read_cell = cell
+        self._calib_next_index = 0
+        self._calib_step_count = 0
+        self.calib_panel.clear_result()
+        self.send_cmd("GET_CALIB_RESULT", cell=cell)
+
+    def _request_next_calib_step(self) -> None:
+        if self._calib_read_cell is None:
+            return
+        if self._calib_next_index >= self._calib_step_count:
+            self.calib_panel.set_progress(self._calib_step_count, self._calib_step_count)
+            self.statusBar().showMessage("校准结果读取完成", 3000)
+            self._reset_calib_read()
+            return
+        self.calib_panel.set_progress(self._calib_next_index, self._calib_step_count)
+        self.send_cmd(
+            "GET_CALIB_RESULT",
+            cell=self._calib_read_cell,
+            index=self._calib_next_index,
+        )
+
+    def _reset_calib_read(self) -> None:
+        self._calib_read_cell = None
+        self._calib_next_index = 0
+        self._calib_step_count = 0
+
     def program_range_error(
         self,
         start: float,
@@ -246,8 +293,11 @@ class MainWindow(QMainWindow):
             self.handle_state(frame.fields)
             self.handle_data(frame.fields)
         elif frame.frame_type == "ACK":
+            if self.handle_ack(frame):
+                return
             self.statusBar().showMessage(f"确认 seq={frame.seq}", 2000)
         elif frame.frame_type == "NACK":
+            self.handle_nack(frame)
             self.statusBar().showMessage(
                 f"拒绝 seq={frame.seq} 错误={frame.fields.get('err', '')}",
                 5000,
@@ -259,6 +309,39 @@ class MainWindow(QMainWindow):
             )
         elif frame.frame_type == "HELLO":
             self.statusBar().showMessage(f"MCU 握手成功，固件版本={frame.fields.get('fw', '')}", 3000)
+
+    def handle_ack(self, frame: Frame) -> bool:
+        op = frame.fields.get("op", "")
+        if op == "CALIB_STATUS":
+            self.calib_panel.apply_status(frame.fields)
+            self.statusBar().showMessage("校准状态已更新", 2000)
+            return True
+        if op == "CALIB_META":
+            self._calib_step_count = self.calib_panel.apply_meta(frame.fields)
+            self._calib_next_index = 0
+            self._request_next_calib_step()
+            return True
+        if op == "CALIB_STEP":
+            self.calib_panel.apply_step(frame.fields)
+            self._calib_next_index = int(frame.fields.get("index", "0")) + 1
+            self._request_next_calib_step()
+            return True
+        if op == "START_CALIB":
+            self.statusBar().showMessage("已发送开始校准命令", 3000)
+            return True
+        if op == "STOP_CALIB":
+            self.statusBar().showMessage("已发送停止校准命令", 3000)
+            return True
+        return False
+
+    def handle_nack(self, frame: Frame) -> None:
+        msg = frame.fields.get("msg", "")
+        err = frame.fields.get("err", "")
+        if msg.startswith("CALIB") or err in {"1004", "1005", "1006"}:
+            self._reset_calib_read()
+            detail = frame.fields.get("detail", "")
+            suffix = f"，detail={detail}" if detail else ""
+            self.calib_panel.show_error(f"校准命令失败：{msg or err}{suffix}")
 
     def handle_state(self, fields: dict[str, str]) -> None:
         cell = int(fields.get("cell", "0"))

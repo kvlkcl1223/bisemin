@@ -10,6 +10,8 @@
 
 #include "pc_protocol.h"
 #include "app_control.h"
+#include "calib_mode.h"
+#include "ads1220.h"
 #include "temp_panel.h"
 #include "main.h"
 #include "usart.h"
@@ -512,7 +514,7 @@ void PcProto_SendState(uint8_t cell)
                    "t=%lu,cell=%u,mode=%s,owner=%s,running=%u,"
                    "target=%.1f,command=%.1f,current=%.1f,"
                    "t0=%.1f,t1=%.1f,duty=%.3f,duty_outer=%.3f,"
-                   "duty_inner=%.3f,ratio=%.3f,error=%u,phase=%u",
+                   "duty_inner=%.3f,ratio=%.3f,aux_temp=%.2f,aux_valid=%u,error=%u,phase=%u",
                    (unsigned long)osKernelGetTickCount(),
                    (unsigned int)cell,
                    PcProto_ModeString(cell),
@@ -527,6 +529,8 @@ void PcProto_SendState(uint8_t cell)
                    (double)duty_outer,
                    (double)duty_inner,
                    (double)ratio,
+                   (double)g_ads1220_env_temp_c,
+                   (unsigned int)g_ads1220_env_valid,
                    (unsigned int)g_app_control_cell_error[cell],
                    (unsigned int)g_panel.cell[cell].program_phase);
 
@@ -562,7 +566,7 @@ void PcProto_SendData(uint8_t cell)
                    "t=%lu,cell=%u,mode=%s,owner=%s,running=%u,"
                    "target=%.1f,command=%.1f,current=%.1f,"
                    "t0=%.1f,t1=%.1f,duty=%.3f,duty_outer=%.3f,"
-                   "duty_inner=%.3f,ratio=%.3f,error=%u,phase=%u",
+                   "duty_inner=%.3f,ratio=%.3f,aux_temp=%.2f,aux_valid=%u,error=%u,phase=%u",
                    (unsigned long)osKernelGetTickCount(),
                    (unsigned int)cell,
                    PcProto_ModeString(cell),
@@ -577,6 +581,8 @@ void PcProto_SendData(uint8_t cell)
                    (double)duty_outer,
                    (double)duty_inner,
                    (double)ratio,
+                   (double)g_ads1220_env_temp_c,
+                   (unsigned int)g_ads1220_env_valid,
                    (unsigned int)g_app_control_cell_error[cell],
                    (unsigned int)g_panel.cell[cell].program_phase);
 
@@ -602,6 +608,71 @@ void PcProto_SendEvent(uint8_t cell, const char *event_type)
 
     if (len > 0 && len < (int)sizeof(pay))
         PcProto_SendFrame(PC_FRAME_EVENT, pay);
+}
+
+static void PcProto_SendCalibStatus(uint16_t seq)
+{
+    char pay[160];
+    int len;
+
+    len = snprintf(pay, sizeof(pay),
+                   "ok=1,op=CALIB_STATUS,state=%u,running=%u,active=%u,"
+                   "cell=%u,index=%u,count=%u,error=%lu",
+                   (unsigned int)g_calib_state,
+                   (unsigned int)g_calib_running,
+                   (unsigned int)g_calib_mode_active,
+                   (unsigned int)g_calib_cell,
+                   (unsigned int)g_calib_step_idx,
+                   (unsigned int)CALIB_DUTY_COUNT,
+                   (unsigned long)g_calib_error);
+
+    if (len > 0 && len < (int)sizeof(pay))
+        PcProto_SendFrameSeq(PC_FRAME_ACK, seq, pay);
+}
+
+static void PcProto_SendCalibMeta(uint16_t seq, uint8_t cell,
+                                  const CalibFlashData_t *data)
+{
+    char pay[160];
+    int len;
+
+    len = snprintf(pay, sizeof(pay),
+                   "ok=1,op=CALIB_META,cell=%u,count=%u,start=%.2f,"
+                   "end=%.2f,step=%.2f,magic=0x%08lX,crc=0x%04X",
+                   (unsigned int)cell,
+                   (unsigned int)CALIB_DUTY_COUNT,
+                   (double)CALIB_DUTY_START,
+                   (double)CALIB_DUTY_END,
+                   (double)CALIB_DUTY_STEP,
+                   (unsigned long)data->magic,
+                   (unsigned int)data->crc16);
+
+    if (len > 0 && len < (int)sizeof(pay))
+        PcProto_SendFrameSeq(PC_FRAME_ACK, seq, pay);
+}
+
+static void PcProto_SendCalibStep(uint16_t seq, uint8_t cell,
+                                  uint8_t index,
+                                  const CalibFlashData_t *data)
+{
+    const CalibStep_t *step;
+    char pay[192];
+    int len;
+
+    step = &data->step[index];
+    len = snprintf(pay, sizeof(pay),
+                   "ok=1,op=CALIB_STEP,cell=%u,index=%u,duty=%.3f,"
+                   "t0=%.3f,t1=%.3f,valid=%u,settled=%u",
+                   (unsigned int)cell,
+                   (unsigned int)index,
+                   (double)step->duty,
+                   (double)step->temp_ch0,
+                   (double)step->temp_ch1,
+                   (unsigned int)step->valid,
+                   (unsigned int)step->settled);
+
+    if (len > 0 && len < (int)sizeof(pay))
+        PcProto_SendFrameSeq(PC_FRAME_ACK, seq, pay);
 }
 
 /* ============================================================
@@ -684,10 +755,91 @@ void PcProto_Process(void)
 
     if (cell >= APP_CONTROL_CELL_COUNT &&
         strcmp(op_buf, "STOP_ALL") != 0 &&
-        strcmp(op_buf, "ESTOP_ALL") != 0)
+        strcmp(op_buf, "ESTOP_ALL") != 0 &&
+        strcmp(op_buf, "STOP_CALIB") != 0 &&
+        strcmp(op_buf, "GET_CALIB_STATUS") != 0)
     {
         PcProto_SendFrameSeq(PC_FRAME_NACK, rcv_seq,
                              "ok=0,err=1002,msg=BAD_CELL");
+        return;
+    }
+
+    /* ---- START_CALIB ---- */
+    if (strcmp(op_buf, "START_CALIB") == 0)
+    {
+        if (g_calib_mode_active != 0U)
+        {
+            PcProto_SendFrameSeq(PC_FRAME_NACK, rcv_seq,
+                                 "ok=0,err=1004,msg=CALIB_BUSY");
+            return;
+        }
+
+        CalibMode_Start(cell);
+        s_pc_owner[cell] = 1U;
+        PcProto_SendFrameSeq(PC_FRAME_ACK, rcv_seq,
+                             "ok=1,op=START_CALIB");
+        PcProto_SendEvent(cell, "CALIB_START");
+        PcProto_SendCalibStatus(rcv_seq);
+        return;
+    }
+
+    /* ---- STOP_CALIB ---- */
+    if (strcmp(op_buf, "STOP_CALIB") == 0)
+    {
+        uint8_t event_cell = (g_calib_cell < APP_CONTROL_CELL_COUNT)
+                           ? (uint8_t)g_calib_cell
+                           : 0U;
+
+        CalibMode_Stop();
+        PcProto_SendFrameSeq(PC_FRAME_ACK, rcv_seq,
+                             "ok=1,op=STOP_CALIB");
+        PcProto_SendEvent(event_cell, "CALIB_STOP");
+        PcProto_SendCalibStatus(rcv_seq);
+        return;
+    }
+
+    /* ---- GET_CALIB_STATUS ---- */
+    if (strcmp(op_buf, "GET_CALIB_STATUS") == 0)
+    {
+        PcProto_SendCalibStatus(rcv_seq);
+        return;
+    }
+
+    /* ---- GET_CALIB_RESULT ---- */
+    if (strcmp(op_buf, "GET_CALIB_RESULT") == 0)
+    {
+        CalibFlashData_t data;
+        uint8_t load_ret;
+
+        load_ret = CalibMode_LoadFromFlash(cell, &data);
+        if (load_ret != 0U)
+        {
+            char err_pay[80];
+            int err_len;
+
+            err_len = snprintf(err_pay, sizeof(err_pay),
+                               "ok=0,err=1005,msg=CALIB_NOT_FOUND,detail=%u",
+                               (unsigned int)load_ret);
+            if (err_len > 0 && err_len < (int)sizeof(err_pay))
+                PcProto_SendFrameSeq(PC_FRAME_NACK, rcv_seq, err_pay);
+            return;
+        }
+
+        if (PcProto_GetValue(pay, "index", val_buf, sizeof(val_buf)))
+        {
+            uint8_t index = (uint8_t)atoi(val_buf);
+            if (index >= CALIB_DUTY_COUNT)
+            {
+                PcProto_SendFrameSeq(PC_FRAME_NACK, rcv_seq,
+                                     "ok=0,err=1006,msg=BAD_INDEX");
+                return;
+            }
+            PcProto_SendCalibStep(rcv_seq, cell, index, &data);
+        }
+        else
+        {
+            PcProto_SendCalibMeta(rcv_seq, cell, &data);
+        }
         return;
     }
 

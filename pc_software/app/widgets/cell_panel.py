@@ -18,7 +18,7 @@ from PyQt5.QtWidgets import (
 from app.models import MODE_TEXT, OWNER_TEXT, CellState
 
 
-TEMP_MIN_C = -20.0
+TEMP_MIN_C = -10.0
 TEMP_MAX_C = 110.0
 RAMP_RATE_MIN_C_PER_MIN = 0.1
 RAMP_RATE_MAX_C_PER_MIN = 60.0
@@ -47,6 +47,7 @@ class CellPanel(QWidget):
         self.owner_label = QLabel("无")
         self.running_label = QLabel("0")
         self.current_label = QLabel("25.0")
+        self.aux_temp_label = QLabel("-")
         self.target_label = QLabel("25.0")
         self.duty_label = QLabel("0.000")
         self.error_label = QLabel("0")
@@ -56,6 +57,7 @@ class CellPanel(QWidget):
             ("控制来源", self.owner_label),
             ("运行状态", self.running_label),
             ("当前温度", self.current_label),
+            ("环境/水温", self.aux_temp_label),
             ("目标温度", self.target_label),
             ("输出占空比", self.duty_label),
             ("错误码", self.error_label),
@@ -137,6 +139,10 @@ class CellPanel(QWidget):
         self.owner_label.setText(OWNER_TEXT.get(state.owner, state.owner.value))
         self.running_label.setText("运行" if state.running else "停止")
         self.current_label.setText(f"{state.current:.1f} °C")
+        if state.aux_valid:
+            self.aux_temp_label.setText(f"{state.aux_temp:.1f} °C")
+        else:
+            self.aux_temp_label.setText("无效")
         self.target_label.setText(f"{state.target:.1f} °C")
         self.duty_label.setText(f"{state.duty:.3f}")
         self.error_label.setText(str(state.error))

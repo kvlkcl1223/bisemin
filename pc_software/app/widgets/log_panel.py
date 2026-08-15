@@ -36,7 +36,7 @@ class LogPanel(QWidget):
         toolbar.addWidget(self.export_btn)
         root.addLayout(toolbar)
 
-        self.table = QTableWidget(0, 8)
+        self.table = QTableWidget(0, 9)
         self.table.setHorizontalHeaderLabels([
             "MCU 时间 ms",
             "单元",
@@ -44,6 +44,17 @@ class LogPanel(QWidget):
             "阶段",
             "目标温度",
             "当前温度",
+            "占空比",
+            "错误码",
+        ])
+        self.table.setHorizontalHeaderLabels([
+            "MCU 时间 ms",
+            "单元",
+            "模式",
+            "阶段",
+            "目标温度",
+            "当前温度",
+            "环境/水温",
             "占空比",
             "错误码",
         ])
@@ -75,6 +86,7 @@ class LogPanel(QWidget):
             str(row.phase),
             f"{row.target:.1f}",
             f"{row.current:.1f}",
+            f"{row.aux_temp:.1f}",
             f"{row.duty:.3f}",
             str(row.error),
         ]

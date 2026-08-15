@@ -36,8 +36,8 @@ extern "C"
 #define APP_CONTROL_CELL0_TEMP_OUTER 0U
 /** @brief Cell 0 内层测温输入索引，默认实际 CH2。*/
 #define APP_CONTROL_CELL0_TEMP_INNER 1U
-/** @brief Cell 0 外层/主路 DRV 索引，默认实际 DRV1。*/
-#define APP_CONTROL_CELL0_DRV_OUTER 0U
+/** @brief Cell 0 外层/主路 DRV 索引，当前临时使用实际 DRV5。*/
+#define APP_CONTROL_CELL0_DRV_OUTER 4U
 /** @brief Cell 0 内层/从路 DRV 索引，默认实际 DRV2。*/
 #define APP_CONTROL_CELL0_DRV_INNER 1U
 /** @brief Cell 0 内层 duty 跟随比例，inner = outer * ratio。*/
@@ -56,12 +56,25 @@ extern "C"
 
 /** @brief 堆叠方案共享 DRV 索引，默认实际 DRV5。*/
 #define APP_CONTROL_SHARED_DRV 4U
+/** @brief DRV channel enable mask, bit0..bit4 map to DRV1..DRV5. Current setup disables DRV1. */
+#define APP_CONTROL_DRV_ENABLE_MASK ((uint8_t)((1U << 1) | (1U << 2) | (1U << 3) | (1U << 4)))
+/** @brief Shared DRV logic switch. 0 disables the extra shared-channel output path. */
+#define APP_CONTROL_SHARED_DRV_ENABLE 0U
 
-/** @brief PID 输出和实际 PWM duty 的最大绝对值限幅。*/
-#define APP_CONTROL_MAX_ABS_DUTY 0.45f
+/** @brief PID 输出和实际 PWM duty 的不对称限幅。*/
+#define APP_CONTROL_DUTY_MIN (-0.40f)
+#define APP_CONTROL_DUTY_MAX (0.30f)
 
 /** @brief 只要任意 cell 运行，共享 DRV5 输出的固定 duty。*/
 #define APP_CONTROL_SHARED_CH5_DUTY 0.20f
+
+#if APP_CONTROL_SHARED_DRV_ENABLE
+#define APP_CONTROL_CELL_SHARED_DRV APP_CONTROL_SHARED_DRV
+#define APP_CONTROL_CELL_SHARED_DUTY APP_CONTROL_SHARED_CH5_DUTY
+#else
+#define APP_CONTROL_CELL_SHARED_DRV APP_CONTROL_INVALID_INDEX
+#define APP_CONTROL_CELL_SHARED_DUTY 0.0f
+#endif
 
     /** @brief app_control 模块初始化和命令投递的返回状态。*/
     typedef enum
@@ -290,7 +303,8 @@ extern "C"
     /*
      * DRV 测试调用示例，示例代码保持注释状态，临时调试时再复制到合适位置调用。
      * 注意：DRV 编号是 0 基索引，0=DRV1，1=DRV2，2=DRV3，3=DRV4，4=DRV5。
-     * duty 正负号沿用当前驱动方向定义，绝对值会被限制到 APP_CONTROL_MAX_ABS_DUTY 以内。
+     * AppControl_StartDrvTest() 会按 APP_CONTROL_DRV_ENABLE_MASK 过滤禁用通道。
+     * duty 正负号沿用当前驱动方向定义，并会被限制到 APP_CONTROL_DUTY_MIN..APP_CONTROL_DUTY_MAX。
      *
      * 示例 1：单独测试 DRV1，输出 0.10 duty。
      *

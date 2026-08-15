@@ -13,6 +13,7 @@ class LogRow:
     phase: int
     target: float
     current: float
+    aux_temp: float
     duty: float
     error: int
 
@@ -40,6 +41,7 @@ class DataLogger:
             phase=int(fields.get("phase", "0")),
             target=float(fields.get("target", "0")),
             current=float(fields.get("current", "0")),
+            aux_temp=float(fields.get("aux_temp", "0")),
             duty=float(fields.get("duty", "0")),
             error=int(fields.get("error", "0")),
         )
@@ -50,7 +52,7 @@ class DataLogger:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("w", newline="", encoding="utf-8-sig") as f:
-            writer = csv.DictWriter(f, fieldnames=list(asdict(LogRow(0, "", "", 0, 0, 0, 0, 0)).keys()))
+            writer = csv.DictWriter(f, fieldnames=list(asdict(LogRow(0, "", "", 0, 0, 0, 0, 0, 0)).keys()))
             writer.writeheader()
             for row in self.rows:
                 writer.writerow(asdict(row))

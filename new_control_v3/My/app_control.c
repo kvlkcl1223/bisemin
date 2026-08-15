@@ -49,7 +49,7 @@
 /** @brief duty 斜率限制接受的最大周期，单位 s。*/
 #define APP_CONTROL_TEMP_PID_DT_MAX_S 1.0f
 /** @brief duty 输出变化斜率上限，单位 duty/s，用于避免输出突变。*/
-#define APP_CONTROL_DUTY_SLEW_RATE_PER_S 1.0f
+#define APP_CONTROL_DUTY_SLEW_RATE_PER_S 0.1f
 /** @brief 故障清除后面板错误显示保留时间，单位 ms。*/
 #define APP_CONTROL_ERROR_DISPLAY_MS 5000U
 /** @brief 普通模式下是否延迟启用 PID 反馈，先以前馈接近目标温度。*/
@@ -61,7 +61,11 @@
 /** @brief DRV 单通道/多通道测试时的 FAULT 引脚轮询周期，单位 ms。 */
 #define APP_CONTROL_DRV_TEST_FAULT_POLL_MS 50U
 /** @brief DRV 测试模式默认测试通道：默认测试共享 DRV5。 */
-#define APP_CONTROL_DRV_TEST_DEFAULT_MASK ((uint8_t)(1U << APP_CONTROL_SHARED_DRV))
+#if APP_CONTROL_SHARED_DRV_ENABLE
+#define APP_CONTROL_DRV_TEST_DEFAULT_MASK ((uint8_t)((1U << APP_CONTROL_SHARED_DRV) & APP_CONTROL_DRV_ENABLE_MASK))
+#else
+#define APP_CONTROL_DRV_TEST_DEFAULT_MASK 0U
+#endif
 /** @brief DRV 测试模式默认 duty，用于调试器只置位 g_app_control_test_active 的场景。 */
 #define APP_CONTROL_DRV_TEST_DEFAULT_DUTY APP_CONTROL_SHARED_CH5_DUTY
 /** @brief 测试模式发现某一路故障后是否关闭全部测试通道；0 表示只关故障通道。 */
@@ -117,8 +121,8 @@ static const AppControlCellConfig_t s_cell_config[APP_CONTROL_CELL_COUNT] =
         APP_CONTROL_CELL0_DRV_OUTER,
         APP_CONTROL_CELL0_DRV_INNER,
         APP_CONTROL_CELL0_INNER_DUTY_RATIO,
-        APP_CONTROL_SHARED_DRV,
-        APP_CONTROL_SHARED_CH5_DUTY
+        APP_CONTROL_CELL_SHARED_DRV,
+        APP_CONTROL_CELL_SHARED_DUTY
     },
     {
         APP_CONTROL_CELL1_TEMP_OUTER,
@@ -126,8 +130,8 @@ static const AppControlCellConfig_t s_cell_config[APP_CONTROL_CELL_COUNT] =
         APP_CONTROL_CELL1_DRV_OUTER,
         APP_CONTROL_CELL1_DRV_INNER,
         APP_CONTROL_CELL1_INNER_DUTY_RATIO,
-        APP_CONTROL_SHARED_DRV,
-        APP_CONTROL_SHARED_CH5_DUTY
+        APP_CONTROL_CELL_SHARED_DRV,
+        APP_CONTROL_CELL_SHARED_DUTY
     }
 };
 
@@ -499,6 +503,14 @@ static const AppControlCellConfig_t *AppControl_CellConfig(uint8_t cell)
     return &s_cell_config[cell];
 }
 
+/** @brief Return non-zero when the physical DRV channel is enabled by configuration. */
+static uint8_t AppControl_DrvEnabled(uint8_t drv)
+{
+    if (drv >= APP_CONTROL_DRV_COUNT)
+        return 0U;
+    return ((APP_CONTROL_DRV_ENABLE_MASK & (uint8_t)(1U << drv)) != 0U) ? 1U : 0U;
+}
+
 /** @brief 获取指定 cell 的内。duty 跟随比例。*/
 static float AppControl_CellInnerRatio(uint8_t cell)
 {
@@ -512,7 +524,7 @@ static float AppControl_CellInnerRatio(uint8_t cell)
 /** @brief 记录指定 DRV 当前 duty 到内部和调试数组。*/
 static void AppControl_RecordDrvDuty(uint8_t drv, float duty)
 {
-    if (drv >= APP_CONTROL_DRV_COUNT)
+    if (AppControl_DrvEnabled(drv) == 0U)
         return;
 
     s_drv_output_duty[drv] = duty;
@@ -530,11 +542,11 @@ static void AppControl_RecordCellDuties(uint8_t cell, float outer_duty)
         return;
 
     outer_duty = AppControl_Clamp(outer_duty,
-                                  -APP_CONTROL_MAX_ABS_DUTY,
-                                  APP_CONTROL_MAX_ABS_DUTY);
+                                  APP_CONTROL_DUTY_MIN,
+                                  APP_CONTROL_DUTY_MAX);
     inner_duty = AppControl_Clamp(outer_duty * AppControl_CellInnerRatio(cell),
-                                  -APP_CONTROL_MAX_ABS_DUTY,
-                                  APP_CONTROL_MAX_ABS_DUTY);
+                                  APP_CONTROL_DUTY_MIN,
+                                  APP_CONTROL_DUTY_MAX);
 
     s_cell[cell].duty = outer_duty;
     g_app_control_cell_outer_duty[cell] = outer_duty;
@@ -572,6 +584,10 @@ static uint8_t AppControl_CellForDrv(uint8_t drv)
 /** @brief 判断某个 DRV 是否为共享通道。*/
 static uint8_t AppControl_DrvIsShared(uint8_t drv)
 {
+#if !APP_CONTROL_SHARED_DRV_ENABLE
+    (void)drv;
+    return 0U;
+#else
     uint8_t cell;
 
     for (cell = 0U; cell < APP_CONTROL_CELL_COUNT; cell++)
@@ -582,11 +598,15 @@ static uint8_t AppControl_DrvIsShared(uint8_t drv)
     }
 
     return 0U;
+#endif
 }
 
 /** @brief 计算共享 DRV 当前目标 duty；任意 cell 运行时返回固定共享 duty。*/
 static float AppControl_SharedTargetDuty(void)
 {
+#if !APP_CONTROL_SHARED_DRV_ENABLE
+    return 0.0f;
+#else
     uint8_t cell;
 
     for (cell = 0U; cell < APP_CONTROL_CELL_COUNT; cell++)
@@ -600,6 +620,7 @@ static float AppControl_SharedTargetDuty(void)
     }
 
     return 0.0f;
+#endif
 }
 
 /**
@@ -675,7 +696,7 @@ static void AppControl_CaptureDrvStartupRegs(uint8_t drv, DRV8703_Handle_t *dev)
     uint8_t i;
     uint8_t mask = 0U;
 
-    if ((drv >= APP_CONTROL_DRV_COUNT) || (dev == 0))
+    if ((AppControl_DrvEnabled(drv) == 0U) || (dev == 0))
         return;
 
     for (i = 0U; i < DRV8703_REGISTER_COUNT; i++)
@@ -718,7 +739,7 @@ static uint8_t AppControl_ReadDrvRegsToDebug(uint8_t drv,
     uint8_t reg;
     uint8_t mask = 0U;
 
-    if ((drv >= APP_CONTROL_DRV_COUNT) || (dev == 0))
+    if ((AppControl_DrvEnabled(drv) == 0U) || (dev == 0))
         return 0U;
 
     for (reg = 0U; reg < DRV8703_REGISTER_COUNT; reg++)
@@ -780,7 +801,7 @@ static void AppControl_CommitDrvRegsToDebug(uint8_t drv,
 {
     uint8_t reg;
 
-    if (drv >= APP_CONTROL_DRV_COUNT)
+    if (AppControl_DrvEnabled(drv) == 0U)
         return;
 
     for (reg = 0U; reg < DRV8703_REGISTER_COUNT; reg++)
@@ -961,7 +982,7 @@ static void AppControl_CaptureDrvFault(uint8_t drv, DRV8703_Status_t status)
     DRV8703_Handle_t *dev;
     uint8_t mask;
 
-    if (drv >= APP_CONTROL_DRV_COUNT)
+    if (AppControl_DrvEnabled(drv) == 0U)
         return;
 
     g_app_control_last_drv_fault = drv;
@@ -1022,7 +1043,7 @@ static uint8_t AppControl_CaptureDrvPinFaultMoment(uint8_t drv, DRV8703_Status_t
     uint8_t mask;
     uint8_t should_stop = 0U;
 
-    if (drv >= APP_CONTROL_DRV_COUNT)
+    if (AppControl_DrvEnabled(drv) == 0U)
         return 0U;
 
     g_app_control_drv_pin_fault_last = drv;
@@ -1052,7 +1073,10 @@ static uint8_t AppControl_CaptureDrvPinFaultMoment(uint8_t drv, DRV8703_Status_t
         uint8_t i;
         for (i = 0U; i < APP_CONTROL_DRV_COUNT; i++)
         {
-            DRV8703_Handle_t *d = DRV8703_BoardGet((DRV8703_BoardChannel_t)i);
+            DRV8703_Handle_t *d;
+            if (AppControl_DrvEnabled(i) == 0U)
+                continue;
+            d = DRV8703_BoardGet((DRV8703_BoardChannel_t)i);
             if (d != 0)
                 (void)DRV8703_SetDuty(d, 0.0f);
             AppControl_RecordDrvDuty(i, 0.0f);
@@ -1483,7 +1507,7 @@ static DRV8703_Status_t AppControl_PrepareDrv(uint8_t drv)
     DRV8703_Status_t ret = DRV8703_ERROR_PARAM;
     uint8_t attempt;
 
-    if (drv >= APP_CONTROL_DRV_COUNT)
+    if (AppControl_DrvEnabled(drv) == 0U)
         return DRV8703_ERROR_PARAM;
 
     if (g_app_control_simulate_drv8703 != 0U)
@@ -1543,12 +1567,12 @@ DRV8703_Status_t AppControl_SetDrvDuty(uint8_t drv, float duty)
     DRV8703_Handle_t *dev;
     DRV8703_Status_t ret;
 
-    if (drv >= APP_CONTROL_DRV_COUNT)
+    if (AppControl_DrvEnabled(drv) == 0U)
         return DRV8703_ERROR_PARAM;
 
     duty = AppControl_Clamp(duty,
-                            -APP_CONTROL_MAX_ABS_DUTY,
-                            APP_CONTROL_MAX_ABS_DUTY);
+                            APP_CONTROL_DUTY_MIN,
+                            APP_CONTROL_DUTY_MAX);
     AppControl_RecordDrvDuty(drv, duty);
 
     if (g_app_control_simulate_drv8703 != 0U)
@@ -1607,16 +1631,18 @@ DRV8703_Status_t AppControl_SetCellStackDuty(uint8_t cell, float outer_duty)
 
     if (cfg == 0)
         return DRV8703_ERROR_PARAM;
-    if (cfg->drv_outer >= APP_CONTROL_CLOSED_LOOP_COUNT ||
-        cfg->drv_inner >= APP_CONTROL_CLOSED_LOOP_COUNT)
+    if (cfg->drv_outer >= APP_CONTROL_DRV_COUNT ||
+        cfg->drv_inner >= APP_CONTROL_DRV_COUNT ||
+        AppControl_DrvEnabled(cfg->drv_outer) == 0U ||
+        AppControl_DrvEnabled(cfg->drv_inner) == 0U)
         return DRV8703_ERROR_PARAM;
 
     outer_duty = AppControl_Clamp(outer_duty,
-                                  -APP_CONTROL_MAX_ABS_DUTY,
-                                  APP_CONTROL_MAX_ABS_DUTY);
+                                  APP_CONTROL_DUTY_MIN,
+                                  APP_CONTROL_DUTY_MAX);
     inner_duty = AppControl_Clamp(outer_duty * AppControl_CellInnerRatio(cell),
-                                  -APP_CONTROL_MAX_ABS_DUTY,
-                                  APP_CONTROL_MAX_ABS_DUTY);
+                                  APP_CONTROL_DUTY_MIN,
+                                  APP_CONTROL_DUTY_MAX);
 
     s_cell_base_output_duty[cell] = outer_duty;
     AppControl_RecordCellDuties(cell, outer_duty);
@@ -1650,18 +1676,18 @@ float AppControl_GetCellOuterDuty(uint8_t cell)
 {
     const AppControlCellConfig_t *cfg = AppControl_CellConfig(cell);
 
-    if (cfg == 0 || cfg->drv_outer >= APP_CONTROL_CLOSED_LOOP_COUNT)
+    if (cfg == 0 || AppControl_DrvEnabled(cfg->drv_outer) == 0U)
         return 0.0f;
-    return s_temp_channel_duty[cfg->drv_outer];
+    return s_drv_output_duty[cfg->drv_outer];
 }
 
 float AppControl_GetCellInnerDuty(uint8_t cell)
 {
     const AppControlCellConfig_t *cfg = AppControl_CellConfig(cell);
 
-    if (cfg == 0 || cfg->drv_inner >= APP_CONTROL_CLOSED_LOOP_COUNT)
+    if (cfg == 0 || AppControl_DrvEnabled(cfg->drv_inner) == 0U)
         return 0.0f;
-    return s_temp_channel_duty[cfg->drv_inner];
+    return s_drv_output_duty[cfg->drv_inner];
 }
 
 /**
@@ -1674,7 +1700,7 @@ static void AppControl_CaptureDrvSleepRegs(uint8_t drv, DRV8703_Handle_t *dev)
     uint8_t reg;
     uint8_t mask = 0U;
 
-    if ((drv >= APP_CONTROL_DRV_COUNT) || (dev == 0))
+    if ((AppControl_DrvEnabled(drv) == 0U) || (dev == 0))
         return;
 
     for (reg = 0U; reg < DRV8703_REGISTER_COUNT; reg++)
@@ -1716,6 +1742,8 @@ static void AppControl_CapturePeriodicDrvRegs(uint32_t now_ms)
             g_app_control_periodic_reg_snapshot[drv][reg] = 0xFFU;
         g_app_control_periodic_reg_snapshot[drv][DRV8703_REGISTER_COUNT] = 0U;
 
+        if (AppControl_DrvEnabled(drv) == 0U)
+            continue;
         if (g_app_control_drv_ready[drv] == 0U)
             continue;
 
@@ -1750,7 +1778,7 @@ static void AppControl_SleepDrv(uint8_t drv)
 {
     DRV8703_Handle_t *dev;
 
-    if (drv >= APP_CONTROL_DRV_COUNT || g_app_control_simulate_drv8703 != 0U)
+    if (AppControl_DrvEnabled(drv) == 0U || g_app_control_simulate_drv8703 != 0U)
         return;
 
     dev = DRV8703_BoardGet((DRV8703_BoardChannel_t)drv);
@@ -1769,6 +1797,9 @@ static void AppControl_SleepDrv(uint8_t drv)
 /** @brief 判断当前是否仍有 cell 需要共享 DRV 保持输出。*/
 static uint8_t AppControl_SharedDrvNeeded(void)
 {
+#if !APP_CONTROL_SHARED_DRV_ENABLE
+    return 0U;
+#else
     uint8_t cell;
 
     for (cell = 0U; cell < APP_CONTROL_CELL_COUNT; cell++)
@@ -1782,6 +1813,7 @@ static uint8_t AppControl_SharedDrvNeeded(void)
     }
 
     return 0U;
+#endif
 }
 
 /** @brief 判断运行中的 cell 是否需要共享 DRV 输出非零 duty。*/
@@ -1845,7 +1877,7 @@ static void AppControl_StopCell(uint8_t cell, AppControlStopMode_t mode)
         AppControl_SleepDrv(cfg->drv_inner);
     }
 
-    if (!AppControl_SharedDrvNeeded())
+    if ((APP_CONTROL_SHARED_DRV_ENABLE != 0U) && !AppControl_SharedDrvNeeded())
     {
         (void)AppControl_SetDrvDuty(APP_CONTROL_SHARED_DRV, 0.0f);
         AppControl_SleepDrv(APP_CONTROL_SHARED_DRV);
@@ -1918,8 +1950,10 @@ static void AppControl_StartCell(uint8_t cell)
         return;
     if (cfg->temp_outer >= APP_CONTROL_TEMP_INPUT_COUNT ||
         cfg->temp_inner >= APP_CONTROL_TEMP_INPUT_COUNT ||
-        cfg->drv_outer >= APP_CONTROL_CLOSED_LOOP_COUNT ||
-        cfg->drv_inner >= APP_CONTROL_CLOSED_LOOP_COUNT)
+        cfg->drv_outer >= APP_CONTROL_DRV_COUNT ||
+        cfg->drv_inner >= APP_CONTROL_DRV_COUNT ||
+        AppControl_DrvEnabled(cfg->drv_outer) == 0U ||
+        AppControl_DrvEnabled(cfg->drv_inner) == 0U)
         return;
 
     if (!AppControl_CellHardwareOk(cell))
@@ -2167,6 +2201,9 @@ static void AppControl_ReadAllDrvRegsRaw(uint32_t now_ms)
         g_app_control_drv_raw_mask[drv] = 0U;
         g_app_control_drv_raw_status[drv] = DRV8703_ERROR_PARAM;
 
+        if (AppControl_DrvEnabled(drv) == 0U)
+            continue;
+
         dev = DRV8703_BoardGet((DRV8703_BoardChannel_t)drv);
         if (dev == 0)
             continue;
@@ -2215,6 +2252,8 @@ static void AppControl_CheckDrvFaults(uint32_t now_ms)
         DRV8703_Handle_t *dev;
         DRV8703_Status_t pin_ret;
 
+        if (AppControl_DrvEnabled(drv) == 0U)
+            continue;
         if (g_app_control_drv_ready[drv] == 0U)
             continue;
         if (g_app_control_drv_awake[drv] == 0U)
@@ -2420,8 +2459,10 @@ static void AppControl_RunClosedLoop(void)
             continue;
         if (cfg->temp_outer >= APP_CONTROL_TEMP_INPUT_COUNT ||
             cfg->temp_inner >= APP_CONTROL_TEMP_INPUT_COUNT ||
-            cfg->drv_outer >= APP_CONTROL_CLOSED_LOOP_COUNT ||
-            cfg->drv_inner >= APP_CONTROL_CLOSED_LOOP_COUNT)
+            cfg->drv_outer >= APP_CONTROL_DRV_COUNT ||
+            cfg->drv_inner >= APP_CONTROL_DRV_COUNT ||
+            AppControl_DrvEnabled(cfg->drv_outer) == 0U ||
+            AppControl_DrvEnabled(cfg->drv_inner) == 0U)
             continue;
 
         if (s_cell[cell].running == 0U || s_cell[cell].error != PANEL_ERR_NONE)
@@ -2489,8 +2530,8 @@ static void AppControl_RunClosedLoop(void)
             }
 
             outer_duty = AppControl_Clamp(ff_duty + pid_duty,
-                                          -APP_CONTROL_MAX_ABS_DUTY,
-                                          APP_CONTROL_MAX_ABS_DUTY);
+                                          APP_CONTROL_DUTY_MIN,
+                                          APP_CONTROL_DUTY_MAX);
         }
 
         if (AppControl_Abs(outer_duty) < 0.001f)
@@ -2510,7 +2551,7 @@ static void AppControl_RunClosedLoop(void)
         }
     }
 
-    if (any_running != 0U)
+    if ((APP_CONTROL_SHARED_DRV_ENABLE != 0U) && (any_running != 0U))
     {
         float shared_target = (AppControl_ActiveCellNeedsSharedDrv() != 0U)
                                   ? AppControl_SharedTargetDuty()
@@ -2562,15 +2603,18 @@ static void AppControl_StopDrvTestOutput(uint8_t drv)
     if (drv >= APP_CONTROL_DRV_COUNT)
         return;
 
+    g_app_control_test_duty[drv] = 0.0f;
+    AppControl_RecordDrvDuty(drv, 0.0f);
+
+    if (AppControl_DrvEnabled(drv) == 0U)
+        return;
+
     if (g_app_control_simulate_drv8703 == 0U)
     {
         dev = DRV8703_BoardGet((DRV8703_BoardChannel_t)drv);
         if (dev != 0)
             (void)DRV8703_SetDuty(dev, 0.0f);
     }
-
-    g_app_control_test_duty[drv] = 0.0f;
-    AppControl_RecordDrvDuty(drv, 0.0f);
 }
 
 /** @brief 关闭当前测试模式中仍在输出的全部 DRV。 */
@@ -2578,7 +2622,7 @@ static void AppControl_StopDrvTestOutputs(uint8_t mask)
 {
     uint8_t drv;
 
-    mask &= APP_CONTROL_DRV_ALL_MASK;
+    mask &= APP_CONTROL_DRV_ENABLE_MASK;
     for (drv = 0U; drv < APP_CONTROL_DRV_COUNT; drv++)
     {
         if ((mask & (uint8_t)(1U << drv)) != 0U)
@@ -2591,13 +2635,15 @@ static void AppControl_DrvTestEnsureDefaultRequest(void)
 {
     uint8_t drv;
 
-    if ((g_app_control_drv_test_requested_mask & APP_CONTROL_DRV_ALL_MASK) != 0U)
+    if ((g_app_control_drv_test_requested_mask & APP_CONTROL_DRV_ENABLE_MASK) != 0U)
         return;
 
     g_app_control_drv_test_requested_mask = APP_CONTROL_DRV_TEST_DEFAULT_MASK;
     for (drv = 0U; drv < APP_CONTROL_DRV_COUNT; drv++)
         g_app_control_test_duty[drv] = 0.0f;
+#if APP_CONTROL_SHARED_DRV_ENABLE
     g_app_control_test_duty[APP_CONTROL_SHARED_DRV] = APP_CONTROL_DRV_TEST_DEFAULT_DUTY;
+#endif
 }
 
 /** @brief 初始化测试通道，并只让请求掩码中的 DRV 输出指定 duty。 */
@@ -2608,7 +2654,7 @@ static void AppControl_DrvTestInit(uint32_t now_ms)
 
     (void)now_ms;
     AppControl_DrvTestEnsureDefaultRequest();
-    requested_mask = (uint8_t)(g_app_control_drv_test_requested_mask & APP_CONTROL_DRV_ALL_MASK);
+    requested_mask = (uint8_t)(g_app_control_drv_test_requested_mask & APP_CONTROL_DRV_ENABLE_MASK);
 
     g_app_control_drv_test_active_mask = 0U;
     g_app_control_drv_test_fault_mask = 0U;
@@ -2630,8 +2676,8 @@ static void AppControl_DrvTestInit(uint32_t now_ms)
         }
 
         g_app_control_test_duty[drv] = AppControl_Clamp(g_app_control_test_duty[drv],
-                                                        -APP_CONTROL_MAX_ABS_DUTY,
-                                                        APP_CONTROL_MAX_ABS_DUTY);
+                                                        APP_CONTROL_DUTY_MIN,
+                                                        APP_CONTROL_DUTY_MAX);
         ret = AppControl_SetDrvDuty(drv, g_app_control_test_duty[drv]);
         g_app_control_drv_test_status[drv] = ret;
         if (ret == DRV8703_OK)
@@ -2670,6 +2716,8 @@ static void AppControl_DrvTestPollFaults(uint32_t now_ms)
         DRV8703_Status_t pin_ret;
 
         if ((g_app_control_drv_test_active_mask & bit) == 0U)
+            continue;
+        if (AppControl_DrvEnabled(drv) == 0U)
             continue;
 
         dev = DRV8703_BoardGet((DRV8703_BoardChannel_t)drv);
@@ -2722,8 +2770,8 @@ static void AppControl_DrvTestTask(uint32_t now_ms)
             continue;
 
         g_app_control_test_duty[drv] = AppControl_Clamp(g_app_control_test_duty[drv],
-                                                        -APP_CONTROL_MAX_ABS_DUTY,
-                                                        APP_CONTROL_MAX_ABS_DUTY);
+                                                        APP_CONTROL_DUTY_MIN,
+                                                        APP_CONTROL_DUTY_MAX);
         if (AppControl_SetDrvDuty(drv, g_app_control_test_duty[drv]) != DRV8703_OK)
         {
             g_app_control_drv_test_fault_mask |= bit;
@@ -2790,10 +2838,10 @@ AppControl_Status_t AppControl_Init(void)
                  APP_CONTROL_TEMP_PID_KD,
                  APP_CONTROL_TEMP_PID_DT_S);
         PID_SetLimits(&s_cell_pid[i],
-                      -APP_CONTROL_MAX_ABS_DUTY,
-                      APP_CONTROL_MAX_ABS_DUTY,
-                      -APP_CONTROL_MAX_ABS_DUTY,
-                      APP_CONTROL_MAX_ABS_DUTY);
+                      APP_CONTROL_DUTY_MIN,
+                      APP_CONTROL_DUTY_MAX,
+                      APP_CONTROL_DUTY_MIN,
+                      APP_CONTROL_DUTY_MAX);
     }
 
     for (i = 0U; i < APP_CONTROL_CLOSED_LOOP_COUNT; i++)
@@ -2960,7 +3008,7 @@ void AppControl_Task(uint32_t now_ms)
 
     AppControl_WaterCheck(now_ms);
     AppControl_ApplyDebugState();
-    Ads1220_Test(); /* 临时：ADS1220 测试，验证通过后删除。*/
+    Ads1220_Service(now_ms);
 
     /* PC 协议：每 1s 发送一次过程数据。*/
     {
@@ -2993,22 +3041,22 @@ DRV8703_Status_t AppControl_StartDrvTest(uint8_t drv_mask, const float duty[APP_
     uint8_t drv;
     float requested_duty[APP_CONTROL_DRV_COUNT];
 
-    drv_mask &= APP_CONTROL_DRV_ALL_MASK;
+    drv_mask &= APP_CONTROL_DRV_ENABLE_MASK;
     if ((drv_mask == 0U) || (duty == 0))
         return DRV8703_ERROR_PARAM;
 
     for (drv = 0U; drv < APP_CONTROL_DRV_COUNT; drv++)
     {
         requested_duty[drv] = AppControl_Clamp(duty[drv],
-                                               -APP_CONTROL_MAX_ABS_DUTY,
-                                               APP_CONTROL_MAX_ABS_DUTY);
+                                               APP_CONTROL_DUTY_MIN,
+                                               APP_CONTROL_DUTY_MAX);
     }
 
     AppControl_Lock();
 
     AppControl_StopCell(0U, APP_CONTROL_STOP_EMERGENCY);
     AppControl_StopCell(1U, APP_CONTROL_STOP_EMERGENCY);
-    AppControl_StopDrvTestOutputs(APP_CONTROL_DRV_ALL_MASK);
+    AppControl_StopDrvTestOutputs(APP_CONTROL_DRV_ENABLE_MASK);
 
     g_app_control_drv_test_requested_mask = drv_mask;
     g_app_control_drv_test_active_mask = 0U;
@@ -3043,7 +3091,7 @@ void AppControl_StopDrvTest(void)
 
     AppControl_Lock();
 
-    AppControl_StopDrvTestOutputs(APP_CONTROL_DRV_ALL_MASK);
+    AppControl_StopDrvTestOutputs(APP_CONTROL_DRV_ENABLE_MASK);
     g_app_control_test_active = 0U;
     g_app_control_test_phase = 2U;
     g_app_control_drv_test_requested_mask = 0U;

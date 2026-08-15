@@ -37,11 +37,17 @@ static const Ads1220_Cfg_t g_ads_cfgs[] =
 
 /** @brief 实际使用的 ADS1220 数量：1 或 2 */
 #define ADS1220_ACTIVE_COUNT  1U
+#define ADS1220_SERVICE_INTERVAL_MS 1000U
 
 /* ============================================================
  * 私有变量
  * ============================================================ */
 static uint16_t g_last_cs_pin = 0U;  /* 上次选中的 CS，避免重复操作 */
+
+volatile float g_ads1220_env_temp_c = 0.0f;
+volatile float g_ads1220_env_res_ohm = 0.0f;
+volatile uint8_t g_ads1220_env_valid = 0U;
+volatile uint32_t g_ads1220_env_update_ms = 0U;
 
 /* ============================================================
  * 底层 SPI 与安全互斥片选
@@ -270,6 +276,36 @@ float Ads1220_ResistanceToTemp(float resistance)
 /**
  * @brief  每秒轮询所有 ADS1220 通道，USART2 输出阻值和温度
  */
+void Ads1220_Service(uint32_t now_ms)
+{
+    static uint32_t s_last_ms = 0U;
+    uint8_t i;
+
+    if ((now_ms - s_last_ms) < ADS1220_SERVICE_INTERVAL_MS)
+        return;
+    s_last_ms = now_ms;
+
+    g_ads1220_env_valid = 0U;
+
+    for (i = 0U; i < ADS1220_ACTIVE_COUNT; i++)
+    {
+        if (!Ads1220_IsReady(&g_ads_cfgs[i]))
+            continue;
+
+        {
+            float r = Ads1220_FetchResistance(&g_ads_cfgs[i]);
+            if (r <= 0.0f)
+                continue;
+
+            g_ads1220_env_res_ohm = r;
+            g_ads1220_env_temp_c = Ads1220_ResistanceToTemp(r);
+            g_ads1220_env_valid = 1U;
+            g_ads1220_env_update_ms = now_ms;
+            break;
+        }
+    }
+}
+
 void Ads1220_Test(void)
 {
     static uint32_t s_last_ms = 0U;
