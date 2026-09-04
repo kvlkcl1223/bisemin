@@ -70,6 +70,18 @@
 #define APP_CONTROL_DRV_TEST_DEFAULT_DUTY APP_CONTROL_SHARED_CH5_DUTY
 /** @brief 测试模式发现某一路故障后是否关闭全部测试通道；0 表示只关故障通道。 */
 #define APP_CONTROL_DRV_TEST_STOP_ALL_ON_FAULT 0U
+/** @brief Auto probe DRV8703 config response once at ControlTask startup. */
+#define APP_CONTROL_DRV_PROBE_AUTO_START_ENABLE 0U
+/** @brief DRV8703 channels included in the startup config probe. */
+#define APP_CONTROL_DRV_PROBE_MASK APP_CONTROL_DRV_ENABLE_MASK
+/** @brief Probe only compares writable config registers; REG0/REG1 are fault status. */
+#define APP_CONTROL_DRV_PROBE_CONFIG_REG_MASK ((uint8_t)0x3CU)
+/** @brief Temporary auto-start of one DRV output test. Keep disabled for config probe. */
+#define APP_CONTROL_DRV_TEST_AUTO_START_ENABLE 1U
+/** @brief Auto-test DRV channel index: 0=DRV1, 1=DRV2, 2=DRV3, 3=DRV4, 4=DRV5. */
+#define APP_CONTROL_DRV_TEST_AUTO_CHANNEL 1U
+/** @brief Auto-test DRV duty. */
+#define APP_CONTROL_DRV_TEST_AUTO_DUTY 0.10f
 /** @brief 所有 DRV 通道组成的位掩码，bit0..bit4 对应 DRV1..DRV5。 */
 #define APP_CONTROL_DRV_ALL_MASK ((uint8_t)((1U << APP_CONTROL_DRV_COUNT) - 1U))
 
@@ -103,37 +115,35 @@ typedef struct
 /** @brief 单个 cell 的硬件通道配置，由 app_control.h 的宏生成。*/
 typedef struct
 {
-    uint8_t temp_outer;  /**< 外层测温输入索引，0..3 对应 CH1..CH4。*/
-    uint8_t temp_inner;  /**< 内层测温输入索引，0..3 对应 CH1..CH4。*/
-    uint8_t drv_outer;   /**< 外层/主路 DRV 索引，0..4 对应 DRV1..DRV5。*/
-    uint8_t drv_inner;   /**< 内层/从路 DRV 索引，输出 duty = 外层 duty * inner_ratio。*/
-    float inner_ratio;   /**< 内层 duty 跟随比例。*/
-    uint8_t shared_drv;  /**< 该 cell 运行时需要同时打开的共享 DRV，0xFF 表示不用。*/
-    float shared_duty;   /**< 共享 DRV 运行时固定 duty。*/
+    uint8_t temp_outer;        /**< 外层测温输入索引，0..3 对应 CH1..CH4。*/
+    uint8_t temp_inner;        /**< 内层测温输入索引，0..3 对应 CH1..CH4。*/
+    uint8_t drv_outer;         /**< 外层/主路 DRV 索引，0..4 对应 DRV1..DRV5。*/
+    uint8_t drv_inner;         /**< 内层/从路 DRV 索引。*/
+    float cooling_inner_ratio; /**< 制冷：inner = outer * ratio。*/
+    float heating_outer_ratio; /**< 加热：outer = inner * ratio。*/
+    uint8_t shared_drv;        /**< 该 cell 运行时需要同时打开的共享 DRV，0xFF 表示不用。*/
+    float shared_duty;         /**< 共享 DRV 运行时固定 duty。*/
 } AppControlCellConfig_t;
 
 /** @brief 两个 cell 的通道映射表；后续换线优先修改 app_control.h 的宏。*/
 static const AppControlCellConfig_t s_cell_config[APP_CONTROL_CELL_COUNT] =
-{
     {
-        APP_CONTROL_CELL0_TEMP_OUTER,
-        APP_CONTROL_CELL0_TEMP_INNER,
-        APP_CONTROL_CELL0_DRV_OUTER,
-        APP_CONTROL_CELL0_DRV_INNER,
-        APP_CONTROL_CELL0_INNER_DUTY_RATIO,
-        APP_CONTROL_CELL_SHARED_DRV,
-        APP_CONTROL_CELL_SHARED_DUTY
-    },
-    {
-        APP_CONTROL_CELL1_TEMP_OUTER,
-        APP_CONTROL_CELL1_TEMP_INNER,
-        APP_CONTROL_CELL1_DRV_OUTER,
-        APP_CONTROL_CELL1_DRV_INNER,
-        APP_CONTROL_CELL1_INNER_DUTY_RATIO,
-        APP_CONTROL_CELL_SHARED_DRV,
-        APP_CONTROL_CELL_SHARED_DUTY
-    }
-};
+        {APP_CONTROL_CELL0_TEMP_OUTER,
+         APP_CONTROL_CELL0_TEMP_INNER,
+         APP_CONTROL_CELL0_DRV_OUTER,
+         APP_CONTROL_CELL0_DRV_INNER,
+         APP_CONTROL_CELL0_COOLING_INNER_DUTY_RATIO,
+         APP_CONTROL_CELL0_HEATING_OUTER_DUTY_RATIO,
+         APP_CONTROL_CELL_SHARED_DRV,
+         APP_CONTROL_CELL_SHARED_DUTY},
+        {APP_CONTROL_CELL1_TEMP_OUTER,
+         APP_CONTROL_CELL1_TEMP_INNER,
+         APP_CONTROL_CELL1_DRV_OUTER,
+         APP_CONTROL_CELL1_DRV_INNER,
+         APP_CONTROL_CELL1_COOLING_INNER_DUTY_RATIO,
+         APP_CONTROL_CELL1_HEATING_OUTER_DUTY_RATIO,
+         APP_CONTROL_CELL_SHARED_DRV,
+         APP_CONTROL_CELL_SHARED_DUTY}};
 
 /* 公开调试变量：模块状态、cell 状态、DRV 故障快照和频率统计。*/
 volatile uint8_t g_app_control_simulate_drv8703 = 0U;
@@ -149,10 +159,9 @@ volatile float g_app_control_cell_duty[APP_CONTROL_CELL_COUNT] = {0.0f, 0.0f};
 volatile float g_app_control_cell_outer_duty[APP_CONTROL_CELL_COUNT] = {0.0f, 0.0f};
 volatile float g_app_control_cell_inner_duty[APP_CONTROL_CELL_COUNT] = {0.0f, 0.0f};
 volatile float g_app_control_cell_inner_ratio[APP_CONTROL_CELL_COUNT] =
-{
-    APP_CONTROL_CELL0_INNER_DUTY_RATIO,
-    APP_CONTROL_CELL1_INNER_DUTY_RATIO
-};
+    {
+        APP_CONTROL_CELL0_COOLING_INNER_DUTY_RATIO,
+        APP_CONTROL_CELL1_COOLING_INNER_DUTY_RATIO};
 volatile float g_app_control_pid_temp[APP_CONTROL_CLOSED_LOOP_COUNT] = {25.0f, 25.0f, 25.0f, 25.0f};
 volatile float g_app_control_pid_duty[APP_CONTROL_CLOSED_LOOP_COUNT] = {0.0f, 0.0f, 0.0f, 0.0f};
 volatile uint8_t g_app_control_pid_update_pending[APP_CONTROL_CLOSED_LOOP_COUNT] = {0};
@@ -194,7 +203,7 @@ volatile uint16_t g_app_control_drv_startup_rx[APP_CONTROL_DRV_COUNT][DRV8703_RE
         {0U, 0U, 0U, 0U, 0U, 0U}};
 volatile uint8_t g_app_control_drv_startup_expected[DRV8703_REGISTER_COUNT] =
     {
-        0x00U, 0x00U, 0x18U, 0x07U, 0x70U, 0x01U};
+        0x00U, 0x00U, 0x30U, 0xC7U, 0x70U, 0x01U};
 volatile uint8_t g_app_control_last_drv_fault = 0xFFU;
 volatile DRV8703_Status_t g_app_control_last_drv_status = DRV8703_OK;
 volatile uint8_t g_app_control_drv_fault_snapshot_valid[APP_CONTROL_DRV_COUNT] = {0};
@@ -299,6 +308,44 @@ volatile DRV8703_Status_t g_app_control_drv_test_status[APP_CONTROL_DRV_COUNT] =
     {
         DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK};
 
+volatile uint8_t g_app_control_drv_probe_request_mask = 0U;
+volatile uint8_t g_app_control_drv_probe_done_mask = 0U;
+volatile uint8_t g_app_control_drv_probe_pass_mask = 0U;
+volatile uint8_t g_app_control_drv_probe_fail_mask = 0U;
+volatile uint8_t g_app_control_drv_probe_read_ok_mask[APP_CONTROL_DRV_COUNT] = {0U, 0U, 0U, 0U, 0U};
+volatile uint8_t g_app_control_drv_probe_mismatch_mask[APP_CONTROL_DRV_COUNT] = {0U, 0U, 0U, 0U, 0U};
+volatile DRV8703_Status_t g_app_control_drv_probe_status[APP_CONTROL_DRV_COUNT] =
+    {
+        DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK};
+volatile uint8_t g_app_control_drv_probe_reg_dump[APP_CONTROL_DRV_COUNT][DRV8703_REGISTER_COUNT] =
+    {
+        {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU},
+        {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU},
+        {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU},
+        {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU},
+        {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU}};
+volatile DRV8703_Status_t g_app_control_drv_probe_reg_status[APP_CONTROL_DRV_COUNT][DRV8703_REGISTER_COUNT] =
+    {
+        {DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK},
+        {DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK},
+        {DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK},
+        {DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK},
+        {DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK}};
+volatile uint16_t g_app_control_drv_probe_tx[APP_CONTROL_DRV_COUNT][DRV8703_REGISTER_COUNT] =
+    {
+        {0U, 0U, 0U, 0U, 0U, 0U},
+        {0U, 0U, 0U, 0U, 0U, 0U},
+        {0U, 0U, 0U, 0U, 0U, 0U},
+        {0U, 0U, 0U, 0U, 0U, 0U},
+        {0U, 0U, 0U, 0U, 0U, 0U}};
+volatile uint16_t g_app_control_drv_probe_rx[APP_CONTROL_DRV_COUNT][DRV8703_REGISTER_COUNT] =
+    {
+        {0U, 0U, 0U, 0U, 0U, 0U},
+        {0U, 0U, 0U, 0U, 0U, 0U},
+        {0U, 0U, 0U, 0U, 0U, 0U},
+        {0U, 0U, 0U, 0U, 0U, 0U},
+        {0U, 0U, 0U, 0U, 0U, 0U}};
+
 volatile uint32_t g_app_control_drv_raw_poll_count = 0U;
 volatile uint8_t g_app_control_drv_raw_dump[APP_CONTROL_DRV_COUNT][DRV8703_REGISTER_COUNT] =
     {
@@ -313,38 +360,38 @@ volatile DRV8703_Status_t g_app_control_drv_raw_status[APP_CONTROL_DRV_COUNT] =
         DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK};
 
 /* 内部运行状态：命令队列、cell/PID 状态、输出斜率限制和测温频率统计。*/
-static osMessageQueueId_t s_cmd_queue; /**< 控制命令队列句柄，接收面板/上位机启停请求。*/
-static AppControlCell_t s_cell[APP_CONTROL_CELL_COUNT]; /**< 两个 cell 的内部运行状态。*/
-static PID_TypeDef s_cell_pid[APP_CONTROL_CELL_COUNT]; /**< 每个 cell 一个 PID，反馈量为两路测温均值。*/
-static uint32_t s_last_fault_poll_ms = 0U; /**< 上一次 DRV 故障轮询时间。*/
-static uint32_t s_last_reg_snapshot_ms = 0U; /**< 上一次周期寄存器快照时间。*/
-static uint8_t s_temp_pid_update_pending[APP_CONTROL_CLOSED_LOOP_COUNT] = {0}; /**< 按闭环 DRV 通道展开的 PID 更新标志。*/
-static uint8_t s_cell_pid_update_pending[APP_CONTROL_CELL_COUNT] = {0U, 0U}; /**< 按 cell 记录的 PID 更新标志。*/
+static osMessageQueueId_t s_cmd_queue;                                                          /**< 控制命令队列句柄，接收面板/上位机启停请求。*/
+static AppControlCell_t s_cell[APP_CONTROL_CELL_COUNT];                                         /**< 两个 cell 的内部运行状态。*/
+static PID_TypeDef s_cell_pid[APP_CONTROL_CELL_COUNT];                                          /**< 每个 cell 一个 PID，反馈量为两路测温均值。*/
+static uint32_t s_last_fault_poll_ms = 0U;                                                      /**< 上一次 DRV 故障轮询时间。*/
+static uint32_t s_last_reg_snapshot_ms = 0U;                                                    /**< 上一次周期寄存器快照时间。*/
+static uint8_t s_temp_pid_update_pending[APP_CONTROL_CLOSED_LOOP_COUNT] = {0};                  /**< 按闭环 DRV 通道展开的 PID 更新标志。*/
+static uint8_t s_cell_pid_update_pending[APP_CONTROL_CELL_COUNT] = {0U, 0U};                    /**< 按 cell 记录的 PID 更新标志。*/
 static float s_temp_channel_temp[APP_CONTROL_CLOSED_LOOP_COUNT] = {25.0f, 25.0f, 25.0f, 25.0f}; /**< 每个闭环 DRV 通道对应的测温显示值。*/
-static float s_temp_channel_duty[APP_CONTROL_CLOSED_LOOP_COUNT] = {0.0f, 0.0f, 0.0f, 0.0f}; /**< 每个闭环 DRV 通道最近 duty。*/
-static float s_cell_base_output_duty[APP_CONTROL_CELL_COUNT] = {0.0f, 0.0f}; /**< cell 外层/主路 duty 的斜率限制状态。*/
-static float s_drv_output_duty[APP_CONTROL_DRV_COUNT] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f}; /**< 每个 DRV 最近实际输出 duty。*/
-static uint8_t s_cell_pid_feedback_enabled[APP_CONTROL_CELL_COUNT] = {0U, 0U}; /**< 普通模式 PID 反馈是否已启用。*/
-static uint32_t s_cell_pid_feedback_start_ms[APP_CONTROL_CELL_COUNT] = {0U, 0U}; /**< 普通模式等待 PID 反馈启用的起始时间。*/
-static uint32_t s_temp_last_pid_count[APP_CONTROL_CLOSED_LOOP_COUNT] = {0U, 0U, 0U, 0U}; /**< 上一次触发 PID 时各测温通道的更新计数。*/
-static uint32_t s_cell_last_pid_ms[APP_CONTROL_CELL_COUNT] = {0U, 0U}; /**< 每个 cell 上一个 PID 计算时间。*/
-static uint32_t s_temp_freq_last_count[APP_CONTROL_TEMP_INPUT_COUNT] = {0U, 0U, 0U, 0U}; /**< 测温频率统计的上一次计数。*/
-static uint32_t s_temp_freq_last_tick[APP_CONTROL_TEMP_INPUT_COUNT] = {0U, 0U, 0U, 0U}; /**< 测温频率统计的上一次时间。*/
-static uint32_t s_pid_freq_last_tick[APP_CONTROL_CLOSED_LOOP_COUNT] = {0U, 0U, 0U, 0U}; /**< PID 频率统计的上一次时间。*/
+static float s_temp_channel_duty[APP_CONTROL_CLOSED_LOOP_COUNT] = {0.0f, 0.0f, 0.0f, 0.0f};     /**< 每个闭环 DRV 通道最近 duty。*/
+static float s_cell_base_output_duty[APP_CONTROL_CELL_COUNT] = {0.0f, 0.0f};                    /**< cell 外层/主路 duty 的斜率限制状态。*/
+static float s_drv_output_duty[APP_CONTROL_DRV_COUNT] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};         /**< 每个 DRV 最近实际输出 duty。*/
+static uint8_t s_cell_pid_feedback_enabled[APP_CONTROL_CELL_COUNT] = {0U, 0U};                  /**< 普通模式 PID 反馈是否已启用。*/
+static uint32_t s_cell_pid_feedback_start_ms[APP_CONTROL_CELL_COUNT] = {0U, 0U};                /**< 普通模式等待 PID 反馈启用的起始时间。*/
+static uint32_t s_temp_last_pid_count[APP_CONTROL_CLOSED_LOOP_COUNT] = {0U, 0U, 0U, 0U};        /**< 上一次触发 PID 时各测温通道的更新计数。*/
+static uint32_t s_cell_last_pid_ms[APP_CONTROL_CELL_COUNT] = {0U, 0U};                          /**< 每个 cell 上一个 PID 计算时间。*/
+static uint32_t s_temp_freq_last_count[APP_CONTROL_TEMP_INPUT_COUNT] = {0U, 0U, 0U, 0U};        /**< 测温频率统计的上一次计数。*/
+static uint32_t s_temp_freq_last_tick[APP_CONTROL_TEMP_INPUT_COUNT] = {0U, 0U, 0U, 0U};         /**< 测温频率统计的上一次时间。*/
+static uint32_t s_pid_freq_last_tick[APP_CONTROL_CLOSED_LOOP_COUNT] = {0U, 0U, 0U, 0U};         /**< PID 频率统计的上一次时间。*/
 
 /* 低温虚拟显示：真实传感器到达下限后，用估算值继续给面板显示。*/
 #if TEMP_VIRTUAL_LOW_ENABLE
 /** @brief 低温虚拟显示状态，仅在 TEMP_VIRTUAL_LOW_ENABLE 打开时编译。*/
 typedef struct
 {
-    uint8_t active;          /**< 是否已经进入虚拟显示区间。*/
-    uint8_t started;         /**< 虚拟显示估算是否已完成首次初始化。*/
-    float last_real_temp;    /**< 上一次真实测温值。*/
-    float learned_rate_cps;  /**< 根据真实温度变化学习到的降温速率。*/
-    float virtual_temp;      /**< 当前虚拟显示温度。*/
-    float noise;             /**< 当前叠加噪声值。*/
-    uint32_t last_ms;        /**< 上一次虚拟温度更新时间。*/
-    uint32_t rng;            /**< 简单伪随机数状态，用于噪声。*/
+    uint8_t active;         /**< 是否已经进入虚拟显示区间。*/
+    uint8_t started;        /**< 虚拟显示估算是否已完成首次初始化。*/
+    float last_real_temp;   /**< 上一次真实测温值。*/
+    float learned_rate_cps; /**< 根据真实温度变化学习到的降温速率。*/
+    float virtual_temp;     /**< 当前虚拟显示温度。*/
+    float noise;            /**< 当前叠加噪声值。*/
+    uint32_t last_ms;       /**< 上一次虚拟温度更新时间。*/
+    uint32_t rng;           /**< 简单伪随机数状态，用于噪声。*/
 } AppControlVirtualLowTemp_t;
 
 /** @brief 进入低温虚拟显示的真实温度阈值。*/
@@ -360,10 +407,9 @@ typedef struct
 
 /** @brief 每个 cell 的低温虚拟显示状态。*/
 static AppControlVirtualLowTemp_t s_virtual_low[APP_CONTROL_CELL_COUNT] =
-{
-    {0U, 0U, 25.0f, APP_CONTROL_VIRTUAL_DEFAULT_RATE_CPS, 25.0f, 0.0f, 0U, 0x13572468UL},
-    {0U, 0U, 25.0f, APP_CONTROL_VIRTUAL_DEFAULT_RATE_CPS, 25.0f, 0.0f, 0U, 0x24681357UL}
-};
+    {
+        {0U, 0U, 25.0f, APP_CONTROL_VIRTUAL_DEFAULT_RATE_CPS, 25.0f, 0.0f, 0U, 0x13572468UL},
+        {0U, 0U, 25.0f, APP_CONTROL_VIRTUAL_DEFAULT_RATE_CPS, 25.0f, 0.0f, 0U, 0x24681357UL}};
 
 /** @brief 每个 cell 给面板/调试变量使用的显示温度。*/
 static float s_cell_display_temp[APP_CONTROL_CELL_COUNT] = {25.0f, 25.0f};
@@ -372,26 +418,26 @@ static float s_temp_channel_display_temp[APP_CONTROL_CLOSED_LOOP_COUNT] = {25.0f
 #endif
 /* 测温传感器复位、手动测试、标定切换和水位检测相关内部状态。*/
 static uint32_t s_temp_reset_release_ms = 0U; /**< 测温传感器复位释放时间。*/
-static uint32_t s_temp_last_reset_ms = 0U; /**< 上一次测温传感器复位请求时间。*/
-static uint32_t s_last_raw_poll_ms = 0U; /**< 上一次 DRV 原始寄存器轮询时间。*/
+static uint32_t s_temp_last_reset_ms = 0U;    /**< 上一次测温传感器复位请求时间。*/
+static uint32_t s_last_raw_poll_ms = 0U;      /**< 上一次 DRV 原始寄存器轮询时间。*/
 
 static uint32_t s_temp_last_count_for_stale[APP_CONTROL_TEMP_INPUT_COUNT] = {0U, 0U, 0U, 0U}; /**< 测温陈旧检测用的上一次更新计数。*/
-uint8_t s_temp_stale_cycles[APP_CONTROL_TEMP_INPUT_COUNT] = {0U, 0U, 0U, 0U}; /**< 每路测温连续陈旧周期计数，保留非 static 便于调试观察。*/
+uint8_t s_temp_stale_cycles[APP_CONTROL_TEMP_INPUT_COUNT] = {0U, 0U, 0U, 0U};                 /**< 每路测温连续陈旧周期计数，保留非 static 便于调试观察。*/
 
-static uint8_t s_test_drv_initialized = 0U; /**< DRV 测试模式是否已经完成本轮通道初始化。 */
+static uint8_t s_test_drv_initialized = 0U;         /**< DRV 测试模式是否已经完成本轮通道初始化。 */
 static uint32_t s_drv_test_last_fault_poll_ms = 0U; /**< DRV 测试模式上一次 FAULT 轮询时间。 */
-static uint8_t s_calib_was_active = 0U; /**< 记录上一周期是否处于标定模式，用于标定结束后重新加载 Flash。*/
-static uint32_t s_last_water_check_ms = 0U; /**< 水位检测心跳上一次执行时间。*/
+static uint8_t s_calib_was_active = 0U;             /**< 记录上一周期是否处于标定模式，用于标定结束后重新加载 Flash。*/
+static uint32_t s_last_water_check_ms = 0U;         /**< 水位检测心跳上一次执行时间。*/
 
 /* 标定数据缓存，用于前馈控制 ------------------------------------------------*/
 /** @brief Flash 标定数据缓存，前馈控制按目标温度查表得到基础 duty。*/
 typedef struct
 {
-    uint8_t loaded;                    /**< 标定数据是否已成功从 Flash 加载。*/
-    float duty[CALIB_DUTY_COUNT];      /**< 标定表中的外层/主路 duty 序列。*/
-    float temp_ch0[CALIB_DUTY_COUNT];  /**< 标定时第一路测温稳定温度。*/
-    float temp_ch1[CALIB_DUTY_COUNT];  /**< 标定时第二路测温稳定温度。*/
-    float temp_avg[CALIB_DUTY_COUNT];  /**< 两路测温均值，前馈查表实际使用该曲线。*/
+    uint8_t loaded;                   /**< 标定数据是否已成功从 Flash 加载。*/
+    float duty[CALIB_DUTY_COUNT];     /**< 标定表中的外层/主路 duty 序列。*/
+    float temp_ch0[CALIB_DUTY_COUNT]; /**< 标定时第一路测温稳定温度。*/
+    float temp_ch1[CALIB_DUTY_COUNT]; /**< 标定时第二路测温稳定温度。*/
+    float temp_avg[CALIB_DUTY_COUNT]; /**< 两路测温均值，前馈查表实际使用该曲线。*/
 } CalibCache_t;
 
 static CalibCache_t s_calib_cache[APP_CONTROL_CELL_COUNT]; /**< 两个 cell 的前馈标定缓存。*/
@@ -512,13 +558,75 @@ static uint8_t AppControl_DrvEnabled(uint8_t drv)
 }
 
 /** @brief 获取指定 cell 的内。duty 跟随比例。*/
-static float AppControl_CellInnerRatio(uint8_t cell)
+static float AppControl_CellCoolingInnerRatio(uint8_t cell)
 {
     const AppControlCellConfig_t *cfg = AppControl_CellConfig(cell);
 
     if (cfg == 0)
         return 0.0f;
-    return cfg->inner_ratio;
+    return cfg->cooling_inner_ratio;
+}
+
+static float AppControl_CellHeatingOuterRatio(uint8_t cell)
+{
+    const AppControlCellConfig_t *cfg = AppControl_CellConfig(cell);
+
+    if (cfg == 0)
+        return 0.0f;
+    return cfg->heating_outer_ratio;
+}
+
+static uint8_t AppControl_CellIsHeating(uint8_t cell)
+{
+    float boundary_temp;
+
+    if (cell >= APP_CONTROL_CELL_COUNT)
+        return 0U;
+
+    boundary_temp = (g_ads1220_env_valid != 0U)
+                        ? g_ads1220_env_temp_c
+                        : s_cell[cell].current_temp;
+
+    return (s_cell[cell].target_temp > boundary_temp) ? 1U : 0U;
+}
+
+static void AppControl_CalcCellStackDuties(uint8_t cell,
+                                           float main_duty,
+                                           float *outer_duty,
+                                           float *inner_duty,
+                                           float *active_ratio)
+{
+    float ratio;
+    float out = 0.0f;
+    float in = 0.0f;
+
+    main_duty = AppControl_Clamp(main_duty,
+                                 APP_CONTROL_DUTY_MIN,
+                                 APP_CONTROL_DUTY_MAX);
+
+    if (AppControl_CellIsHeating(cell) != 0U)
+    {
+        ratio = AppControl_CellHeatingOuterRatio(cell);
+        in = main_duty;
+        out = AppControl_Clamp(in * ratio,
+                               APP_CONTROL_DUTY_MIN,
+                               APP_CONTROL_DUTY_MAX);
+    }
+    else
+    {
+        ratio = AppControl_CellCoolingInnerRatio(cell);
+        out = main_duty;
+        in = AppControl_Clamp(out * ratio,
+                              APP_CONTROL_DUTY_MIN,
+                              APP_CONTROL_DUTY_MAX);
+    }
+
+    if (outer_duty != 0)
+        *outer_duty = out;
+    if (inner_duty != 0)
+        *inner_duty = in;
+    if (active_ratio != 0)
+        *active_ratio = ratio;
 }
 
 /** @brief 记录指定 DRV 当前 duty 到内部和调试数组。*/
@@ -533,25 +641,29 @@ static void AppControl_RecordDrvDuty(uint8_t drv, float duty)
 }
 
 /** @brief 根据外层 duty 计算并记录 cell 的外层/内层 duty。*/
-static void AppControl_RecordCellDuties(uint8_t cell, float outer_duty)
+static void AppControl_RecordCellDuties(uint8_t cell, float main_duty)
 {
     const AppControlCellConfig_t *cfg = AppControl_CellConfig(cell);
+    float outer_duty;
     float inner_duty;
+    float active_ratio;
 
     if (cfg == 0)
         return;
 
-    outer_duty = AppControl_Clamp(outer_duty,
-                                  APP_CONTROL_DUTY_MIN,
-                                  APP_CONTROL_DUTY_MAX);
-    inner_duty = AppControl_Clamp(outer_duty * AppControl_CellInnerRatio(cell),
-                                  APP_CONTROL_DUTY_MIN,
-                                  APP_CONTROL_DUTY_MAX);
+    main_duty = AppControl_Clamp(main_duty,
+                                 APP_CONTROL_DUTY_MIN,
+                                 APP_CONTROL_DUTY_MAX);
+    AppControl_CalcCellStackDuties(cell,
+                                   main_duty,
+                                   &outer_duty,
+                                   &inner_duty,
+                                   &active_ratio);
 
-    s_cell[cell].duty = outer_duty;
+    s_cell[cell].duty = main_duty;
     g_app_control_cell_outer_duty[cell] = outer_duty;
     g_app_control_cell_inner_duty[cell] = inner_duty;
-    g_app_control_cell_inner_ratio[cell] = AppControl_CellInnerRatio(cell);
+    g_app_control_cell_inner_ratio[cell] = active_ratio;
 
     AppControl_RecordDrvDuty(cfg->drv_outer, outer_duty);
     AppControl_RecordDrvDuty(cfg->drv_inner, inner_duty);
@@ -670,7 +782,6 @@ static uint8_t AppControl_RequestTempSensorReset(uint32_t now_ms)
     g_app_control_temp_reset_active = 1U;
     return 1U;
 }
-
 
 /** @brief Panel error code for a DRV8703 fault on a given cell. */
 /** @brief 按 cell 编号转换为对应的 DRV 故障面板错误码。*/
@@ -1622,11 +1733,12 @@ DRV8703_Status_t AppControl_SetDrvDuty(uint8_t drv, float duty)
     return ret;
 }
 
-/** @brief 设置一个 cell 的堆叠输出：外层使用 outer_duty，内层按比例跟随。*/
-DRV8703_Status_t AppControl_SetCellStackDuty(uint8_t cell, float outer_duty)
+/** @brief 设置一个 cell 的堆叠输出：制冷外层为主，加热内层为主。*/
+DRV8703_Status_t AppControl_SetCellStackDuty(uint8_t cell, float main_duty)
 {
     const AppControlCellConfig_t *cfg = AppControl_CellConfig(cell);
     DRV8703_Status_t ret;
+    float outer_duty;
     float inner_duty;
 
     if (cfg == 0)
@@ -1637,15 +1749,17 @@ DRV8703_Status_t AppControl_SetCellStackDuty(uint8_t cell, float outer_duty)
         AppControl_DrvEnabled(cfg->drv_inner) == 0U)
         return DRV8703_ERROR_PARAM;
 
-    outer_duty = AppControl_Clamp(outer_duty,
-                                  APP_CONTROL_DUTY_MIN,
-                                  APP_CONTROL_DUTY_MAX);
-    inner_duty = AppControl_Clamp(outer_duty * AppControl_CellInnerRatio(cell),
-                                  APP_CONTROL_DUTY_MIN,
-                                  APP_CONTROL_DUTY_MAX);
+    main_duty = AppControl_Clamp(main_duty,
+                                 APP_CONTROL_DUTY_MIN,
+                                 APP_CONTROL_DUTY_MAX);
+    AppControl_CalcCellStackDuties(cell,
+                                   main_duty,
+                                   &outer_duty,
+                                   &inner_duty,
+                                   0);
 
-    s_cell_base_output_duty[cell] = outer_duty;
-    AppControl_RecordCellDuties(cell, outer_duty);
+    s_cell_base_output_duty[cell] = main_duty;
+    AppControl_RecordCellDuties(cell, main_duty);
 
     ret = AppControl_SetDrvDuty(cfg->drv_outer, outer_duty);
     if (ret != DRV8703_OK)
@@ -1669,7 +1783,11 @@ uint8_t AppControl_GetCellInnerTempIndex(uint8_t cell)
 
 float AppControl_GetCellInnerDutyRatio(uint8_t cell)
 {
-    return AppControl_CellInnerRatio(cell);
+    if (cell >= APP_CONTROL_CELL_COUNT)
+        return 0.0f;
+    return (AppControl_CellIsHeating(cell) != 0U)
+               ? AppControl_CellHeatingOuterRatio(cell)
+               : AppControl_CellCoolingInnerRatio(cell);
 }
 
 float AppControl_GetCellOuterDuty(uint8_t cell)
@@ -2439,8 +2557,9 @@ static uint8_t AppControl_NormalPidFeedbackReady(uint8_t cell)
  * @brief Run the closed-loop PID control for all active cells.
  *
  * Each cell uses the mean of its configured outer/inner temperature inputs.
- * The PID result is the outer Peltier duty; the inner Peltier follows it by
- * the configured ratio. Feedforward duty from the calibration table is added
+ * The PID result is the active main Peltier duty. Cooling drives the outer
+ * layer as main; heating drives the inner layer as main. The other layer
+ * follows by the configured ratio. Feedforward duty from the calibration table is added
  * to the PID output. The shared DRV8703 channel 5 is driven at a fixed duty
  * whenever any cell is running.
  */
@@ -2453,7 +2572,7 @@ static void AppControl_RunClosedLoop(void)
     for (cell = 0U; cell < APP_CONTROL_CELL_COUNT; cell++)
     {
         const AppControlCellConfig_t *cfg = AppControl_CellConfig(cell);
-        float outer_duty;
+        float main_duty;
 
         if (cfg == 0)
             continue;
@@ -2529,21 +2648,21 @@ static void AppControl_RunClosedLoop(void)
                 PID_Reset(&s_cell_pid[cell]);
             }
 
-            outer_duty = AppControl_Clamp(ff_duty + pid_duty,
-                                          APP_CONTROL_DUTY_MIN,
-                                          APP_CONTROL_DUTY_MAX);
+            main_duty = AppControl_Clamp(ff_duty + pid_duty,
+                                         APP_CONTROL_DUTY_MIN,
+                                         APP_CONTROL_DUTY_MAX);
         }
 
-        if (AppControl_Abs(outer_duty) < 0.001f)
-            outer_duty = 0.0f;
+        if (AppControl_Abs(main_duty) < 0.001f)
+            main_duty = 0.0f;
 
-        outer_duty = AppControl_ApplyCellDutySlew(cell,
-                                                  outer_duty,
-                                                  s_cell_pid[cell].dt);
-        if (AppControl_Abs(outer_duty) < 0.001f)
-            outer_duty = 0.0f;
+        main_duty = AppControl_ApplyCellDutySlew(cell,
+                                                 main_duty,
+                                                 s_cell_pid[cell].dt);
+        if (AppControl_Abs(main_duty) < 0.001f)
+            main_duty = 0.0f;
 
-        if (AppControl_SetCellStackDuty(cell, outer_duty) != DRV8703_OK)
+        if (AppControl_SetCellStackDuty(cell, main_duty) != DRV8703_OK)
         {
             AppControl_SetCellError(cell, AppControl_CellDrvError(cell));
             AppControl_StopCell(cell, APP_CONTROL_STOP_EMERGENCY);
@@ -2630,7 +2749,138 @@ static void AppControl_StopDrvTestOutputs(uint8_t mask)
     }
 }
 
-/** @brief 兼容调试器直接置位 g_app_control_test_active 的用法，自动补齐默认测试参数。 */
+/** @brief Compare DRV8703 probe config registers with the current expected values. */
+static uint8_t AppControl_DrvProbeConfigMismatch(uint8_t drv, uint8_t read_mask)
+{
+    uint8_t reg;
+    uint8_t mismatch = 0U;
+
+    if (drv >= APP_CONTROL_DRV_COUNT)
+        return APP_CONTROL_DRV_PROBE_CONFIG_REG_MASK;
+
+    for (reg = 0U; reg < DRV8703_REGISTER_COUNT; reg++)
+    {
+        uint8_t bit = (uint8_t)(1U << reg);
+
+        if ((APP_CONTROL_DRV_PROBE_CONFIG_REG_MASK & bit) == 0U)
+            continue;
+        if ((read_mask & bit) == 0U)
+        {
+            mismatch |= bit;
+            continue;
+        }
+        if (g_app_control_drv_probe_reg_dump[drv][reg] != g_app_control_drv_startup_expected[reg])
+            mismatch |= bit;
+    }
+
+    return mismatch;
+}
+
+void AppControl_ProbeDrv8703(uint8_t drv_mask)
+{
+    uint8_t drv;
+
+    drv_mask &= APP_CONTROL_DRV_ENABLE_MASK;
+
+    AppControl_Lock();
+    AppControl_StopDrvTestOutputs(APP_CONTROL_DRV_ENABLE_MASK);
+    g_app_control_test_active = 0U;
+    g_app_control_test_phase = 0U;
+    g_app_control_drv_test_active_mask = 0U;
+    g_app_control_drv_test_fault_mask = 0U;
+    s_test_drv_initialized = 0U;
+
+    g_app_control_drv_probe_request_mask = drv_mask;
+    g_app_control_drv_probe_done_mask = 0U;
+    g_app_control_drv_probe_pass_mask = 0U;
+    g_app_control_drv_probe_fail_mask = 0U;
+
+    for (drv = 0U; drv < APP_CONTROL_DRV_COUNT; drv++)
+    {
+        uint8_t reg;
+        uint8_t bit = (uint8_t)(1U << drv);
+        uint8_t read_mask = 0U;
+        uint8_t mismatch;
+        DRV8703_Handle_t *dev;
+        DRV8703_Status_t ret = DRV8703_ERROR_PARAM;
+
+        g_app_control_drv_probe_read_ok_mask[drv] = 0U;
+        g_app_control_drv_probe_mismatch_mask[drv] = 0U;
+        g_app_control_drv_probe_status[drv] = DRV8703_OK;
+        for (reg = 0U; reg < DRV8703_REGISTER_COUNT; reg++)
+        {
+            g_app_control_drv_probe_reg_dump[drv][reg] = 0xFFU;
+            g_app_control_drv_probe_reg_status[drv][reg] = DRV8703_OK;
+            g_app_control_drv_probe_tx[drv][reg] = 0U;
+            g_app_control_drv_probe_rx[drv][reg] = 0U;
+        }
+
+        if ((drv_mask & bit) == 0U)
+            continue;
+
+        if (g_app_control_simulate_drv8703 != 0U)
+        {
+            for (reg = 0U; reg < DRV8703_REGISTER_COUNT; reg++)
+                g_app_control_drv_probe_reg_dump[drv][reg] = g_app_control_drv_startup_expected[reg];
+            g_app_control_drv_probe_read_ok_mask[drv] = 0x3FU;
+            g_app_control_drv_probe_done_mask |= bit;
+            g_app_control_drv_probe_pass_mask |= bit;
+            continue;
+        }
+
+        dev = DRV8703_BoardGet((DRV8703_BoardChannel_t)drv);
+        if (dev != 0)
+        {
+            ret = DRV8703_BoardInitOne((DRV8703_BoardChannel_t)drv);
+            if (ret == DRV8703_OK)
+                ret = DRV8703_BoardApplyDefaultConfig((DRV8703_BoardChannel_t)drv);
+            if (ret == DRV8703_OK)
+                ret = DRV8703_SetVrefMv(dev, APP_CONTROL_DRV_VREF_MV);
+            if (ret == DRV8703_OK)
+                ret = DRV8703_ClearFault(dev);
+            if (ret == DRV8703_OK)
+                ret = DRV8703_Lock(dev);
+
+            for (reg = 0U; reg < DRV8703_REGISTER_COUNT; reg++)
+            {
+                uint8_t value = 0xFFU;
+                DRV8703_Status_t read_ret = DRV8703_ReadReg(dev, reg, &value);
+
+                g_app_control_drv_probe_reg_status[drv][reg] = read_ret;
+                g_app_control_drv_probe_reg_dump[drv][reg] = value;
+                g_app_control_drv_probe_tx[drv][reg] = dev->last_tx;
+                g_app_control_drv_probe_rx[drv][reg] = dev->last_rx;
+                if (read_ret == DRV8703_OK)
+                    read_mask |= (uint8_t)(1U << reg);
+            }
+        }
+
+        mismatch = AppControl_DrvProbeConfigMismatch(drv, read_mask);
+        g_app_control_drv_probe_read_ok_mask[drv] = read_mask;
+        g_app_control_drv_probe_mismatch_mask[drv] = mismatch;
+        g_app_control_drv_probe_done_mask |= bit;
+
+        if ((ret == DRV8703_OK) && (read_mask == 0x3FU) && (mismatch == 0U))
+        {
+            g_app_control_drv_probe_status[drv] = DRV8703_OK;
+            g_app_control_drv_probe_pass_mask |= bit;
+            g_app_control_drv_ready[drv] = 1U;
+            g_app_control_drv_awake[drv] = 1U;
+            g_app_control_drv_fault[drv] = 0U;
+        }
+        else
+        {
+            g_app_control_drv_probe_status[drv] = (ret == DRV8703_OK) ? DRV8703_ERROR_SPI : ret;
+            g_app_control_drv_probe_fail_mask |= bit;
+            g_app_control_drv_ready[drv] = 0U;
+            g_app_control_drv_awake[drv] = 0U;
+            g_app_control_drv_fault[drv] = 1U;
+        }
+    }
+
+    AppControl_Unlock();
+}
+/** @brief Complete default DRV output-test parameters when only g_app_control_test_active is set. */
 static void AppControl_DrvTestEnsureDefaultRequest(void)
 {
     uint8_t drv;
@@ -2688,6 +2938,7 @@ static void AppControl_DrvTestInit(uint32_t now_ms)
         else
         {
             g_app_control_drv_test_fault_mask |= bit;
+            (void)AppControl_CaptureDrvPinFaultMoment(drv, ret, 0U);
             AppControl_StopDrvTestOutput(drv);
         }
     }
@@ -2831,7 +3082,7 @@ AppControl_Status_t AppControl_Init(void)
         s_cell_pid_feedback_start_ms[i] = 0U;
         g_app_control_cell_outer_duty[i] = 0.0f;
         g_app_control_cell_inner_duty[i] = 0.0f;
-        g_app_control_cell_inner_ratio[i] = AppControl_CellInnerRatio(i);
+        g_app_control_cell_inner_ratio[i] = AppControl_CellCoolingInnerRatio(i);
         PID_Init(&s_cell_pid[i],
                  APP_CONTROL_TEMP_PID_KP,
                  APP_CONTROL_TEMP_PID_KI,
@@ -2860,6 +3111,9 @@ AppControl_Status_t AppControl_Init(void)
         g_app_control_test_drv_ok[i] = 0U;
         g_app_control_test_duty[i] = 0.0f;
         g_app_control_drv_test_status[i] = DRV8703_OK;
+        g_app_control_drv_probe_read_ok_mask[i] = 0U;
+        g_app_control_drv_probe_mismatch_mask[i] = 0U;
+        g_app_control_drv_probe_status[i] = DRV8703_OK;
         g_app_control_drv_fault_snapshot_valid[i] = 0U;
         g_app_control_drv_fault_capture_count[i] = 0U;
         g_app_control_drv_fault_read_status[i] = DRV8703_OK;
@@ -2882,6 +3136,10 @@ AppControl_Status_t AppControl_Init(void)
             g_app_control_drv_startup_reg_status[i][reg] = DRV8703_OK;
             g_app_control_drv_startup_tx[i][reg] = 0U;
             g_app_control_drv_startup_rx[i][reg] = 0U;
+            g_app_control_drv_probe_reg_dump[i][reg] = 0xFFU;
+            g_app_control_drv_probe_reg_status[i][reg] = DRV8703_OK;
+            g_app_control_drv_probe_tx[i][reg] = 0U;
+            g_app_control_drv_probe_rx[i][reg] = 0U;
         }
 
         g_app_control_drv_pin_fault_count[i] = 0U;
@@ -2914,6 +3172,10 @@ AppControl_Status_t AppControl_Init(void)
     g_app_control_drv_test_active_mask = 0U;
     g_app_control_drv_test_fault_mask = 0U;
     g_app_control_drv_test_fault_poll_count = 0U;
+    g_app_control_drv_probe_request_mask = 0U;
+    g_app_control_drv_probe_done_mask = 0U;
+    g_app_control_drv_probe_pass_mask = 0U;
+    g_app_control_drv_probe_fail_mask = 0U;
     s_test_drv_initialized = 0U;
     s_drv_test_last_fault_poll_ms = 0U;
 
@@ -2944,23 +3206,31 @@ AppControl_Status_t AppControl_Init(void)
 void AppControl_Task(uint32_t now_ms)
 {
     /*
-     * DRV 测试调用示例 1：单独测试 DRV1，输出 0.10 duty。
-     *
-     * 这段示例放在 ControlTask 正常入口处，但保持注释状态，不参与编译。
-     * 如果需要临时启用，取消下面代码块的注释即可。注意它必须放在
-     * AppControl_Lock() 之前，因为 AppControl_StartDrvTest() 内部会自行加锁。
-     * s_drv1_test_example_started 用于避免每个控制周期重复启动测试。
+     * Temporary DRV auto-test entry. APP_CONTROL_DRV_TEST_AUTO_CHANNEL selects
+     * the channel index, and APP_CONTROL_DRV_TEST_AUTO_DUTY selects the duty.
+     * Keep this before AppControl_Lock() because AppControl_StartDrvTest()
+     * takes the control mutex internally.
      */
-    /*
-    static uint8_t s_drv1_test_example_started = 0U;
-    if (s_drv1_test_example_started == 0U)
+#if APP_CONTROL_DRV_PROBE_AUTO_START_ENABLE
+    static uint8_t s_drv_probe_started = 0U;
+    if (s_drv_probe_started == 0U)
+    {
+        AppControl_ProbeDrv8703(APP_CONTROL_DRV_PROBE_MASK);
+        s_drv_probe_started = 1U;
+    }
+#endif
+
+#if APP_CONTROL_DRV_TEST_AUTO_START_ENABLE
+    static uint8_t s_drv_test_auto_started = 0U;
+    if (s_drv_test_auto_started == 0U)
     {
         float drv_test_duty[APP_CONTROL_DRV_COUNT] = {0.0f};
-        drv_test_duty[0] = 0.10f;
-        (void)AppControl_StartDrvTest((uint8_t)(1U << 0), drv_test_duty);
-        s_drv1_test_example_started = 1U;
+        drv_test_duty[APP_CONTROL_DRV_TEST_AUTO_CHANNEL] = APP_CONTROL_DRV_TEST_AUTO_DUTY;
+        (void)AppControl_StartDrvTest((uint8_t)(1U << APP_CONTROL_DRV_TEST_AUTO_CHANNEL),
+                                      drv_test_duty);
+        s_drv_test_auto_started = 1U;
     }
-    */
+#endif
 
     AppControl_Lock();
 

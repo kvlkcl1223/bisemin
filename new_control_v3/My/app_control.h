@@ -36,12 +36,15 @@ extern "C"
 #define APP_CONTROL_CELL0_TEMP_OUTER 0U
 /** @brief Cell 0 内层测温输入索引，默认实际 CH2。*/
 #define APP_CONTROL_CELL0_TEMP_INNER 1U
-/** @brief Cell 0 外层/主路 DRV 索引，当前临时使用实际 DRV5。*/
-#define APP_CONTROL_CELL0_DRV_OUTER 4U
+/** @brief Cell 0 外层/主路 DRV 索引，默认实际 DRV1。*/
+#define APP_CONTROL_CELL0_DRV_OUTER 0U
 /** @brief Cell 0 内层/从路 DRV 索引，默认实际 DRV2。*/
 #define APP_CONTROL_CELL0_DRV_INNER 1U
-/** @brief Cell 0 内层 duty 跟随比例，inner = outer * ratio。*/
-#define APP_CONTROL_CELL0_INNER_DUTY_RATIO 0.70f
+/** @brief Cell 0 制冷时内层 duty 跟随比例，inner = outer * ratio。*/
+#define APP_CONTROL_CELL0_COOLING_INNER_DUTY_RATIO 0.70f
+/** @brief Cell 0 加热时外层 duty 跟随比例，outer = inner * ratio。*/
+#define APP_CONTROL_CELL0_HEATING_OUTER_DUTY_RATIO 0.70f
+#define APP_CONTROL_CELL0_INNER_DUTY_RATIO APP_CONTROL_CELL0_COOLING_INNER_DUTY_RATIO
 
 /** @brief Cell 1 外层测温输入索引，默认实际 CH3。*/
 #define APP_CONTROL_CELL1_TEMP_OUTER 2U
@@ -51,19 +54,29 @@ extern "C"
 #define APP_CONTROL_CELL1_DRV_OUTER 2U
 /** @brief Cell 1 内层/从路 DRV 索引，默认实际 DRV4。*/
 #define APP_CONTROL_CELL1_DRV_INNER 3U
-/** @brief Cell 1 内层 duty 跟随比例，inner = outer * ratio。*/
-#define APP_CONTROL_CELL1_INNER_DUTY_RATIO 0.70f
+/** @brief Cell 1 制冷时内层 duty 跟随比例，inner = outer * ratio。*/
+#define APP_CONTROL_CELL1_COOLING_INNER_DUTY_RATIO 0.70f
+/** @brief Cell 1 加热时外层 duty 跟随比例，outer = inner * ratio。*/
+#define APP_CONTROL_CELL1_HEATING_OUTER_DUTY_RATIO 0.70f
+#define APP_CONTROL_CELL1_INNER_DUTY_RATIO APP_CONTROL_CELL1_COOLING_INNER_DUTY_RATIO
 
 /** @brief 堆叠方案共享 DRV 索引，默认实际 DRV5。*/
 #define APP_CONTROL_SHARED_DRV 4U
-/** @brief DRV channel enable mask, bit0..bit4 map to DRV1..DRV5. Current setup disables DRV1. */
-#define APP_CONTROL_DRV_ENABLE_MASK ((uint8_t)((1U << 1) | (1U << 2) | (1U << 3) | (1U << 4)))
 /** @brief Shared DRV logic switch. 0 disables the extra shared-channel output path. */
 #define APP_CONTROL_SHARED_DRV_ENABLE 0U
+/** @brief DRV channels used directly by the two temperature cells. */
+#define APP_CONTROL_CELL_DRV_ENABLE_MASK ((uint8_t)((1U << 0) | (1U << 1) | (1U << 2) | (1U << 3)))
+#if APP_CONTROL_SHARED_DRV_ENABLE
+/** @brief DRV channel enable mask, bit0..bit4 map to DRV1..DRV5. */
+#define APP_CONTROL_DRV_ENABLE_MASK ((uint8_t)(APP_CONTROL_CELL_DRV_ENABLE_MASK | (uint8_t)(1U << APP_CONTROL_SHARED_DRV)))
+#else
+/** @brief DRV channel enable mask, bit0..bit4 map to DRV1..DRV5. */
+#define APP_CONTROL_DRV_ENABLE_MASK APP_CONTROL_CELL_DRV_ENABLE_MASK
+#endif
 
-/** @brief PID 输出和实际 PWM duty 的不对称限幅。*/
+/** @brief PID 输出和实际 PWM duty 的限幅。*/
 #define APP_CONTROL_DUTY_MIN (-0.40f)
-#define APP_CONTROL_DUTY_MAX (0.30f)
+#define APP_CONTROL_DUTY_MAX (0.40f)
 
 /** @brief 只要任意 cell 运行，共享 DRV5 输出的固定 duty。*/
 #define APP_CONTROL_SHARED_CH5_DUTY 0.20f
@@ -263,6 +276,28 @@ extern "C"
     extern volatile uint32_t g_app_control_drv_test_fault_poll_count;
     /** @brief DRV 测试期间每个通道最近一次状态，OK 表示最近未检测到故障。 */
     extern volatile DRV8703_Status_t g_app_control_drv_test_status[APP_CONTROL_DRV_COUNT];
+    /** @brief DRV8703 response probe requested channel mask, bit0..bit4 = DRV1..DRV5. */
+    extern volatile uint8_t g_app_control_drv_probe_request_mask;
+    /** @brief DRV8703 response probe completed channel mask. */
+    extern volatile uint8_t g_app_control_drv_probe_done_mask;
+    /** @brief DRV8703 response probe passed channel mask. */
+    extern volatile uint8_t g_app_control_drv_probe_pass_mask;
+    /** @brief DRV8703 response probe failed channel mask. */
+    extern volatile uint8_t g_app_control_drv_probe_fail_mask;
+    /** @brief Per-DRV probe register read success mask, bit0..bit5 = REG0..REG5. */
+    extern volatile uint8_t g_app_control_drv_probe_read_ok_mask[APP_CONTROL_DRV_COUNT];
+    /** @brief Per-DRV probe config mismatch mask, only REG2..REG5 are compared. */
+    extern volatile uint8_t g_app_control_drv_probe_mismatch_mask[APP_CONTROL_DRV_COUNT];
+    /** @brief Per-DRV probe final status. */
+    extern volatile DRV8703_Status_t g_app_control_drv_probe_status[APP_CONTROL_DRV_COUNT];
+    /** @brief Per-DRV probe register dump after default config and lock. */
+    extern volatile uint8_t g_app_control_drv_probe_reg_dump[APP_CONTROL_DRV_COUNT][DRV8703_REGISTER_COUNT];
+    /** @brief Per-DRV probe register read status. */
+    extern volatile DRV8703_Status_t g_app_control_drv_probe_reg_status[APP_CONTROL_DRV_COUNT][DRV8703_REGISTER_COUNT];
+    /** @brief Per-DRV probe last SPI TX word for each register read. */
+    extern volatile uint16_t g_app_control_drv_probe_tx[APP_CONTROL_DRV_COUNT][DRV8703_REGISTER_COUNT];
+    /** @brief Per-DRV probe last SPI RX word for each register read. */
+    extern volatile uint16_t g_app_control_drv_probe_rx[APP_CONTROL_DRV_COUNT][DRV8703_REGISTER_COUNT];
 
 /*
  * DRV8703 原始寄存器轮询。
@@ -293,6 +328,8 @@ extern "C"
     DRV8703_Status_t AppControl_SetDrvDuty(uint8_t drv, float duty);
     /** @brief 启动 DRV 测试模式；drv_mask 的 bit0..bit4 对应 DRV1..DRV5，测试期间会快速检查故障。 */
     DRV8703_Status_t AppControl_StartDrvTest(uint8_t drv_mask, const float duty[APP_CONTROL_DRV_COUNT]);
+    /** @brief Initialise selected DRV8703 chips, read REG0..REG5, and compare REG2..REG5 with expected config. */
+    void AppControl_ProbeDrv8703(uint8_t drv_mask);
     /** @brief 停止 DRV 测试模式，并关闭测试通道输出。 */
     void AppControl_StopDrvTest(void);
     /** @brief 获取测试模式当前仍在输出的 DRV 掩码。 */
@@ -336,8 +373,8 @@ extern "C"
      *     g_app_control_drv_test_status[]     // 每路最近一次测试状态
      */
 
-    /** @brief 设置指定 cell 的堆叠冷热片输出；outer_duty 给外层，内层按比例跟随。*/
-    DRV8703_Status_t AppControl_SetCellStackDuty(uint8_t cell, float outer_duty);
+    /** @brief 设置指定 cell 的堆叠冷热片主路 duty：制冷外层为主，加热内层为主。*/
+    DRV8703_Status_t AppControl_SetCellStackDuty(uint8_t cell, float main_duty);
     /** @brief 获取指定 cell 外层测温输入索引。*/
     uint8_t AppControl_GetCellOuterTempIndex(uint8_t cell);
     /** @brief 获取指定 cell 内层测温输入索引。*/

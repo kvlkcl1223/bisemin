@@ -77,13 +77,13 @@ osThreadId_t ControlTaskHandle;
 const osThreadAttr_t ControlTask_attributes = {
     .name = "ControlTask",
     .priority = (osPriority_t)osPriorityHigh,
-    .stack_size = 512 * 4};
+    .stack_size = 1024 * 4};
 /* Definitions for HMITask */
 osThreadId_t HMITaskHandle;
 const osThreadAttr_t HMITask_attributes = {
     .name = "HMITask",
     .priority = (osPriority_t)osPriorityLow,
-    .stack_size = 256 * 4};
+    .stack_size = 512 * 4};
 /* Definitions for SysStateMutex */
 osMutexId_t SysStateMutexHandle;
 const osMutexAttr_t SysStateMutex_attributes = {
