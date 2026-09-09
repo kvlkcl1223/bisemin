@@ -41,7 +41,7 @@ extern "C"
 /** @brief Cell 0 内层/从路 DRV 索引，默认实际 DRV2。*/
 #define APP_CONTROL_CELL0_DRV_INNER 1U
 /** @brief Cell 0 制冷时内层 duty 跟随比例，inner = outer * ratio。*/
-#define APP_CONTROL_CELL0_COOLING_INNER_DUTY_RATIO 0.70f
+#define APP_CONTROL_CELL0_COOLING_INNER_DUTY_RATIO 0.50f
 /** @brief Cell 0 加热时外层 duty 跟随比例，outer = inner * ratio。*/
 #define APP_CONTROL_CELL0_HEATING_OUTER_DUTY_RATIO 0.70f
 #define APP_CONTROL_CELL0_INNER_DUTY_RATIO APP_CONTROL_CELL0_COOLING_INNER_DUTY_RATIO
@@ -55,7 +55,7 @@ extern "C"
 /** @brief Cell 1 内层/从路 DRV 索引，默认实际 DRV4。*/
 #define APP_CONTROL_CELL1_DRV_INNER 3U
 /** @brief Cell 1 制冷时内层 duty 跟随比例，inner = outer * ratio。*/
-#define APP_CONTROL_CELL1_COOLING_INNER_DUTY_RATIO 0.70f
+#define APP_CONTROL_CELL1_COOLING_INNER_DUTY_RATIO 0.50f
 /** @brief Cell 1 加热时外层 duty 跟随比例，outer = inner * ratio。*/
 #define APP_CONTROL_CELL1_HEATING_OUTER_DUTY_RATIO 0.70f
 #define APP_CONTROL_CELL1_INNER_DUTY_RATIO APP_CONTROL_CELL1_COOLING_INNER_DUTY_RATIO
@@ -63,7 +63,7 @@ extern "C"
 /** @brief 堆叠方案共享 DRV 索引，默认实际 DRV5。*/
 #define APP_CONTROL_SHARED_DRV 4U
 /** @brief Shared DRV logic switch. 0 disables the extra shared-channel output path. */
-#define APP_CONTROL_SHARED_DRV_ENABLE 0U
+#define APP_CONTROL_SHARED_DRV_ENABLE 1U
 /** @brief DRV channels used directly by the two temperature cells. */
 #define APP_CONTROL_CELL_DRV_ENABLE_MASK ((uint8_t)((1U << 0) | (1U << 1) | (1U << 2) | (1U << 3)))
 #if APP_CONTROL_SHARED_DRV_ENABLE
@@ -92,9 +92,9 @@ extern "C"
     /** @brief app_control 模块初始化和命令投递的返回状态。*/
     typedef enum
     {
-        APP_CONTROL_OK = 0,        /**< 操作成功。*/
-        APP_CONTROL_ERROR_QUEUE,   /**< 控制命令队列创建或访问失败。*/
-        APP_CONTROL_ERROR_PARAM    /**< 参数非法，例如 cell 编号越界。*/
+        APP_CONTROL_OK = 0,      /**< 操作成功。*/
+        APP_CONTROL_ERROR_QUEUE, /**< 控制命令队列创建或访问失败。*/
+        APP_CONTROL_ERROR_PARAM  /**< 参数非法，例如 cell 编号越界。*/
     } AppControl_Status_t;
 
     /** @brief 控制任务内部命令类型。*/
@@ -114,9 +114,9 @@ extern "C"
     /** @brief 投递给 ControlTask 的 cell 控制命令。*/
     typedef struct
     {
-        AppControlCommandType_t type;     /**< 命令类型：启动或停止。*/
-        uint8_t cell;                     /**< 目标 cell 编号，范围 0..APP_CONTROL_CELL_COUNT-1。*/
-        AppControlStopMode_t stop_mode;   /**< 停止命令使用的停止方式，启动命令忽略。*/
+        AppControlCommandType_t type;   /**< 命令类型：启动或停止。*/
+        uint8_t cell;                   /**< 目标 cell 编号，范围 0..APP_CONTROL_CELL_COUNT-1。*/
+        AppControlStopMode_t stop_mode; /**< 停止命令使用的停止方式，启动命令忽略。*/
     } AppControlCommand_t;
 
     /** @brief DRV8703 仿真开关，非 0 时跳过真实 DRV 初始化/读写，便于脱板调试。*/

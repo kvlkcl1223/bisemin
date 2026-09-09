@@ -7,10 +7,10 @@
  * @date    2026-07-02
  *
  * @details
- * �?+0.40（制冷）�?-0.40（加热）�?-0.02 步进，共 41 步�? * 每一步设定固定占空比后等待温度稳定（波动 < CALIB_STABLE_THRESHOLD
+ * �?+0.35（制冷）�?-0.35（加热）�?-0.02 步进，共 36 步�? * 每一步设定固定占空比后等待温度稳定（波动 < CALIB_STABLE_THRESHOLD
  * 持续 CALIB_STABLE_SECONDS 秒），记录稳定区间的平均温度�?
  * 若超时未稳定则记录当前值并标记 valid=0�?
- * 全部 41 步完成后写入 Flash�? * Cell 0 �?Cell 1 的标定数据分别存储在 Flash 不同页，互不覆盖�?
+ * 全部 36 步完成后写入 Flash�? * Cell 0 �?Cell 1 的标定数据分别存储在 Flash 不同页，互不覆盖�?
  ******************************************************************************
  */
 
@@ -29,16 +29,16 @@ extern "C"
 /* 标定参数常量 --------------------------------------------------------------*/
 
 /** @brief 占空比扫描范围：起始值（�?制冷�?*/
-#define CALIB_DUTY_START (0.40f)
+#define CALIB_DUTY_START (0.35f)
 
 /** @brief 占空比扫描范围：结束值（�?加热�?*/
-#define CALIB_DUTY_END (-0.40f)
+#define CALIB_DUTY_END (-0.35f)
 
 /** @brief 占空比扫描步进（负步�?从制冷到加热�?*/
 #define CALIB_DUTY_STEP (-0.02f)
 
 /** @brief 扫描点数 = (START - END) / |STEP| + 1 */
-#define CALIB_DUTY_COUNT (41U)
+#define CALIB_DUTY_COUNT (36U)
 
 /** @brief 稳定判定阈�?(°C)，温�?max-min 小于此值认为稳�?*/
 #define CALIB_STABLE_THRESHOLD 0.1f
@@ -85,7 +85,7 @@ extern "C"
 #undef CALIB_MAX_WAIT_SECONDS
 #define CALIB_MAX_WAIT_SECONDS CALIB_FAST_MAX_WAIT
 #else
-/** @brief 正常模式：实际标定步�?= 41 */
+/** @brief 正常模式：实际标定步�?= 36 */
 #define CALIB_SCAN_COUNT CALIB_DUTY_COUNT
 #endif
 
@@ -128,7 +128,7 @@ extern "C"
     uint32_t magic;                     /**< 魔数，用于校验数据有效�?*/
     uint8_t cell;                       /**< 标定�?Cell 编号 (0 �?1) */
     uint8_t reserved[3];                /**< 对齐填充 */
-    CalibStep_t step[CALIB_DUTY_COUNT]; /**< 41 步标定记�?*/
+    CalibStep_t step[CALIB_DUTY_COUNT]; /**< 36 步标定记�?*/
     uint16_t crc16;                     /**< 整个结构体的 CRC16 校验 */
   } CalibFlashData_t;
 
@@ -143,7 +143,7 @@ extern "C"
   /** @brief 当前扫描步索�?(0 ~ 40) */
   extern volatile uint8_t g_calib_step_idx;
 
-  /** @brief 41 步标定结果（运行时） */
+  /** @brief 36 步标定结果（运行时） */
   extern volatile CalibStep_t g_calib_result[CALIB_DUTY_COUNT];
 
   /** @brief 被标定的 Cell 编号 */

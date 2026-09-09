@@ -55,7 +55,7 @@
 | 存储区偏�?| 0 字节 |
 | 绝对地址 | **`0x0803E000`** |
 | HAL 擦除页号 | `Page = 124`, `Bank = FLASH_BANK_1` |
-| 占用大小 | 668 字节（含对齐�?|
+| 占用大小 | 588 字节（含对齐�?|
 
 ### Cell 1
 
@@ -65,7 +65,7 @@
 | 存储区偏�?| 4096 字节 |
 | 绝对地址 | **`0x0803F000`** |
 | HAL 擦除页号 | `Page = 126`, `Bank = FLASH_BANK_1` |
-| 占用大小 | 668 字节（含对齐�?|
+| 占用大小 | 588 字节（含对齐�?|
 
 ### 擦除页号计算 (`flash_storage.c`)
 
@@ -93,11 +93,11 @@ typedef struct
     uint32_t     magic;                        // 4 字节，魔�?0x42495346 ("BISF")
     uint8_t      cell;                         // 1 字节，标定的 Cell 编号 (0 �?1)
     uint8_t      reserved[3];                  // 3 字节，对齐填�?
-    CalibStep_t  step[CALIB_DUTY_COUNT];      // 41 步标定记�?(41 x 16 = 656 字节)
+    CalibStep_t  step[CALIB_DUTY_COUNT];      // 36 步标定记�?(36 x 16 = 576 字节)
     uint16_t     crc16;                        // 2 字节，CRC16-CCITT 校验
     // 编译器对齐填充：2 字节
 } CalibFlashData_t;
-// 总大�? 668 字节（含对齐�?
+// 总大�? 588 字节（含对齐�?
 ```
 
 ### 内存布局�?
@@ -107,9 +107,9 @@ typedef struct
 | 0 | 4 | `magic` | `uint32_t` | 魔数 `0x42495346` ("BISF") |
 | 4 | 1 | `cell` | `uint8_t` | Cell 编号�? �?1�?|
 | 5 | 3 | `reserved` | `uint8_t[3]` | 对齐填充（写 0�?|
-| 8 | 656 | `step[41]` | `CalibStep_t[41]` | 41 步标定记�?|
-| 664 | 2 | `crc16` | `uint16_t` | CRC16-CCITT 校验�?|
-| 666 | 2 | (padding) | �?| 编译器对齐填�?|
+| 8 | 576 | `step[36]` | `CalibStep_t[36]` | 36 步标定记�?|
+| 584 | 2 | `crc16` | `uint16_t` | CRC16-CCITT 校验�?|
+| 586 | 2 | (padding) | �?| 编译器对齐填�?|
 
 ---
 
@@ -134,7 +134,7 @@ typedef struct
 
 | 偏移 | 大小 | 字段 | 类型 | 说明 |
 |------|------|------|------|------|
-| 0 | 4 | `duty` | `float` | 占空比，范围 `+0.40` ~ `-0.40` |
+| 0 | 4 | `duty` | `float` | 占空比，范围 `+0.35` ~ `-0.35` |
 | 4 | 4 | `temp_ch0` | `float` | CH0 稳态温�?(°C) |
 | 8 | 4 | `temp_ch1` | `float` | CH1 稳态温�?(°C) |
 | 12 | 1 | `valid` | `uint8_t` | `1`=稳定达标, `0`=超时 |
@@ -143,18 +143,18 @@ typedef struct
 
 ---
 
-## 41 步占空比序列
+## 36 步占空比序列
 
 | Step | 占空�?| 效果 |
 |:---:|:---:|:---:|
-| 0 | **+0.40** | ❄️ 制冷（最大值） |
-| 1 | +0.38 | ❄️ 制冷 |
+| 0 | **+0.35** | ❄️ 制冷（最大值） |
+| 1 | +0.33 | ❄️ 制冷 |
 | ... | ... | ... |
-| 19 | +0.02 | ❄️ 微冷 |
-| 20 | 0.00 | 🔥 微热 |
+| 17 | +0.01 | ❄️ 微冷 |
+| 18 | -0.01 | 🔥 微热 |
 | ... | ... | ... |
-| 39 | -0.38 | 🔥 加热 |
-| 40 | **-0.40** | 🔥 加热（最大值） |
+| 34 | -0.33 | 🔥 加热 |
+| 35 | **-0.35** | 🔥 加热（最大值） |
 
 步进：`-0.02`（从制冷 �?加热�?
 
@@ -167,7 +167,7 @@ typedef struct
 | 算法 | CRC16-CCITT（查表法�?|
 | 初始�?| `0xFFFF` |
 | 多项�?| `0x1021` |
-| 校验范围 | `magic` �?`step[40]`（不�?`crc16` 字段本身�?|
+| 校验范围 | `magic` �?`step[35]`（不�?`crc16` 字段本身�?|
 | 代码位置 | `My/calib_mode.c` �?`CalibMode_CRC16()` |
 
 ---
@@ -178,8 +178,8 @@ typedef struct
 
 | 项目 | 正常模式 | 快速测�?|
 |------|:---:|:---:|
-| 标定步数 | 41 | 1 |
-| 占空�?| +0.40 �?-0.40 | 固定 0.0 |
+| 标定步数 | 36 | 1 |
+| 占空�?| +0.35 �?-0.35 | 固定 0.0 |
 | 稳定阈�?| 0.1°C | 999°C（立稳） |
 | 总耗时 | ~1~2 小时 | < 10 �?|
 
@@ -201,7 +201,7 @@ typedef struct
 
 - 固件版本：V1.0.0
 - 最后更新：2026-07-11
-- Calibration mode: 41 steps, +0.40 to -0.40, step -0.02
+- Calibration mode: 36 steps, +0.35 to -0.35, step -0.02
 - Flash 存储区地址：`0x0803E000`�?56KB 末尾 8KB�?
 
 ---
@@ -211,13 +211,13 @@ typedef struct
 Current firmware uses an asymmetric calibration range:
 
 ```text
-CALIB_DUTY_START = +0.40
-CALIB_DUTY_END   = -0.40
+CALIB_DUTY_START = +0.35
+CALIB_DUTY_END   = -0.35
 CALIB_DUTY_STEP  = -0.02
-CALIB_DUTY_COUNT = 41
+CALIB_DUTY_COUNT = 36
 CALIB_FLASH_MAGIC = 0x42495346 ("BISF")
 ```
 
-`CalibFlashData_t` contains 41 `CalibStep_t` records. Each `CalibStep_t` is 16 bytes, so the step table is 656 bytes and the full structure is 668 bytes with compiler padding.
+`CalibFlashData_t` contains 36 `CalibStep_t` records. Each `CalibStep_t` is 16 bytes, so the step table is 576 bytes and the full structure is 588 bytes with compiler padding.
 
 The PC protocol reads calibration results as one metadata frame plus one frame per step, because a full table does not fit in the 256-byte ASCII payload limit.

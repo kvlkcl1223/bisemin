@@ -80,8 +80,8 @@ inner_duty = outer_duty * inner_ratio
 
 标定数据用于生成前馈 duty。当前标定逻辑在 [My/calib_mode.h](My/calib_mode.h) 和 [My/calib_mode.c](My/calib_mode.c)：
 
-- duty 从 `+0.40` 扫到 `-0.40`。
-- 步长 `-0.02`，共 `41` 步。
+- duty 从 `+0.35` 扫到 `-0.35`。
+- 步长 `-0.02`，共 `36` 步。
 - 每步等待温度稳定，稳定条件是温度窗口波动小于 `0.1 degC` 并持续 `10 s`。
 - 单步最长等待 `600 s`，超时会记录当前值并标记为未稳定。
 - 每个 cell 记录两路测温和均值；闭环前馈使用均值曲线。
@@ -122,7 +122,7 @@ op=GET_CALIB_RESULT,cell=0
 op=GET_CALIB_RESULT,cell=0,index=0
 ```
 
-读取结果时先读取 `CALIB_META` 获取 `count=41`，再逐条读取 `CALIB_STEP`，避免一次 payload 超过 256 字节。
+读取结果时先读取 `CALIB_META` 获取 `count=36`，再逐条读取 `CALIB_STEP`，避免一次 payload 超过 256 字节。
 
 ## 运行流程
 

@@ -435,6 +435,16 @@
           <WinNumber>1</WinNumber>
           <ItemText>TIM2</ItemText>
         </Ww>
+        <Ww>
+          <count>57</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>g_ads1220_env_temp_c</ItemText>
+        </Ww>
+        <Ww>
+          <count>58</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>g_ads1220_env_valid</ItemText>
+        </Ww>
       </WatchWindow1>
       <WatchWindow2>
         <Ww>

@@ -408,7 +408,7 @@ DRV8703_DeviceConfig_t DRV8703_DefaultDeviceConfig(void)
     config.dead_time = DRV8703_TDEAD_960NS;
     config.watchdog_enable = 0U;
     config.watchdog_delay = DRV8703_WD_DELAY_10MS;
-    config.idrive = 7U;
+    config.idrive = 4U;
     config.vds_threshold = DRV8703_VDS_960MV;
     config.vds_disable_mask = 0U;
     config.so_limit_enable = 0U;
