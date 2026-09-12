@@ -79,11 +79,11 @@
 /** @brief Probe only compares writable config registers; REG0/REG1 are fault status. */
 #define APP_CONTROL_DRV_PROBE_CONFIG_REG_MASK ((uint8_t)0x3CU)
 /** @brief Temporary auto-start of one DRV output test. Keep disabled for config probe. */
-#define APP_CONTROL_DRV_TEST_AUTO_START_ENABLE 0U
+#define APP_CONTROL_DRV_TEST_AUTO_START_ENABLE 1U
 /** @brief Auto-test DRV channel index: 0=DRV1, 1=DRV2, 2=DRV3, 3=DRV4, 4=DRV5. */
-#define APP_CONTROL_DRV_TEST_AUTO_CHANNEL 4U
+#define APP_CONTROL_DRV_TEST_AUTO_CHANNEL 2U
 /** @brief Auto-test DRV duty. */
-#define APP_CONTROL_DRV_TEST_AUTO_DUTY -0.35f
+#define APP_CONTROL_DRV_TEST_AUTO_DUTY 0.20f
 /** @brief 所�?DRV 通道组成的位掩码，bit0..bit4 对应 DRV1..DRV5�?*/
 #define APP_CONTROL_DRV_ALL_MASK ((uint8_t)((1U << APP_CONTROL_DRV_COUNT) - 1U))
 

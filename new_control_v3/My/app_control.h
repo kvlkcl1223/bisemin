@@ -41,7 +41,7 @@ extern "C"
 /** @brief Cell 0 内层/从路 DRV 索引，默认实际 DRV2。*/
 #define APP_CONTROL_CELL0_DRV_INNER 1U
 /** @brief Cell 0 制冷时内层 duty 跟随比例，inner = outer * ratio。*/
-#define APP_CONTROL_CELL0_COOLING_INNER_DUTY_RATIO 0.50f
+#define APP_CONTROL_CELL0_COOLING_INNER_DUTY_RATIO 0.70f
 /** @brief Cell 0 加热时外层 duty 跟随比例，outer = inner * ratio。*/
 #define APP_CONTROL_CELL0_HEATING_OUTER_DUTY_RATIO 0.70f
 #define APP_CONTROL_CELL0_INNER_DUTY_RATIO APP_CONTROL_CELL0_COOLING_INNER_DUTY_RATIO
@@ -55,7 +55,7 @@ extern "C"
 /** @brief Cell 1 内层/从路 DRV 索引，默认实际 DRV4。*/
 #define APP_CONTROL_CELL1_DRV_INNER 3U
 /** @brief Cell 1 制冷时内层 duty 跟随比例，inner = outer * ratio。*/
-#define APP_CONTROL_CELL1_COOLING_INNER_DUTY_RATIO 0.50f
+#define APP_CONTROL_CELL1_COOLING_INNER_DUTY_RATIO 0.70f
 /** @brief Cell 1 加热时外层 duty 跟随比例，outer = inner * ratio。*/
 #define APP_CONTROL_CELL1_HEATING_OUTER_DUTY_RATIO 0.70f
 #define APP_CONTROL_CELL1_INNER_DUTY_RATIO APP_CONTROL_CELL1_COOLING_INNER_DUTY_RATIO
@@ -76,10 +76,10 @@ extern "C"
 
 /** @brief PID 输出和实际 PWM duty 的限幅。*/
 #define APP_CONTROL_DUTY_MIN (-0.40f)
-#define APP_CONTROL_DUTY_MAX (0.40f)
+#define APP_CONTROL_DUTY_MAX (0.35f)
 
 /** @brief 只要任意 cell 运行，共享 DRV5 输出的固定 duty。*/
-#define APP_CONTROL_SHARED_CH5_DUTY 0.20f
+#define APP_CONTROL_SHARED_CH5_DUTY 0.35f
 
 #if APP_CONTROL_SHARED_DRV_ENABLE
 #define APP_CONTROL_CELL_SHARED_DRV APP_CONTROL_SHARED_DRV
