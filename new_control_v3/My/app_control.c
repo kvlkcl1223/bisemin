@@ -14,6 +14,12 @@
 #define APP_CONTROL_QUEUE_DEPTH 12U
 /** @brief 每颗 DRV8703 初始化失败后的最大重试次数�*/
 #define APP_CONTROL_DRV_RETRY_COUNT 3U
+#define APP_CONTROL_DRV_INIT_ON_BOOT_ENABLE 1U
+#define APP_CONTROL_DRV_CONFIG_VERIFY_RETRY_COUNT 3U
+#define APP_CONTROL_DRV_CONFIG_VERIFY_REG_MASK         \
+    ((uint8_t)((1U << DRV8703_REG_IDRIVE_WD_CONTROL) | \
+               (1U << DRV8703_REG_VDS_CONTROL) |       \
+               (1U << DRV8703_REG_CONFIG_CONTROL)))
 /** @brief 写入 DRV8703 �?VREF 参考电压，单位 mV�*/
 #define APP_CONTROL_DRV_VREF_MV 3300U
 /** @brief 输入供电电压最低允许值，低于该值时可触发电压故障�*/
@@ -79,11 +85,11 @@
 /** @brief Probe only compares writable config registers; REG0/REG1 are fault status. */
 #define APP_CONTROL_DRV_PROBE_CONFIG_REG_MASK ((uint8_t)0x3CU)
 /** @brief Temporary auto-start of one DRV output test. Keep disabled for config probe. */
-#define APP_CONTROL_DRV_TEST_AUTO_START_ENABLE 1U
+#define APP_CONTROL_DRV_TEST_AUTO_START_ENABLE 0U
 /** @brief Auto-test DRV channel index: 0=DRV1, 1=DRV2, 2=DRV3, 3=DRV4, 4=DRV5. */
-#define APP_CONTROL_DRV_TEST_AUTO_CHANNEL 2U
+#define APP_CONTROL_DRV_TEST_AUTO_CHANNEL 0U
 /** @brief Auto-test DRV duty. */
-#define APP_CONTROL_DRV_TEST_AUTO_DUTY 0.20f
+#define APP_CONTROL_DRV_TEST_AUTO_DUTY -0.20f
 /** @brief 所�?DRV 通道组成的位掩码，bit0..bit4 对应 DRV1..DRV5�?*/
 #define APP_CONTROL_DRV_ALL_MASK ((uint8_t)((1U << APP_CONTROL_DRV_COUNT) - 1U))
 
@@ -205,7 +211,24 @@ volatile uint16_t g_app_control_drv_startup_rx[APP_CONTROL_DRV_COUNT][DRV8703_RE
         {0U, 0U, 0U, 0U, 0U, 0U}};
 volatile uint8_t g_app_control_drv_startup_expected[DRV8703_REGISTER_COUNT] =
     {
-        0x00U, 0x00U, 0x30U, 0xC7U, 0x70U, 0x01U};
+        0x00U, 0x00U, 0x30U, 0xC4U, 0x70U, 0x01U};
+volatile uint8_t g_app_control_drv_config_verify_ok[APP_CONTROL_DRV_COUNT] = {0U, 0U, 0U, 0U, 0U};
+volatile uint8_t g_app_control_drv_config_verify_attempts[APP_CONTROL_DRV_COUNT] = {0U, 0U, 0U, 0U, 0U};
+volatile uint8_t g_app_control_drv_config_verify_mismatch_mask[APP_CONTROL_DRV_COUNT] = {0U, 0U, 0U, 0U, 0U};
+volatile uint8_t g_app_control_drv_config_verify_reg_dump[APP_CONTROL_DRV_COUNT][DRV8703_REGISTER_COUNT] =
+    {
+        {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU},
+        {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU},
+        {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU},
+        {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU},
+        {0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU}};
+volatile DRV8703_Status_t g_app_control_drv_config_verify_reg_status[APP_CONTROL_DRV_COUNT][DRV8703_REGISTER_COUNT] =
+    {
+        {DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK},
+        {DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK},
+        {DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK},
+        {DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK},
+        {DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK, DRV8703_OK}};
 volatile uint8_t g_app_control_last_drv_fault = 0xFFU;
 volatile DRV8703_Status_t g_app_control_last_drv_status = DRV8703_OK;
 volatile uint8_t g_app_control_drv_fault_snapshot_valid[APP_CONTROL_DRV_COUNT] = {0};
@@ -558,6 +581,141 @@ static uint8_t AppControl_DrvEnabled(uint8_t drv)
     if (drv >= APP_CONTROL_DRV_COUNT)
         return 0U;
     return ((APP_CONTROL_DRV_ENABLE_MASK & (uint8_t)(1U << drv)) != 0U) ? 1U : 0U;
+}
+
+static void AppControl_BuildDrvExpectedRegs(uint8_t expected[DRV8703_REGISTER_COUNT])
+{
+    DRV8703_DeviceConfig_t config = DRV8703_DefaultDeviceConfig();
+    uint8_t reg;
+
+    if (expected == 0)
+        return;
+
+    for (reg = 0U; reg < DRV8703_REGISTER_COUNT; reg++)
+        expected[reg] = 0U;
+
+    expected[DRV8703_REG_MAIN_CONTROL] = DRV8703_MAIN_LOCK_LOCK;
+
+    expected[DRV8703_REG_IDRIVE_WD_CONTROL] =
+        (uint8_t)(((uint8_t)config.dead_time & 0x03U) << DRV8703_IDRIVE_WD_TDEAD_SHIFT);
+    if (config.watchdog_enable != 0U)
+        expected[DRV8703_REG_IDRIVE_WD_CONTROL] |= DRV8703_IDRIVE_WD_WD_EN;
+    expected[DRV8703_REG_IDRIVE_WD_CONTROL] |=
+        (uint8_t)(((uint8_t)config.watchdog_delay & 0x03U) << DRV8703_IDRIVE_WD_WD_DLY_SHIFT);
+    expected[DRV8703_REG_IDRIVE_WD_CONTROL] |=
+        (uint8_t)(config.idrive & DRV8703_IDRIVE_WD_IDRIVE_MASK);
+
+    expected[DRV8703_REG_VDS_CONTROL] =
+        (uint8_t)(((uint8_t)config.vds_threshold & 0x07U) << DRV8703_VDS_THRESHOLD_SHIFT);
+    if (config.so_limit_enable != 0U)
+        expected[DRV8703_REG_VDS_CONTROL] |= DRV8703_VDS_SO_LIM;
+    expected[DRV8703_REG_VDS_CONTROL] |= (uint8_t)(config.vds_disable_mask & 0x0FU);
+
+    expected[DRV8703_REG_CONFIG_CONTROL] =
+        (uint8_t)(((uint8_t)config.toff & 0x03U) << DRV8703_CONFIG_TOFF_SHIFT);
+    if (config.current_chop_disable != 0U)
+        expected[DRV8703_REG_CONFIG_CONTROL] |= DRV8703_CONFIG_CHOP_IDS;
+    expected[DRV8703_REG_CONFIG_CONTROL] |=
+        (uint8_t)(((uint8_t)config.vref_scale & 0x03U) << DRV8703_CONFIG_VREF_SCL_SHIFT);
+    if (config.sample_hold_enable != 0U)
+        expected[DRV8703_REG_CONFIG_CONTROL] |= DRV8703_CONFIG_SH_EN;
+    expected[DRV8703_REG_CONFIG_CONTROL] |=
+        (uint8_t)((uint8_t)config.sense_gain & DRV8703_CONFIG_GAIN_CS_MASK);
+}
+
+static void AppControl_UpdateDrvExpectedRegs(void)
+{
+    uint8_t reg;
+    uint8_t expected[DRV8703_REGISTER_COUNT];
+
+    AppControl_BuildDrvExpectedRegs(expected);
+    for (reg = 0U; reg < DRV8703_REGISTER_COUNT; reg++)
+        g_app_control_drv_startup_expected[reg] = expected[reg];
+}
+
+static uint8_t AppControl_ReadBackAndCompareDrvConfig(uint8_t drv, DRV8703_Handle_t *dev)
+{
+    uint8_t reg;
+    uint8_t mismatch = 0U;
+    uint8_t expected[DRV8703_REGISTER_COUNT];
+
+    if ((drv >= APP_CONTROL_DRV_COUNT) || (dev == 0))
+        return APP_CONTROL_DRV_CONFIG_VERIFY_REG_MASK;
+
+    AppControl_BuildDrvExpectedRegs(expected);
+
+    for (reg = 0U; reg < DRV8703_REGISTER_COUNT; reg++)
+    {
+        uint8_t value = 0xFFU;
+        DRV8703_Status_t ret = DRV8703_ReadReg(dev, reg, &value);
+
+        g_app_control_drv_config_verify_reg_status[drv][reg] = ret;
+        g_app_control_drv_config_verify_reg_dump[drv][reg] = value;
+
+        if ((APP_CONTROL_DRV_CONFIG_VERIFY_REG_MASK & (uint8_t)(1U << reg)) == 0U)
+            continue;
+
+        if ((ret != DRV8703_OK) || (value != expected[reg]))
+            mismatch |= (uint8_t)(1U << reg);
+    }
+
+    g_app_control_drv_config_verify_mismatch_mask[drv] = mismatch;
+    return mismatch;
+}
+
+static DRV8703_Status_t AppControl_ApplyAndVerifyDrvConfig(uint8_t drv, DRV8703_Handle_t *dev)
+{
+    DRV8703_Status_t ret = DRV8703_ERROR_PARAM;
+    uint8_t attempt;
+
+    if ((drv >= APP_CONTROL_DRV_COUNT) || (dev == 0))
+        return DRV8703_ERROR_PARAM;
+
+    g_app_control_drv_config_verify_ok[drv] = 0U;
+    g_app_control_drv_config_verify_attempts[drv] = 0U;
+    g_app_control_drv_config_verify_mismatch_mask[drv] = APP_CONTROL_DRV_CONFIG_VERIFY_REG_MASK;
+
+    for (attempt = 1U; attempt <= APP_CONTROL_DRV_CONFIG_VERIFY_RETRY_COUNT; attempt++)
+    {
+        g_app_control_drv_config_verify_attempts[drv] = attempt;
+
+        ret = DRV8703_BoardApplyDefaultConfig((DRV8703_BoardChannel_t)drv);
+        if (ret == DRV8703_OK)
+            ret = DRV8703_SetVrefMv(dev, APP_CONTROL_DRV_VREF_MV);
+        if (ret == DRV8703_OK)
+            ret = DRV8703_ClearFault(dev);
+        if (ret == DRV8703_OK)
+            ret = DRV8703_Lock(dev);
+
+        if (ret == DRV8703_OK)
+        {
+            if (AppControl_ReadBackAndCompareDrvConfig(drv, dev) == 0U)
+            {
+                g_app_control_drv_config_verify_ok[drv] = 1U;
+                return DRV8703_OK;
+            }
+            ret = DRV8703_ERROR_SPI;
+        }
+
+        osDelay(2U);
+    }
+
+    return ret;
+}
+
+static uint8_t AppControl_DrvReadyForOutput(uint8_t drv)
+{
+    if (AppControl_DrvEnabled(drv) == 0U)
+        return 0U;
+    if (g_app_control_simulate_drv8703 != 0U)
+        return 1U;
+    if (drv >= APP_CONTROL_DRV_COUNT)
+        return 0U;
+    return ((g_app_control_drv_ready[drv] != 0U) &&
+            (g_app_control_drv_awake[drv] != 0U) &&
+            (g_app_control_drv_config_verify_ok[drv] != 0U))
+               ? 1U
+               : 0U;
 }
 
 /** @brief 获取指定 cell 的内。duty 跟随比例�*/
@@ -1629,11 +1787,12 @@ static DRV8703_Status_t AppControl_PrepareDrv(uint8_t drv)
         g_app_control_drv_ready[drv] = 1U;
         g_app_control_drv_awake[drv] = 1U;
         g_app_control_drv_fault[drv] = 0U;
+        g_app_control_drv_config_verify_ok[drv] = 1U;
         return DRV8703_OK;
     }
 
     if (g_app_control_drv_ready[drv] != 0U)
-        return DRV8703_OK;
+        return (AppControl_DrvReadyForOutput(drv) != 0U) ? DRV8703_OK : DRV8703_ERROR_PARAM;
 
     dev = DRV8703_BoardGet((DRV8703_BoardChannel_t)drv);
     if (dev == 0)
@@ -1645,27 +1804,44 @@ static DRV8703_Status_t AppControl_PrepareDrv(uint8_t drv)
 
         ret = DRV8703_BoardInitOne((DRV8703_BoardChannel_t)drv);
         if (ret == DRV8703_OK)
-            ret = DRV8703_BoardApplyDefaultConfig((DRV8703_BoardChannel_t)drv);
+            ret = DRV8703_Wake(dev);
         if (ret == DRV8703_OK)
-            ret = DRV8703_SetVrefMv(dev, APP_CONTROL_DRV_VREF_MV);
-        if (ret == DRV8703_OK)
-            ret = DRV8703_ClearFault(dev);
+            ret = AppControl_ApplyAndVerifyDrvConfig(drv, dev);
         if (ret == DRV8703_OK)
         {
-            (void)DRV8703_Lock(dev);
+            (void)DRV8703_SetDuty(dev, 0.0f);
+            AppControl_RecordDrvDuty(drv, 0.0f);
             AppControl_CaptureDrvStartupRegs(drv, dev);
             break;
         }
 
         AppControl_CaptureDrvFault(drv, ret);
+        (void)DRV8703_SetDuty(dev, 0.0f);
         (void)DRV8703_Sleep(dev);
-        osDelay(5);
+        g_app_control_drv_config_verify_ok[drv] = 0U;
+        osDelay(5U);
     }
 
     g_app_control_drv_ready[drv] = (ret == DRV8703_OK) ? 1U : 0U;
     g_app_control_drv_awake[drv] = (ret == DRV8703_OK) ? 1U : 0U;
     g_app_control_drv_fault[drv] = (ret == DRV8703_OK) ? 0U : 1U;
     return ret;
+}
+
+static void AppControl_InitAllDrvOnBoot(void)
+{
+    uint8_t drv;
+
+    AppControl_UpdateDrvExpectedRegs();
+
+#if APP_CONTROL_DRV_INIT_ON_BOOT_ENABLE
+    for (drv = 0U; drv < APP_CONTROL_DRV_COUNT; drv++)
+    {
+        if (AppControl_DrvEnabled(drv) == 0U)
+            continue;
+        (void)AppControl_PrepareDrv(drv);
+    }
+#endif
 }
 
 /**
@@ -1692,42 +1868,12 @@ DRV8703_Status_t AppControl_SetDrvDuty(uint8_t drv, float duty)
     if (g_app_control_simulate_drv8703 != 0U)
         return DRV8703_OK;
 
-    if ((AppControl_Abs(duty) < 0.001f) && (g_app_control_drv_awake[drv] == 0U))
-        return DRV8703_OK;
+    if (AppControl_DrvReadyForOutput(drv) == 0U)
+        return DRV8703_ERROR_PARAM;
 
     dev = DRV8703_BoardGet((DRV8703_BoardChannel_t)drv);
     if (dev == 0)
         return DRV8703_ERROR_PARAM;
-
-    ret = AppControl_PrepareDrv(drv);
-    if (ret != DRV8703_OK)
-        return ret;
-
-    if (g_app_control_drv_awake[drv] == 0U)
-    {
-        ret = DRV8703_Wake(dev);
-        if (ret != DRV8703_OK)
-        {
-            g_app_control_drv_awake[drv] = 0U;
-            AppControl_CaptureDrvFault(drv, ret);
-            return ret;
-        }
-
-        ret = DRV8703_BoardApplyDefaultConfig((DRV8703_BoardChannel_t)drv);
-        if (ret == DRV8703_OK)
-            ret = DRV8703_SetVrefMv(dev, APP_CONTROL_DRV_VREF_MV);
-        if (ret == DRV8703_OK)
-            ret = DRV8703_ClearFault(dev);
-        if (ret == DRV8703_OK)
-            (void)DRV8703_Lock(dev);
-        if (ret != DRV8703_OK)
-        {
-            g_app_control_drv_awake[drv] = 0U;
-            AppControl_CaptureDrvFault(drv, ret);
-            return ret;
-        }
-        g_app_control_drv_awake[drv] = 1U;
-    }
 
     ret = DRV8703_SetDuty(dev, duty);
     if (ret != DRV8703_OK)
@@ -1994,14 +2140,11 @@ static void AppControl_StopCell(uint8_t cell, AppControlStopMode_t mode)
     {
         (void)AppControl_SetDrvDuty(cfg->drv_outer, 0.0f);
         (void)AppControl_SetDrvDuty(cfg->drv_inner, 0.0f);
-        AppControl_SleepDrv(cfg->drv_outer);
-        AppControl_SleepDrv(cfg->drv_inner);
     }
 
     if ((APP_CONTROL_SHARED_DRV_ENABLE != 0U) && !AppControl_SharedDrvNeeded())
     {
         (void)AppControl_SetDrvDuty(APP_CONTROL_SHARED_DRV, 0.0f);
-        AppControl_SleepDrv(APP_CONTROL_SHARED_DRV);
     }
 
     if (was_running != 0U)
@@ -2084,16 +2227,16 @@ static void AppControl_StartCell(uint8_t cell)
     }
 
     failed_drv = cfg->drv_outer;
-    ret = AppControl_PrepareDrv(cfg->drv_outer);
+    ret = AppControl_DrvReadyForOutput(cfg->drv_outer) != 0U ? DRV8703_OK : DRV8703_ERROR_PARAM;
     if (ret == DRV8703_OK)
     {
         failed_drv = cfg->drv_inner;
-        ret = AppControl_PrepareDrv(cfg->drv_inner);
+        ret = AppControl_DrvReadyForOutput(cfg->drv_inner) != 0U ? DRV8703_OK : DRV8703_ERROR_PARAM;
     }
     if (ret == DRV8703_OK && cfg->shared_drv != APP_CONTROL_INVALID_INDEX)
     {
         failed_drv = cfg->shared_drv;
-        ret = AppControl_PrepareDrv(cfg->shared_drv);
+        ret = AppControl_DrvReadyForOutput(cfg->shared_drv) != 0U ? DRV8703_OK : DRV8703_ERROR_PARAM;
     }
 
     if (ret != DRV8703_OK)
@@ -3130,7 +3273,13 @@ AppControl_Status_t AppControl_Init(void)
         g_app_control_drv_fault_capture_count[i] = 0U;
         g_app_control_drv_fault_read_status[i] = DRV8703_OK;
         g_app_control_drv_dump_status[i] = DRV8703_OK;
+        g_app_control_drv_ready[i] = 0U;
         g_app_control_drv_awake[i] = 0U;
+        g_app_control_drv_fault[i] = 0U;
+        g_app_control_drv_init_attempts[i] = 0U;
+        g_app_control_drv_config_verify_ok[i] = 0U;
+        g_app_control_drv_config_verify_attempts[i] = 0U;
+        g_app_control_drv_config_verify_mismatch_mask[i] = 0U;
         g_app_control_drv_fault_status[i] = 0xFFU;
         g_app_control_drv_vds_gdf_status[i] = 0xFFU;
         g_app_control_drv_reg_read_ok_mask[i] = 0U;
@@ -3152,6 +3301,8 @@ AppControl_Status_t AppControl_Init(void)
             g_app_control_drv_probe_reg_status[i][reg] = DRV8703_OK;
             g_app_control_drv_probe_tx[i][reg] = 0U;
             g_app_control_drv_probe_rx[i][reg] = 0U;
+            g_app_control_drv_config_verify_reg_dump[i][reg] = 0xFFU;
+            g_app_control_drv_config_verify_reg_status[i][reg] = DRV8703_OK;
         }
 
         g_app_control_drv_pin_fault_count[i] = 0U;
@@ -3195,6 +3346,7 @@ AppControl_Status_t AppControl_Init(void)
     AppControl_LoadCalibData(0);
     AppControl_LoadCalibData(1);
 
+    AppControl_InitAllDrvOnBoot();
     AppControl_ApplyDebugState();
     g_app_control_init_result = APP_CONTROL_OK;
     return APP_CONTROL_OK;
