@@ -55,7 +55,7 @@
 /** @brief duty 斜率限制接受的最大周期，单位 s�*/
 #define APP_CONTROL_TEMP_PID_DT_MAX_S 1.0f
 /** @brief duty 输出变化斜率上限，单�?duty/s，用于避免输出突变�*/
-#define APP_CONTROL_DUTY_SLEW_RATE_PER_S 0.1f
+#define APP_CONTROL_DUTY_SLEW_RATE_PER_S 0.05f
 /** @brief 故障清除后面板错误显示保留时间，单位 ms�*/
 #define APP_CONTROL_ERROR_DISPLAY_MS 5000U
 /** @brief 普通模式下是否延迟启用 PID 反馈，先以前馈接近目标温度�*/
@@ -87,9 +87,9 @@
 /** @brief Temporary auto-start of one DRV output test. Keep disabled for config probe. */
 #define APP_CONTROL_DRV_TEST_AUTO_START_ENABLE 0U
 /** @brief Auto-test DRV channel index: 0=DRV1, 1=DRV2, 2=DRV3, 3=DRV4, 4=DRV5. */
-#define APP_CONTROL_DRV_TEST_AUTO_CHANNEL 0U
+#define APP_CONTROL_DRV_TEST_AUTO_CHANNEL 3U
 /** @brief Auto-test DRV duty. */
-#define APP_CONTROL_DRV_TEST_AUTO_DUTY -0.20f
+#define APP_CONTROL_DRV_TEST_AUTO_DUTY 0.20f
 /** @brief 所�?DRV 通道组成的位掩码，bit0..bit4 对应 DRV1..DRV5�?*/
 #define APP_CONTROL_DRV_ALL_MASK ((uint8_t)((1U << APP_CONTROL_DRV_COUNT) - 1U))
 
