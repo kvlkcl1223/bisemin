@@ -48,6 +48,9 @@
 #define DRV8703_EXAMPLE_VREF_MV 2000U
 #define DRV8703_EXAMPLE_DUTY 0.40f
 #define APP_ADC_MEASURE_ZERO_SAMPLES 64U
+/* Set to 0U to restore normal startup without the open-loop request. */
+#define APP_DRV_OPEN_LOOP_AUTO_START_ENABLE 1U
+#define APP_DRV_OPEN_LOOP_AUTO_START_MASK 0x1FU
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -71,6 +74,7 @@ volatile HAL_StatusTypeDef g_app_tim_sync_start_result = HAL_OK;
 volatile uint32_t g_app_tim1_trgo2_compare = 0U;
 volatile AdcMeasure_Status_t g_app_adc_measure_start_result = ADC_MEASURE_ERROR_ADC1;
 volatile AppControl_Status_t g_app_control_start_result = APP_CONTROL_ERROR_QUEUE;
+volatile DRV8703_Status_t g_app_drv_open_loop_start_result = DRV8703_ERROR_PARAM;
 /* USER CODE END Variables */
 /* Definitions for ControlTask */
 osThreadId_t ControlTaskHandle;
@@ -195,11 +199,11 @@ void StartControlTask(void *argument)
     AppDebug_UartSend(buf);
   }
 
-  /* 初始�?ADS1220 温度采集 */
+  /* 初始�?ADS1220 温度采集 */
   Ads1220_InitAll();
   AppDebug_UartSend("SYS,ADS1220_INIT_DONE\r\n");
 
-  /* 读取并输出两�?Cell 的上一次标定数�?*/
+  /* 读取并输出两�?Cell 的上一次标定数�?*/
   CalibMode_ImportLegacyCell1IfMissing();
 
   CalibMode_DumpFlashData(0);
@@ -207,6 +211,17 @@ void StartControlTask(void *argument)
 
   // AppDebug_UartSend("CALIB,AUTO_START,CELL:0\r\n");
   // CalibMode_Start(0);
+
+#if APP_DRV_OPEN_LOOP_AUTO_START_ENABLE
+  if (g_app_control_start_result == APP_CONTROL_OK)
+  {
+    /* DRV1..DRV5 targets; AppControl_Task applies slew limiting and fault checks. */
+    const float duty[APP_CONTROL_DRV_COUNT] = {
+        0.40f, 0.28f, 0.0f, 0.0f, 0.35f};
+    g_app_drv_open_loop_start_result =
+        AppControl_StartDrvTest(APP_DRV_OPEN_LOOP_AUTO_START_MASK, duty);
+  }
+#endif
 
   /* Infinite loop */
   for (;;)
@@ -229,7 +244,7 @@ void StartControlTask(void *argument)
      * g_adc_measure_adc1_update_count / g_adc_measure_adc2_update_count
      */
     g_app_drv8703_loop_counter++;
-    PcProto_Process(); /* 处理 PC 协议收到的命�?*/
+    PcProto_Process(); /* 处理 PC 协议收到的命�?*/
     osDelay(20);
   }
   /* USER CODE END StartControlTask */
@@ -273,13 +288,13 @@ void StartHMITask(void *argument)
       {
         if (g_calib_state == CALIB_INIT)
         {
-          /* INIT: LED1 亮，数码管清�?*/
+          /* INIT: LED1 亮，数码管清�?*/
           TM1638_SetAllLEDs(&htm1638, 0x01);
           TM1638_ClearDisplay(&htm1638);
         }
         else if (g_calib_state == CALIB_RUN || g_calib_state == CALIB_IDLE)
         {
-          /* RUN/IDLE 过渡�? LED 全灭，数码管清空 */
+          /* RUN/IDLE 过渡�? LED 全灭，数码管清空 */
           TM1638_SetAllLEDs(&htm1638, 0x00);
           TM1638_ClearDisplay(&htm1638);
         }
@@ -291,20 +306,20 @@ void StartHMITask(void *argument)
 
           if (disp_mode == 0U)
           {
-            /* 占空�?�?LED1 */
+            /* 占空�?�?LED1 */
             float duty = CalibMode_StepDuty((uint8_t)g_calib_step_idx);
             TM1638_SetAllLEDs(&htm1638, 0x01);
             TM1638_ShowFloat(&htm1638, duty, 2);
           }
           else if (disp_mode == 1U)
           {
-            /* CH0 温度 �?LED2 */
+            /* CH0 温度 �?LED2 */
             TM1638_SetAllLEDs(&htm1638, 0x02);
             TM1638_ShowFloat(&htm1638, g_calib_temp_ch0, 1);
           }
           else
           {
-            /* CH1 温度 �?LED3 */
+            /* CH1 温度 �?LED3 */
             TM1638_SetAllLEDs(&htm1638, 0x04);
             TM1638_ShowFloat(&htm1638, g_calib_temp_ch1, 1);
           }

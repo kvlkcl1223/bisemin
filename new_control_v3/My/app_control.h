@@ -271,6 +271,8 @@ extern "C"
     extern volatile uint8_t g_app_control_test_drv_ok[APP_CONTROL_DRV_COUNT];
     /** @brief 手动测试模式下每�?DRV 当前测试 duty�*/
     extern volatile float g_app_control_test_duty[APP_CONTROL_DRV_COUNT];
+    /** @brief Open-loop test output after slew limiting; test_duty[] is the target. */
+    extern volatile float g_app_control_drv_test_output_duty[APP_CONTROL_DRV_COUNT];
     /** @brief DRV 测试请求掩码，bit0..bit4 对应 DRV1..DRV5�?*/
     extern volatile uint8_t g_app_control_drv_test_requested_mask;
     /** @brief DRV 测试当前仍在输出的通道掩码；故障通道会被自动清除�?*/
@@ -331,6 +333,10 @@ extern "C"
 
     /** @brief 直接设置指定 DRV �?PWM duty，正负号表示制冷/加热方向�*/
     DRV8703_Status_t AppControl_SetDrvDuty(uint8_t drv, float duty);
+    /* Open-loop per-channel targets ramp at APP_CONTROL_DUTY_SLEW_RATE_PER_S.
+     * Change g_app_control_test_duty[] while active to adjust targets.
+     * Direct SetDrvDuty calls bypass this test-mode ramp.
+     */
     /** @brief 启动 DRV 测试模式；drv_mask �?bit0..bit4 对应 DRV1..DRV5，测试期间会快速检查故障�?*/
     DRV8703_Status_t AppControl_StartDrvTest(uint8_t drv_mask, const float duty[APP_CONTROL_DRV_COUNT]);
     /** @brief Initialise selected DRV8703 chips, read REG0..REG5, and compare REG2..REG5 with expected config. */

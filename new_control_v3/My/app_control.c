@@ -320,6 +320,7 @@ volatile uint8_t g_app_control_test_active = 0U;
 volatile uint8_t g_app_control_test_phase = 0U;
 volatile uint8_t g_app_control_test_drv_ok[APP_CONTROL_DRV_COUNT] = {0, 0, 0, 0, 0};
 volatile float g_app_control_test_duty[APP_CONTROL_DRV_COUNT] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+volatile float g_app_control_drv_test_output_duty[APP_CONTROL_DRV_COUNT] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 /** @brief DRV 测试请求掩码，bit0..bit4 对应 DRV1..DRV5�?*/
 volatile uint8_t g_app_control_drv_test_requested_mask = 0U;
 /** @brief DRV 测试当前仍在输出的通道掩码；故障通道会被自动清除�?*/
@@ -452,6 +453,7 @@ uint8_t s_temp_stale_cycles[APP_CONTROL_TEMP_INPUT_COUNT] = {0U, 0U, 0U, 0U};   
 static uint8_t s_test_drv_initialized = 0U;         /**< DRV 测试模式是否已经完成本轮通道初始化�?*/
 static uint32_t s_drv_test_last_fault_poll_ms = 0U; /**< DRV ����ģʽ��һ�� FAULT ��ѯʱ�䡣*/
 static uint8_t s_drv_test_fault_retry_count[APP_CONTROL_DRV_COUNT] = {0U, 0U, 0U, 0U, 0U};
+static uint32_t s_drv_test_last_duty_ms = 0U;
 static uint8_t s_calib_was_active = 0U;     /**< 记录上一周期是否处于标定模式，用于标定结束后重新加载 Flash�*/
 static uint32_t s_last_water_check_ms = 0U; /**< 水位检测心跳上一次执行时间�*/
 
@@ -2869,6 +2871,7 @@ static void AppControl_StopDrvTestOutput(uint8_t drv)
         return;
 
     g_app_control_test_duty[drv] = 0.0f;
+    g_app_control_drv_test_output_duty[drv] = 0.0f;
     AppControl_RecordDrvDuty(drv, 0.0f);
 
     if (AppControl_DrvEnabled(drv) == 0U)
@@ -3048,7 +3051,7 @@ static void AppControl_DrvTestInit(uint32_t now_ms)
     uint8_t drv;
     uint8_t requested_mask;
 
-    (void)now_ms;
+    s_drv_test_last_duty_ms = now_ms;
     AppControl_DrvTestEnsureDefaultRequest();
     requested_mask = (uint8_t)(g_app_control_drv_test_requested_mask & APP_CONTROL_DRV_ENABLE_MASK);
 
@@ -3075,7 +3078,9 @@ static void AppControl_DrvTestInit(uint32_t now_ms)
         g_app_control_test_duty[drv] = AppControl_Clamp(g_app_control_test_duty[drv],
                                                         APP_CONTROL_DUTY_MIN,
                                                         APP_CONTROL_DUTY_MAX);
-        ret = AppControl_SetDrvDuty(drv, g_app_control_test_duty[drv]);
+        /* Start at zero; the task ramps each channel towards its target. */
+        g_app_control_drv_test_output_duty[drv] = 0.0f;
+        ret = AppControl_SetDrvDuty(drv, 0.0f);
         g_app_control_drv_test_status[drv] = ret;
         if (ret == DRV8703_OK)
         {
@@ -3164,13 +3169,22 @@ static void AppControl_DrvTestPollFaults(uint32_t now_ms)
 static void AppControl_DrvTestTask(uint32_t now_ms)
 {
     uint8_t drv;
+    float dt_s;
 
     if (s_test_drv_initialized == 0U)
         AppControl_DrvTestInit(now_ms);
 
+    dt_s = (float)(now_ms - s_drv_test_last_duty_ms) * 0.001f;
+    /* Do not let the shared slew helper's minimum dt advance repeated calls. */
+    if (dt_s >= APP_CONTROL_TEMP_PID_DT_MIN_S)
+        s_drv_test_last_duty_ms = now_ms;
+
     for (drv = 0U; drv < APP_CONTROL_DRV_COUNT; drv++)
     {
         uint8_t bit = (uint8_t)(1U << drv);
+        float prev_duty;
+        float output_duty;
+        DRV8703_Status_t ret;
 
         if ((g_app_control_drv_test_active_mask & bit) == 0U)
             continue;
@@ -3178,12 +3192,28 @@ static void AppControl_DrvTestTask(uint32_t now_ms)
         g_app_control_test_duty[drv] = AppControl_Clamp(g_app_control_test_duty[drv],
                                                         APP_CONTROL_DUTY_MIN,
                                                         APP_CONTROL_DUTY_MAX);
-        if (AppControl_SetDrvDuty(drv, g_app_control_test_duty[drv]) != DRV8703_OK)
+        if (dt_s < APP_CONTROL_TEMP_PID_DT_MIN_S)
+            continue;
+
+        prev_duty = s_drv_output_duty[drv];
+        output_duty = AppControl_ApplyDutySlew(drv, g_app_control_test_duty[drv], dt_s);
+        /* Set PWM to zero before reversing the direction pin on a later step. */
+        if (((prev_duty > 0.0f) && (output_duty < 0.0f)) ||
+            ((prev_duty < 0.0f) && (output_duty > 0.0f)))
+            output_duty = 0.0f;
+
+        ret = AppControl_SetDrvDuty(drv, output_duty);
+        g_app_control_drv_test_status[drv] = ret;
+        if (ret != DRV8703_OK)
         {
             g_app_control_drv_test_fault_mask |= bit;
             g_app_control_drv_test_active_mask &= (uint8_t)(~bit);
             g_app_control_test_drv_ok[drv] = 0U;
             AppControl_StopDrvTestOutput(drv);
+        }
+        else
+        {
+            g_app_control_drv_test_output_duty[drv] = output_duty;
         }
     }
 
@@ -3265,6 +3295,7 @@ AppControl_Status_t AppControl_Init(void)
         s_drv_output_duty[i] = 0.0f;
         g_app_control_test_drv_ok[i] = 0U;
         g_app_control_test_duty[i] = 0.0f;
+        g_app_control_drv_test_output_duty[i] = 0.0f;
         g_app_control_drv_test_status[i] = DRV8703_OK;
         g_app_control_drv_probe_read_ok_mask[i] = 0U;
         g_app_control_drv_probe_mismatch_mask[i] = 0U;
@@ -3328,6 +3359,7 @@ AppControl_Status_t AppControl_Init(void)
     }
 
     s_last_reg_snapshot_ms = 0U;
+    s_drv_test_last_duty_ms = 0U;
     g_app_control_periodic_reg_snapshot_count = 0U;
     g_app_control_test_active = 0U;
     g_app_control_test_phase = 0U;

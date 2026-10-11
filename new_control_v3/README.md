@@ -76,6 +76,31 @@ inner_duty = outer_duty * inner_ratio
 | [My/flash_storage.c](My/flash_storage.c) | 内部 Flash 参数存储 |
 | [My/ads1220.c](My/ads1220.c) | ADS1220/PT1000 初始化和测试支持 |
 
+## 逐通道开环输出
+
+目前 `Core/Src/app_freertos.c` 的 `APP_DRV_OPEN_LOOP_AUTO_START_ENABLE` 为 `1U`。控制任务完成初始化和标定数据处理后、进入循环前，会调用一次开环接口，DRV1..DRV5 的目标依次为 `+0.20、+0.10、-0.20、-0.10、+0.15`。修改调用处的 `duty[]` 可调整启动目标；`APP_DRV_OPEN_LOOP_AUTO_START_MASK` 的 bit0..bit4 选择通道。将启动宏改为 `0U` 可恢复普通启动。原有单路自动测试宏 `APP_CONTROL_DRV_TEST_AUTO_START_ENABLE` 保持为 `0U`，避免覆盖这次五路请求。
+
+`g_app_drv_open_loop_start_result` 为 `DRV8703_OK` 表示请求成功提交；每路是否能输出仍需查看 `g_app_control_drv_test_active_mask`、`g_app_control_drv_test_fault_mask` 和初始化校验状态。
+
+`AppControl_StartDrvTest()` 是逐通道开环接口，不使用温度 PID 或前馈，也不执行内外层比例跟随。数组索引 `0..4` 对应 DRV1..DRV5；只输出掩码选中的已启用通道，并要求对应驱动通过启动初始化和寄存器校验。
+
+每路从零开始按 `My/app_control.c` 中的 `APP_CONTROL_DUTY_SLEW_RATE_PER_S` 升降。目前该值为 `0.05f`（每秒 5 个百分点），从零到 `0.20` 约需 4 秒。目标占空比限制为 `APP_CONTROL_DUTY_MIN..APP_CONTROL_DUTY_MAX`，当前是 `-0.40..+0.40`。正负切换时先输出零，再在后续周期改变方向。
+
+例如同时设置 DRV1、DRV3、DRV5：在 `AppControl_Init()` 完成后、控制任务中调用一次：
+
+```c
+float duty[APP_CONTROL_DRV_COUNT] = {0.20f, 0.0f, -0.10f, 0.0f, 0.15f};
+(void)AppControl_StartDrvTest((uint8_t)((1U << 0) | (1U << 2) | (1U << 4)), duty);
+```
+
+进入开环后，正常控温输出停止。运行时可在 Watch 修改 `g_app_control_test_duty[0..4]` 来调整各路目标；查看 `g_app_control_drv_test_output_duty[0..4]` 可看到斜率限制后的实际输出。需要平滑降到零时，将对应目标改成 `0.0f`。
+
+也可在 Watch 先设置 `g_app_control_drv_test_requested_mask`（`0x01` 测 DRV1，`0x1F` 测所有已启用通道），再设置 `g_app_control_test_duty[]`，最后将 `g_app_control_test_active` 置 `1`。自动单通道入口使用 `APP_CONTROL_DRV_TEST_AUTO_START_ENABLE`、`APP_CONTROL_DRV_TEST_AUTO_CHANNEL` 和 `APP_CONTROL_DRV_TEST_AUTO_DUTY`，同样经过斜率限制。
+
+故障停机和 `AppControl_StopDrvTest()` 会立即将 PWM 归零；停止开环不会拉低 SLEEP。保留故障寄存器读取、连续故障检测和故障通道停机逻辑。直接调用底层 `DRV8703_SetDuty()` 或 `AppControl_SetDrvDuty()` 不经过开环斜率处理。
+
+当前 PC 协议和软件没有逐通道开环占空比设置命令；上述入口通过固件调用或调试器使用。
+
 ## 标定与前馈
 
 标定数据用于生成前馈 duty。当前标定逻辑在 [My/calib_mode.h](My/calib_mode.h) 和 [My/calib_mode.c](My/calib_mode.c)：
