@@ -4,22 +4,22 @@
 
 ## 当前控制方案
 
-系统共有 2 个 cell、5 路 DRV8703；当前配置使用 DRV1 作为 Cell 0 外层/主路，DRV5 保留为共享通道。共享通道逻辑目前关闭，打开后任意一个 cell 运行都会启动 DRV5 并固定输出共享 duty。
+系统共有 2 个 cell、5 路 DRV8703；当前配置使用 DRV1 作为 Cell 0 外层，DRV5 为已启用的共享通道。任意一个 cell 运行时，DRV5 按斜率限制趋近共享目标 duty `0.35`。
 
-| Cell | 测温输入 | 控制温度 | 外层 DRV | 内层 DRV | 默认内层比例 |
+| Cell | 测温输入 | 控制温度 | 外层 DRV | 内层 DRV | 制冷内层比例 |
 |---|---|---|---|---|---|
-| Cell 0 | CH1 + CH2 | `(CH1 + CH2) / 2` | DRV1 | DRV2 | `0.70` |
-| Cell 1 | CH3 + CH4 | `(CH3 + CH4) / 2` | DRV3 | DRV4 | `0.70` |
-| DRV5 | - | - | 共享通道 | - | 当前关闭，不初始化/不唤醒 |
+| Cell 0 | CH1 + CH2 | `(CH1 + CH2) / 2` | DRV1 | DRV2 | `0.757` |
+| Cell 1 | CH3 + CH4 | `(CH3 + CH4) / 2` | DRV3 | DRV4 | `0.757` |
+| DRV5 | - | - | 共享通道 | - | 目标 duty `0.35` |
 
-PID 输出表示主路电压，也就是外层冷热片的 PWM duty。内层冷热片不再单独做 PID，而是跟随外层：
+目标温度高于环境/水温时按加热处理，否则按制冷处理；环境/水温无效时用当前池温作为判断界限。PID 和前馈共同给出主路 duty，经过限幅与斜率限制后按模式分配：
 
 ```text
-outer_duty = PID(mean_temp, target_temp) + feedforward
-inner_duty = outer_duty * inner_ratio
+制冷：outer_duty = main_duty，inner_duty = outer_duty * 0.757
+加热：inner_duty = main_duty，outer_duty = inner_duty * 0.70
 ```
 
-默认配置里，从路 duty 是主路 duty 的 `0.70` 倍。当前 `APP_CONTROL_SHARED_DRV_ENABLE` 为 `0`，DRV5 作为共享通道被暂时禁用；将该宏改为 `1U` 后，任意 cell 运行时 DRV5 会按 `APP_CONTROL_SHARED_CH5_DUTY` 固定输出。
+当前 duty 限幅为 `-0.37..+0.37`。制冷外层达到 `0.37` 时，内层为 `0.37 * 0.757 = 0.28009`，约 `28%`；加热跟随比例保持 `0.70`。`APP_CONTROL_SHARED_DRV_ENABLE` 当前为 `1U`，共享目标由 `APP_CONTROL_SHARED_CH5_DUTY` 设置。
 
 ## 通道映射配置
 
@@ -30,30 +30,36 @@ inner_duty = outer_duty * inner_ratio
 #define APP_CONTROL_CELL0_TEMP_INNER 1U
 #define APP_CONTROL_CELL0_DRV_OUTER 0U
 #define APP_CONTROL_CELL0_DRV_INNER 1U
-#define APP_CONTROL_CELL0_INNER_DUTY_RATIO 0.70f
+#define APP_CONTROL_CELL0_COOLING_INNER_DUTY_RATIO 0.757f
+#define APP_CONTROL_CELL0_HEATING_OUTER_DUTY_RATIO 0.70f
+#define APP_CONTROL_CELL0_INNER_DUTY_RATIO APP_CONTROL_CELL0_COOLING_INNER_DUTY_RATIO
 
 #define APP_CONTROL_CELL1_TEMP_OUTER 2U
 #define APP_CONTROL_CELL1_TEMP_INNER 3U
 #define APP_CONTROL_CELL1_DRV_OUTER 2U
 #define APP_CONTROL_CELL1_DRV_INNER 3U
-#define APP_CONTROL_CELL1_INNER_DUTY_RATIO 0.70f
+#define APP_CONTROL_CELL1_COOLING_INNER_DUTY_RATIO 0.757f
+#define APP_CONTROL_CELL1_HEATING_OUTER_DUTY_RATIO 0.70f
+#define APP_CONTROL_CELL1_INNER_DUTY_RATIO APP_CONTROL_CELL1_COOLING_INNER_DUTY_RATIO
 
 #define APP_CONTROL_SHARED_DRV 4U
-#define APP_CONTROL_SHARED_DRV_ENABLE 0U
+#define APP_CONTROL_SHARED_DRV_ENABLE 1U
 #define APP_CONTROL_CELL_DRV_ENABLE_MASK ((uint8_t)((1U << 0) | (1U << 1) | (1U << 2) | (1U << 3)))
 #if APP_CONTROL_SHARED_DRV_ENABLE
 #define APP_CONTROL_DRV_ENABLE_MASK ((uint8_t)(APP_CONTROL_CELL_DRV_ENABLE_MASK | (uint8_t)(1U << APP_CONTROL_SHARED_DRV)))
 #else
 #define APP_CONTROL_DRV_ENABLE_MASK APP_CONTROL_CELL_DRV_ENABLE_MASK
 #endif
-#define APP_CONTROL_SHARED_CH5_DUTY 0.20f
+#define APP_CONTROL_DUTY_MIN (-0.37f)
+#define APP_CONTROL_DUTY_MAX (0.37f)
+#define APP_CONTROL_SHARED_CH5_DUTY 0.35f
 ```
 
 注意：这些索引都是从 0 开始的。`TEMP 0..3` 对应实际测温 CH1..CH4，`DRV 0..4` 对应实际 DRV1..DRV5。
 
 常见改法：
 
-- 只改内外层比例：修改 `APP_CONTROL_CELLx_INNER_DUTY_RATIO`。
+- 修改制冷或加热跟随比例：分别修改 `APP_CONTROL_CELLx_COOLING_INNER_DUTY_RATIO` 或 `APP_CONTROL_CELLx_HEATING_OUTER_DUTY_RATIO`。
 - 互换某个 cell 的内外层 DRV：修改 `APP_CONTROL_CELLx_DRV_OUTER` 和 `APP_CONTROL_CELLx_DRV_INNER`。
 - 调整某个 cell 使用的两路测温：修改 `APP_CONTROL_CELLx_TEMP_OUTER` 和 `APP_CONTROL_CELLx_TEMP_INNER`。
 - 关闭/打开 cell 使用的 DRV：修改 `APP_CONTROL_CELL_DRV_ENABLE_MASK`，bit0..bit3 对应 DRV1..DRV4。
@@ -78,13 +84,13 @@ inner_duty = outer_duty * inner_ratio
 
 ## 逐通道开环输出
 
-目前 `Core/Src/app_freertos.c` 的 `APP_DRV_OPEN_LOOP_AUTO_START_ENABLE` 为 `1U`。控制任务完成初始化和标定数据处理后、进入循环前，会调用一次开环接口，DRV1..DRV5 的目标依次为 `+0.20、+0.10、-0.20、-0.10、+0.15`。修改调用处的 `duty[]` 可调整启动目标；`APP_DRV_OPEN_LOOP_AUTO_START_MASK` 的 bit0..bit4 选择通道。将启动宏改为 `0U` 可恢复普通启动。原有单路自动测试宏 `APP_CONTROL_DRV_TEST_AUTO_START_ENABLE` 保持为 `0U`，避免覆盖这次五路请求。
+目前 `Core/Src/app_freertos.c` 的 `APP_DRV_OPEN_LOOP_AUTO_START_ENABLE` 为 `0U`，五路自动开环调用暂时不参与编译，系统按普通流程启动。保留的开环示例中，DRV1..DRV5 的目标依次为 `+0.20、+0.10、-0.20、-0.10、+0.15`；将启动宏改为 `1U` 可重新启用。修改调用处的 `duty[]` 可调整启动目标；`APP_DRV_OPEN_LOOP_AUTO_START_MASK` 的 bit0..bit4 选择通道。原有单路自动测试宏 `APP_CONTROL_DRV_TEST_AUTO_START_ENABLE` 保持为 `0U`。
 
 `g_app_drv_open_loop_start_result` 为 `DRV8703_OK` 表示请求成功提交；每路是否能输出仍需查看 `g_app_control_drv_test_active_mask`、`g_app_control_drv_test_fault_mask` 和初始化校验状态。
 
 `AppControl_StartDrvTest()` 是逐通道开环接口，不使用温度 PID 或前馈，也不执行内外层比例跟随。数组索引 `0..4` 对应 DRV1..DRV5；只输出掩码选中的已启用通道，并要求对应驱动通过启动初始化和寄存器校验。
 
-每路从零开始按 `My/app_control.c` 中的 `APP_CONTROL_DUTY_SLEW_RATE_PER_S` 升降。目前该值为 `0.05f`（每秒 5 个百分点），从零到 `0.20` 约需 4 秒。目标占空比限制为 `APP_CONTROL_DUTY_MIN..APP_CONTROL_DUTY_MAX`，当前是 `-0.40..+0.40`。正负切换时先输出零，再在后续周期改变方向。
+每路从零开始按 `My/app_control.c` 中的 `APP_CONTROL_DUTY_SLEW_RATE_PER_S` 升降。目前该值为 `0.05f`（每秒 5 个百分点），从零到 `0.20` 约需 4 秒。目标占空比限制为 `APP_CONTROL_DUTY_MIN..APP_CONTROL_DUTY_MAX`，当前是 `-0.37..+0.37`。正负切换时先输出零，再在后续周期改变方向。
 
 例如同时设置 DRV1、DRV3、DRV5：在 `AppControl_Init()` 完成后、控制任务中调用一次：
 
@@ -110,7 +116,7 @@ float duty[APP_CONTROL_DRV_COUNT] = {0.20f, 0.0f, -0.10f, 0.0f, 0.15f};
 - 每步等待温度稳定，稳定条件是温度窗口波动小于 `0.1 degC` 并持续 `10 s`。
 - 单步最长等待 `600 s`，超时会记录当前值并标记为未稳定。
 - 每个 cell 记录两路测温和均值；闭环前馈使用均值曲线。
-- 标定时外层输出当前扫描 duty，内层按配置比例跟随；当前共享通道逻辑关闭，不会额外输出共享 duty。
+- 标定时主从路按制冷/加热模式分配，扫描范围仍为 `+0.35..-0.35`；共享通道已启用，目标 duty 为 `0.35`。
 - 当前虚拟低温显示已关闭，面板和上位机允许设置的目标温度范围为 `-20.0..120.0 degC`。
 
 Flash 存储布局见 [FLASH_LAYOUT.md](FLASH_LAYOUT.md)。当前代码使用内部 Flash 末尾 8 KB：
@@ -165,7 +171,7 @@ op=GET_CALIB_RESULT,cell=0,index=0
 
 - 某个 cell 的任一路测温超时，会尝试复位测温串口；多次失败后进入温度错误。
 - 外层或内层 DRV8703 故障会停止对应 cell。
-- 当前共享逻辑关闭，DRV5 不作为正常温控输出；共享逻辑打开后，DRV5 故障会按使用它的 cell 的 DRV 故障处理。
+- 当前共享逻辑已启用，DRV5 严重故障会触发共享驱动故障处理并停止两池。
 - 电压/电流采样由 `adc_measure` 维护，相关错误码在 `temp_panel.h` 中定义。
 
 ## 构建方式

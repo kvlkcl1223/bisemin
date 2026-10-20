@@ -49,7 +49,7 @@
 #define DRV8703_EXAMPLE_DUTY 0.40f
 #define APP_ADC_MEASURE_ZERO_SAMPLES 64U
 /* Set to 0U to restore normal startup without the open-loop request. */
-#define APP_DRV_OPEN_LOOP_AUTO_START_ENABLE 1U
+#define APP_DRV_OPEN_LOOP_AUTO_START_ENABLE 0U
 #define APP_DRV_OPEN_LOOP_AUTO_START_MASK 0x1FU
 /* USER CODE END PD */
 
