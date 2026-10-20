@@ -7,10 +7,10 @@
  * @date    2026-07-02
  *
  * @details
- * �?+0.35（制冷）�?-0.35（加热）�?-0.02 步进，共 36 步�? * 每一步设定固定占空比后等待温度稳定（波动 < CALIB_STABLE_THRESHOLD
+ * �?+0.37（制冷）�?-0.37（加热）�?-0.02 步进，共 38 步�? * 每一步设定固定占空比后等待温度稳定（波动 < CALIB_STABLE_THRESHOLD
  * 持续 CALIB_STABLE_SECONDS 秒），记录稳定区间的平均温度�?
  * 若超时未稳定则记录当前值并标记 valid=0�?
- * 全部 36 步完成后写入 Flash�? * Cell 0 �?Cell 1 的标定数据分别存储在 Flash 不同页，互不覆盖�?
+ * 全部 38 步完成后写入 Flash�? * Cell 0 �?Cell 1 的标定数据分别存储在 Flash 不同页，互不覆盖�?
  ******************************************************************************
  */
 
@@ -25,20 +25,21 @@ extern "C"
 /* Includes ------------------------------------------------------------------*/
 #include <stdint.h>
 #include "flash_storage.h"
+#include "app_control.h"
 
 /* 标定参数常量 --------------------------------------------------------------*/
 
 /** @brief 占空比扫描范围：起始值（�?制冷�?*/
-#define CALIB_DUTY_START (0.35f)
+#define CALIB_DUTY_START APP_CONTROL_DUTY_MAX
 
 /** @brief 占空比扫描范围：结束值（�?加热�?*/
-#define CALIB_DUTY_END (-0.35f)
+#define CALIB_DUTY_END APP_CONTROL_DUTY_MIN
 
 /** @brief 占空比扫描步进（负步�?从制冷到加热�?*/
 #define CALIB_DUTY_STEP (-0.02f)
 
 /** @brief 扫描点数 = (START - END) / |STEP| + 1 */
-#define CALIB_DUTY_COUNT (36U)
+#define CALIB_DUTY_COUNT (38U)
 
 /** @brief 稳定判定阈�?(°C)，温�?max-min 小于此值认为稳�?*/
 #define CALIB_STABLE_THRESHOLD 0.1f
@@ -51,6 +52,7 @@ extern "C"
 
 /** @brief 标定过程温度采样间隔 (ms)，应�?ControlTask 周期一�?*/
 #define CALIB_SAMPLE_INTERVAL_MS 50U
+#define CALIB_OUTPUT_INTERVAL_MS 20U
 
 /** @brief 稳定判定所需最小采样点�?*/
 #define CALIB_STABLE_SAMPLES ((CALIB_STABLE_SECONDS * 1000U) / CALIB_SAMPLE_INTERVAL_MS)
@@ -85,7 +87,7 @@ extern "C"
 #undef CALIB_MAX_WAIT_SECONDS
 #define CALIB_MAX_WAIT_SECONDS CALIB_FAST_MAX_WAIT
 #else
-/** @brief 正常模式：实际标定步�?= 36 */
+/** @brief 正常模式：实际标定步�?= 38 */
 #define CALIB_SCAN_COUNT CALIB_DUTY_COUNT
 #endif
 
@@ -115,7 +117,7 @@ extern "C"
 
   /* Flash 存储数据结构 ---------------------------------------------------------*/
 
-#define CALIB_FLASH_MAGIC 0x42495346UL /**< "BISF": asymmetric duty calibration table */
+#define CALIB_FLASH_MAGIC 0x42495347UL /**< "BISG": 38-point, sign-selected, slew-limited calibration. */
 
 /** @brief Flash 存储区偏移：Cell 0（硬�?4KB �?126�?*/
 #define CALIB_FLASH_OFFSET_CELL0 0U
@@ -128,7 +130,7 @@ extern "C"
     uint32_t magic;                     /**< 魔数，用于校验数据有效�?*/
     uint8_t cell;                       /**< 标定�?Cell 编号 (0 �?1) */
     uint8_t reserved[3];                /**< 对齐填充 */
-    CalibStep_t step[CALIB_DUTY_COUNT]; /**< 36 步标定记�?*/
+    CalibStep_t step[CALIB_DUTY_COUNT]; /**< 38 步标定记�?*/
     uint16_t crc16;                     /**< 整个结构体的 CRC16 校验 */
   } CalibFlashData_t;
 
@@ -143,7 +145,7 @@ extern "C"
   /** @brief 当前扫描步索�?(0 ~ 40) */
   extern volatile uint8_t g_calib_step_idx;
 
-  /** @brief 36 步标定结果（运行时） */
+  /** @brief 38 步标定结果（运行时） */
   extern volatile CalibStep_t g_calib_result[CALIB_DUTY_COUNT];
 
   /** @brief 被标定的 Cell 编号 */

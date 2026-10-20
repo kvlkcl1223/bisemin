@@ -51,6 +51,11 @@
 /* Set to 0U to restore normal startup without the open-loop request. */
 #define APP_DRV_OPEN_LOOP_AUTO_START_ENABLE 0U
 #define APP_DRV_OPEN_LOOP_AUTO_START_MASK 0x1FU
+#define APP_CALIB_AUTO_START_ENABLE 1U
+#define APP_CALIB_AUTO_START_CELL 0U
+#if APP_CALIB_AUTO_START_ENABLE && APP_DRV_OPEN_LOOP_AUTO_START_ENABLE
+#error "Select either automatic calibration or automatic open-loop output."
+#endif
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -209,8 +214,10 @@ void StartControlTask(void *argument)
   CalibMode_DumpFlashData(0);
   CalibMode_DumpFlashData(1);
 
-  // AppDebug_UartSend("CALIB,AUTO_START,CELL:0\r\n");
-  // CalibMode_Start(0);
+#if APP_CALIB_AUTO_START_ENABLE
+  if (g_app_control_start_result == APP_CONTROL_OK)
+    CalibMode_Start(APP_CALIB_AUTO_START_CELL);
+#endif
 
 #if APP_DRV_OPEN_LOOP_AUTO_START_ENABLE
   if (g_app_control_start_result == APP_CONTROL_OK)

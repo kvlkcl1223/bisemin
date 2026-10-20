@@ -24,6 +24,8 @@
 #include <stdio.h>
 
 #define CALIB_LOG_PERIOD_MS 1000U
+static uint32_t s_calib_last_output_ms = 0U;
+static uint8_t s_calib_outputs_settled = 0U;
 /* 外部温度数据（由 ISR 更新�?----------------------------------------------*/
 extern volatile float    Sys_Temperatures[4];
 extern volatile uint32_t Sys_TempUpdateCount[4];
@@ -125,6 +127,8 @@ float CalibMode_StepDuty(uint8_t step_idx)
     (void)step_idx;
     return CALIB_FAST_DUTY;
 #else
+    if (step_idx >= (CALIB_DUTY_COUNT - 1U))
+        return CALIB_DUTY_END;
     return CALIB_DUTY_START + (float)step_idx * CALIB_DUTY_STEP;
 #endif
 }
@@ -448,6 +452,7 @@ static void CalibMode_LogPeriodic(uint32_t now_ms)
 
 static void CalibMode_InitStep(void)
 {
+    s_calib_outputs_settled = 0U;
     s_calib_step_start_ms   = 0U;
     s_calib_stable_start_ms = 0U;
     s_calib_stable_reached  = 0U;
@@ -464,15 +469,24 @@ static void CalibMode_InitStep(void)
 /**
  * @brief  设置当前步的占空比（开环，�?PID�?
  */
-static void CalibMode_SetStepDuty(void)
+static uint8_t CalibMode_SetStepDuty(uint32_t now_ms)
 {
-    float duty = CalibMode_StepDuty((uint8_t)g_calib_step_idx);
-    uint8_t cell = (uint8_t)g_calib_cell;
+    uint32_t elapsed_ms = now_ms - s_calib_last_output_ms;
+    DRV8703_Status_t ret;
 
-    (void)AppControl_SetCellStackDuty(cell, duty);
-#if APP_CONTROL_SHARED_DRV_ENABLE
-    (void)AppControl_SetDrvDuty(APP_CONTROL_SHARED_DRV, APP_CONTROL_SHARED_CH5_DUTY);
-#endif
+    if (elapsed_ms < CALIB_OUTPUT_INTERVAL_MS)
+        return s_calib_outputs_settled;
+    s_calib_last_output_ms = now_ms;
+    ret = AppControl_SetCalibDuty((uint8_t)g_calib_cell,
+                                  CalibMode_StepDuty((uint8_t)g_calib_step_idx),
+                                  (float)elapsed_ms * 0.001f,
+                                  &s_calib_outputs_settled);
+    if (ret != DRV8703_OK)
+    {
+        s_calib_outputs_settled = 0U;
+        CalibMode_Fault(CALIB_ERR_DRV_FAULT);
+    }
+    return s_calib_outputs_settled;
 }
 
 /**
@@ -491,7 +505,6 @@ static void CalibMode_FinishStep(uint8_t settled)
 
     /* 通过 USART2 发送当前步结果 */
     {
-        float duty = CalibMode_StepDuty((uint8_t)g_calib_step_idx);
         float ratio = AppControl_GetCellInnerDutyRatio((uint8_t)g_calib_cell);
         float avg_temp = (avg_temp_ch0 + avg_temp_ch1) * 0.5f;
         char buf[128];
@@ -499,8 +512,8 @@ static void CalibMode_FinishStep(uint8_t settled)
             "CALIB,CELL:%u,STEP:%u,DOUT:%+.2f,DIN:%+.2f,RATIO:%.2f,T0:%.1f,T1:%.1f,TAVG:%.1f,VALID:%u,SETTLED:%u\r\n",
             (unsigned int)g_calib_cell,
             (unsigned int)g_calib_step_idx + 1U,
-            (double)duty,
-            (double)(duty * ratio),
+            (double)AppControl_GetCellOuterDuty((uint8_t)g_calib_cell),
+            (double)AppControl_GetCellInnerDuty((uint8_t)g_calib_cell),
             (double)ratio,
             (double)avg_temp_ch0,
             (double)avg_temp_ch1,
@@ -552,6 +565,7 @@ static uint8_t s_calib_stop_sent   = 0U;
  */
 void CalibMode_Start(uint8_t cell)
 {
+    DRV8703_Status_t prepare_ret;
     if (cell > 1U)
     {
         CalibMode_UartSend("CALIB,START_REJECT,BAD_CELL\r\n");
@@ -566,6 +580,7 @@ void CalibMode_Start(uint8_t cell)
     }
 
     /* 重置全局状�?*/
+    prepare_ret = AppControl_PrepareCalibration(cell);
     g_calib_cell         = cell;
     g_calib_step_idx     = 0U;
     g_calib_error        = 0U;
@@ -582,6 +597,8 @@ void CalibMode_Start(uint8_t cell)
     s_calib_stop_sent   = 0U;
 
     memset((void *)g_calib_result, 0, sizeof(g_calib_result));
+    if (prepare_ret != DRV8703_OK)
+        CalibMode_Fault(CALIB_ERR_DRV_FAULT);
 
     {
         char buf[40];
@@ -613,6 +630,7 @@ void CalibMode_Task(uint32_t now_ms)
         /* 初始�?Flash 存储 */
         FlashStorage_Init();
         CalibMode_InitStep();
+        s_calib_last_output_ms = now_ms;
         {
             char buf[40];
             int len = snprintf(buf, sizeof(buf),
@@ -630,7 +648,8 @@ void CalibMode_Task(uint32_t now_ms)
     case CALIB_RUN:
     {
         /* 设定当前步占空比，进入等待稳�?*/
-        CalibMode_SetStepDuty();
+        if (CalibMode_SetStepDuty(now_ms) == 0U)
+            break;
         s_calib_step_start_ms = now_ms;
         {
             float duty = CalibMode_StepDuty((uint8_t)g_calib_step_idx);
@@ -652,6 +671,16 @@ void CalibMode_Task(uint32_t now_ms)
     case CALIB_WAIT_STABLE:
     {
         uint32_t elapsed = now_ms - s_calib_step_start_ms;
+
+        if (CalibMode_SetStepDuty(now_ms) == 0U)
+        {
+            if (g_calib_state != CALIB_FAULT)
+            {
+                CalibMode_InitStep();
+                g_calib_state = CALIB_RUN;
+            }
+            break;
+        }
 
         /* 超时检�?*/
         if (elapsed >= (CALIB_MAX_WAIT_SECONDS * 1000U))
@@ -782,6 +811,11 @@ void CalibMode_Fault(uint32_t error)
     if (error == 0U)
         error = CALIB_ERR_DRV_FAULT;
 
+    (void)AppControl_SetCellStackDuty((uint8_t)g_calib_cell, 0.0f);
+#if APP_CONTROL_SHARED_DRV_ENABLE
+    (void)AppControl_SetDrvDuty(APP_CONTROL_SHARED_DRV, 0.0f);
+#endif
+    s_calib_outputs_settled = 0U;
     g_calib_error = error;
     g_calib_state = CALIB_FAULT;
     g_calib_running = 0U;

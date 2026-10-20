@@ -386,6 +386,11 @@ extern "C"
 
     /** @brief 设置指定 cell 的堆叠冷热片主路 duty：制冷外层为主，加热内层为主�*/
     DRV8703_Status_t AppControl_SetCellStackDuty(uint8_t cell, float main_duty);
+    /** @brief Stop other output modes and verify the selected calibration DRVs. */
+    DRV8703_Status_t AppControl_PrepareCalibration(uint8_t cell);
+    /** @brief Ramp calibration bridge/shared outputs; settled=1 once all targets are reached. */
+    DRV8703_Status_t AppControl_SetCalibDuty(uint8_t cell, float main_duty,
+                                          float dt_s, uint8_t *settled);
     /** @brief 获取指定 cell 外层测温输入索引�*/
     uint8_t AppControl_GetCellOuterTempIndex(uint8_t cell);
     /** @brief 获取指定 cell 内层测温输入索引�*/

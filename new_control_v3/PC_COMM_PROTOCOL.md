@@ -736,11 +736,11 @@ PC -> MCU:
 op=START_CALIB,cell=0
 ```
 
-MCU accepts the command only when no calibration is active. On success it returns:
+MCU accepts the command only when no calibration is active. Calibration first stops normal/open-loop outputs. State 2 ramps all selected outputs; state 3 starts only after the targets are reached. Positive scan duties select cooling ratios, negative duties select heating ratios. The new table uses magic 0x42495347; old 36-point tables are rejected. On success it returns:
 
 ```text
 ok=1,op=START_CALIB
-ok=1,op=CALIB_STATUS,state=1,running=1,active=1,cell=0,index=0,count=36,error=0
+ok=1,op=CALIB_STATUS,state=1,running=1,active=1,cell=0,index=0,count=38,error=0
 ```
 
 If another calibration is running, MCU returns:
@@ -770,7 +770,7 @@ op=GET_CALIB_STATUS
 MCU -> PC:
 
 ```text
-ok=1,op=CALIB_STATUS,state=3,running=1,active=1,cell=0,index=12,count=36,error=0
+ok=1,op=CALIB_STATUS,state=3,running=1,active=1,cell=0,index=12,count=38,error=0
 ```
 
 `state`: 0=IDLE, 1=INIT, 2=RUN, 3=WAIT_STABLE, 4=DONE, 5=FAULT.
@@ -786,7 +786,7 @@ op=GET_CALIB_RESULT,cell=0
 MCU -> PC:
 
 ```text
-ok=1,op=CALIB_META,cell=0,count=36,start=0.35,end=-0.35,step=-0.02,magic=0x42495346,crc=0x1234
+ok=1,op=CALIB_META,cell=0,count=38,start=0.37,end=-0.37,step=-0.02,magic=0x42495347,crc=0x1234
 ```
 
 Then read one step at a time:
@@ -798,10 +798,10 @@ op=GET_CALIB_RESULT,cell=0,index=0
 MCU -> PC:
 
 ```text
-ok=1,op=CALIB_STEP,cell=0,index=0,duty=0.350,t0=25.123,t1=25.456,valid=1,settled=1
+ok=1,op=CALIB_STEP,cell=0,index=0,duty=0.370,t0=25.123,t1=25.456,valid=1,settled=1
 ```
 
-The full 36-step table is not sent in one frame because `PAYLOAD_MAX` is 256 bytes. PC software should request the next step only after receiving the previous `CALIB_STEP` ACK.
+The full 38-step table is not sent in one frame because `PAYLOAD_MAX` is 256 bytes. PC software should request the next step only after receiving the previous `CALIB_STEP` ACK.
 
 ### Calibration NACK codes
 

@@ -746,6 +746,9 @@ static uint8_t AppControl_CellIsHeating(uint8_t cell)
     if (cell >= APP_CONTROL_CELL_COUNT)
         return 0U;
 
+    if ((g_calib_mode_active != 0U) && (cell == g_calib_cell))
+        return (CalibMode_StepDuty((uint8_t)g_calib_step_idx) < 0.0f) ? 1U : 0U;
+
     boundary_temp = (g_ads1220_env_valid != 0U)
                         ? g_ads1220_env_temp_c
                         : s_cell[cell].current_temp;
@@ -1918,6 +1921,62 @@ DRV8703_Status_t AppControl_SetCellStackDuty(uint8_t cell, float main_duty)
 
     ret = AppControl_SetDrvDuty(cfg->drv_inner, inner_duty);
     return ret;
+}
+
+static DRV8703_Status_t AppControl_SetCalibDrvDuty(uint8_t drv, float target, float dt_s)
+{
+    float prev = s_drv_output_duty[drv];
+    float duty = AppControl_ApplyDutySlew(drv, target, dt_s);
+
+    if (((prev > 0.0f) && (duty < 0.0f)) ||
+        ((prev < 0.0f) && (duty > 0.0f)))
+        duty = 0.0f;
+    return AppControl_SetDrvDuty(drv, duty);
+}
+
+DRV8703_Status_t AppControl_SetCalibDuty(uint8_t cell, float main_duty,
+                                      float dt_s, uint8_t *settled)
+{
+    const AppControlCellConfig_t *cfg = AppControl_CellConfig(cell);
+    DRV8703_Status_t ret;
+    float outer_target;
+    float inner_target;
+
+    if (settled != 0)
+        *settled = 0U;
+    if ((cfg == 0) || (settled == 0) || (dt_s <= 0.0f) ||
+        (g_calib_mode_active == 0U) || (cell != g_calib_cell) ||
+        (cfg->drv_outer >= APP_CONTROL_DRV_COUNT) ||
+        (cfg->drv_inner >= APP_CONTROL_DRV_COUNT))
+        return DRV8703_ERROR_PARAM;
+
+    AppControl_CalcCellStackDuties(cell, main_duty, &outer_target, &inner_target, 0);
+    ret = AppControl_SetCalibDrvDuty(cfg->drv_outer, outer_target, dt_s);
+    if (ret != DRV8703_OK)
+        return ret;
+    ret = AppControl_SetCalibDrvDuty(cfg->drv_inner, inner_target, dt_s);
+    if (ret != DRV8703_OK)
+        return ret;
+
+    s_cell_base_output_duty[cell] = (main_duty < 0.0f)
+                                      ? s_drv_output_duty[cfg->drv_inner]
+                                      : s_drv_output_duty[cfg->drv_outer];
+    s_cell[cell].duty = s_cell_base_output_duty[cell];
+    *settled = ((s_drv_output_duty[cfg->drv_outer] == outer_target) &&
+                (s_drv_output_duty[cfg->drv_inner] == inner_target)) ? 1U : 0U;
+
+    if (cfg->shared_drv != APP_CONTROL_INVALID_INDEX)
+    {
+        if (cfg->shared_drv >= APP_CONTROL_DRV_COUNT)
+            return DRV8703_ERROR_PARAM;
+        ret = AppControl_SetCalibDrvDuty(cfg->shared_drv, cfg->shared_duty, dt_s);
+        if (ret != DRV8703_OK)
+            return ret;
+        if (s_drv_output_duty[cfg->shared_drv] != cfg->shared_duty)
+            *settled = 0U;
+    }
+
+    return DRV8703_OK;
 }
 
 uint8_t AppControl_GetCellOuterTempIndex(uint8_t cell)
@@ -3575,6 +3634,28 @@ void AppControl_StopDrvTest(void)
 }
 
 /** @brief 获取测试模式当前仍在输出�?DRV 掩码�?*/
+DRV8703_Status_t AppControl_PrepareCalibration(uint8_t cell)
+{
+    const AppControlCellConfig_t *cfg = AppControl_CellConfig(cell);
+    DRV8703_Status_t ret = DRV8703_OK;
+
+    if ((cfg == 0) || (s_cmd_queue == 0))
+        return DRV8703_ERROR_PARAM;
+
+    AppControl_StopDrvTest();
+    AppControl_Lock();
+    AppControl_StopCell(0U, APP_CONTROL_STOP_EMERGENCY);
+    AppControl_StopCell(1U, APP_CONTROL_STOP_EMERGENCY);
+    (void)osMessageQueueReset(s_cmd_queue);
+    if ((AppControl_DrvReadyForOutput(cfg->drv_outer) == 0U) ||
+        (AppControl_DrvReadyForOutput(cfg->drv_inner) == 0U) ||
+        ((cfg->shared_drv != APP_CONTROL_INVALID_INDEX) &&
+         (AppControl_DrvReadyForOutput(cfg->shared_drv) == 0U)))
+        ret = DRV8703_ERROR_PARAM;
+    AppControl_Unlock();
+    return ret;
+}
+
 uint8_t AppControl_GetDrvTestActiveMask(void)
 {
     return g_app_control_drv_test_active_mask;
