@@ -458,6 +458,43 @@ FlashStorage_Status_t FlashStorage_Write(uint32_t offset, const uint8_t *data, u
     return FlashStorage_LockAndReturn(FLASH_STORAGE_OK);
 }
 
+/* Program aligned, erased doublewords in ascending order without erasing.
+ * Journal callers place the commit marker in the final doubleword. */
+FlashStorage_Status_t FlashStorage_ProgramErased(uint32_t offset,
+                                               const uint8_t *data, uint32_t len)
+{
+    FlashStorage_Status_t ret;
+    uint32_t pos;
+    uint32_t addr = (uint32_t)FLASH_STORAGE_START_ADDR + offset;
+
+    if (data == 0 || len == 0U || offset >= FLASH_STORAGE_SIZE ||
+        len > FLASH_STORAGE_SIZE - offset ||
+        (offset % FLASH_STORAGE_PROGRAM_UNIT) != 0U ||
+        (len % FLASH_STORAGE_PROGRAM_UNIT) != 0U)
+    {
+        g_flash_storage_last_error = FLASH_STORAGE_ERROR_PARAM;
+        return FLASH_STORAGE_ERROR_PARAM;
+    }
+    if (FlashStorage_IsErased(addr, len) == 0U)
+    {
+        g_flash_storage_last_error = FLASH_STORAGE_ERROR_WRITE;
+        return FLASH_STORAGE_ERROR_WRITE;
+    }
+    ret = FlashStorage_Init();
+    if (ret != FLASH_STORAGE_OK)
+        return ret;
+    for (pos = 0U; pos < len; pos += FLASH_STORAGE_PROGRAM_UNIT)
+    {
+        uint64_t value;
+        memcpy(&value, data + pos, sizeof(value));
+        ret = FlashStorage_ProgramDoubleWord(addr + pos, value);
+        if (ret != FLASH_STORAGE_OK)
+            return FlashStorage_LockAndReturn(ret);
+    }
+    g_flash_storage_write_count++;
+    return FlashStorage_LockAndReturn(FLASH_STORAGE_OK);
+}
+
 /**
  * @brief  从 Flash 存储区读取数据
  * @param  offset 存储区内偏移地址（字节，0 ~ FLASH_STORAGE_SIZE - 1）

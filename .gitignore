@@ -114,6 +114,9 @@ Thumbs.db
 *.swo
 *~
 
+# Local firmware tests and hardware stubs (not uploaded)
+/new_control_v3/tests/
+
 # ==============================================
 # 内嵌 Git 仓库
 # ==============================================

@@ -828,3 +828,5 @@ The firmware updates this value periodically through `Ads1220_Service(now_ms)`, 
 Target temperature commands (`SET_TARGET`, `START_NORMAL`, `SET_PROGRAM`) use the MCU limits from `PANEL_TEMP_MIN` and `PANEL_TEMP_MAX`.
 Current range: `-20.0..120.0 degC`.
 Out-of-range command values return `BAD_TEMP_RANGE`.
+
+> Calibration resume update: START_CALIB resumes the selected cell's unfinished compatible journal; a completed scan starts a new scan. GET_CALIB_RESULT keeps the existing complete-table format and returns CALIB_NOT_FOUND,detail=5 while the journal is incomplete. See [CALIB_RESUME.md](CALIB_RESUME.md) for saved-point logs and recovery rules.

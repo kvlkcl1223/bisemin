@@ -221,3 +221,5 @@ CALIB_FLASH_MAGIC = 0x42495347 ("BISG")
 `CalibFlashData_t` contains 38 `CalibStep_t` records. Each `CalibStep_t` is 16 bytes, so the step table is 608 bytes and the full structure is 620 bytes with compiler padding.
 
 The PC protocol reads calibration results as one metadata frame plus one frame per step, because a full table does not fit in the 256-byte ASCII payload limit.
+
+> Current storage update: see [CALIB_RESUME.md](CALIB_RESUME.md). Calibration now appends one committed point at a time in a BISH journal (72-byte header, 32-byte records, 61 slots in the first 2 KB of each existing 4 KB cell region). The BISG/620-byte layout above remains the reconstructed complete-table API and legacy format, not the new physical layout. Partial journals resume automatically and are not loaded as complete feedforward tables.

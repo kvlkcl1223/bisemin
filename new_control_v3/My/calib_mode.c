@@ -1,20 +1,14 @@
 /**
- ******************************************************************************
- * @file    calib_mode.c
- * @brief   自动化标定模式实�?
- * @author  Bisemin Team
- * @version V1.0.0
- * @date    2026-07-02
- *
- * @details
- * 固定占空比扫描（-0.35 ~ +0.35，步�?0.05），每步等待温度稳定后记�?
- * 两个通道各自的稳态平均温度。全�?15 步完成后将结果写�?Flash�?
- * 此模块由 AppControl_Task 每周期驱动，不创建独立线程�?
- ******************************************************************************
+ * @file calib_mode.c
+ * @brief Slew-limited duty calibration with per-point Flash journal/resume.
+ * Each stable or timed-out point is committed before advancing. An unfinished
+ * compatible scan resumes after the last durable point; a full scan restarts.
+ * Driven by AppControl_Task without a separate thread.
  */
 
 #include "calib_mode.h"
 #include "app_control.h"
+#include "app_fault_log.h"
 #include "cmsis_os.h"
 #include "flash_storage.h"
 #include "pid_controller.h"
@@ -268,112 +262,267 @@ static uint32_t CalibMode_GetFlashOffset(uint8_t cell)
  * @brief  将标定结果写�?Flash
  * @return uint8_t 0 = 成功，非0 = 失败
  */
-static uint8_t CalibMode_WriteToFlash(void)
+/* One journal occupies only the first 2 KB of each existing 4 KB cell region.
+ * The final doubleword commits a record; torn records are skipped, never reused. */
+#define CALIB_JOURNAL_MAGIC 0x42495348UL
+#define CALIB_JOURNAL_COMMIT 0x43414C31UL
+
+typedef struct
 {
-    CalibFlashData_t flash_data;
+    float start, end, step, cooling_ratio, heating_ratio, shared_duty, threshold;
+    uint32_t stable_seconds, max_wait_seconds, window_samples;
+    uint8_t count, outer_drv, inner_drv, shared_drv;
+    uint8_t temp0, temp1, shared_enabled, fast_test;
+} CalibJournalConfig_t;
+
+typedef struct
+{
+    uint32_t magic, cell;
+    CalibJournalConfig_t config;
+    uint16_t crc16, reserved;
+    uint32_t padding;
+    uint32_t commit, commit_inverse;
+} CalibJournalHeader_t;
+
+typedef struct
+{
+    CalibStep_t step;
+    uint32_t index;
+    uint16_t crc16, reserved;
+    uint32_t commit, commit_inverse;
+} CalibJournalPoint_t;
+
+#define CALIB_JOURNAL_SLOTS ((FLASH_STORAGE_PAGE_SIZE - sizeof(CalibJournalHeader_t)) / sizeof(CalibJournalPoint_t))
+typedef char CalibHeaderLayoutCheck[(sizeof(CalibJournalHeader_t) == 72U &&
+    offsetof(CalibJournalHeader_t, commit) == 64U) ? 1 : -1];
+typedef char CalibPointLayoutCheck[(sizeof(CalibJournalPoint_t) == 32U &&
+    offsetof(CalibJournalPoint_t, commit) == 24U &&
+    CALIB_JOURNAL_SLOTS >= CALIB_SCAN_COUNT) ? 1 : -1];
+
+volatile uint8_t g_calib_saved_count = 0U;
+volatile uint8_t g_calib_resumed = 0U;
+volatile uint32_t g_calib_flash_status = 0U;
+static uint16_t s_calib_next_slot = 0U;
+
+static void CalibMode_JournalConfig(uint8_t cell, CalibJournalConfig_t *cfg)
+{
+    memset(cfg, 0, sizeof(*cfg));
+    cfg->start = CALIB_DUTY_START;
+    cfg->end = CALIB_DUTY_END;
+    cfg->step = CALIB_DUTY_STEP;
+    cfg->cooling_ratio = (cell == 0U) ? APP_CONTROL_CELL0_COOLING_INNER_DUTY_RATIO :
+                                       APP_CONTROL_CELL1_COOLING_INNER_DUTY_RATIO;
+    cfg->heating_ratio = (cell == 0U) ? APP_CONTROL_CELL0_HEATING_OUTER_DUTY_RATIO :
+                                       APP_CONTROL_CELL1_HEATING_OUTER_DUTY_RATIO;
+    cfg->shared_duty = APP_CONTROL_SHARED_CH5_DUTY;
+    cfg->threshold = CALIB_STABLE_THRESHOLD;
+    cfg->stable_seconds = CALIB_STABLE_SECONDS;
+    cfg->max_wait_seconds = CALIB_MAX_WAIT_SECONDS;
+    cfg->window_samples = CALIB_WINDOW_SAMPLES;
+    cfg->count = CALIB_SCAN_COUNT;
+    cfg->outer_drv = (cell == 0U) ? APP_CONTROL_CELL0_DRV_OUTER : APP_CONTROL_CELL1_DRV_OUTER;
+    cfg->inner_drv = (cell == 0U) ? APP_CONTROL_CELL0_DRV_INNER : APP_CONTROL_CELL1_DRV_INNER;
+    cfg->shared_drv = APP_CONTROL_SHARED_DRV;
+    cfg->temp0 = AppControl_GetCellOuterTempIndex(cell);
+    cfg->temp1 = AppControl_GetCellInnerTempIndex(cell);
+    cfg->shared_enabled = APP_CONTROL_SHARED_DRV_ENABLE;
+#ifdef CALIB_FAST_TEST
+    cfg->fast_test = 1U;
+    cfg->start = CALIB_FAST_DUTY;
+#endif
+}
+
+static uint8_t CalibMode_AllErased(const void *data, uint32_t size)
+{
+    const uint8_t *p = (const uint8_t *)data;
+    uint32_t i;
+    for (i = 0U; i < size; i++)
+        if (p[i] != 0xFFU)
+            return 0U;
+    return 1U;
+}
+
+/* 0: journal found, 1: absent/invalid, 2: read error, 3: settings changed. */
+static uint8_t CalibMode_ReadJournal(uint8_t cell, CalibStep_t *steps,
+                                    uint8_t *completed, uint16_t *next_slot)
+{
+    CalibJournalHeader_t header;
+    CalibJournalConfig_t cfg;
+    CalibJournalPoint_t point;
+    uint16_t slot;
+    uint32_t offset = CalibMode_GetFlashOffset(cell);
+
+    *completed = 0U;
+    *next_slot = 0U;
+    if (FlashStorage_Read(offset, (uint8_t *)&header, sizeof(header)) != FLASH_STORAGE_OK)
+        return 2U;
+    if (header.magic != CALIB_JOURNAL_MAGIC || header.cell != cell ||
+        header.commit != CALIB_JOURNAL_COMMIT ||
+        header.commit_inverse != (uint32_t)~CALIB_JOURNAL_COMMIT ||
+        header.crc16 != CalibMode_CRC16((const uint8_t *)&header,
+                                        offsetof(CalibJournalHeader_t, crc16)))
+        return 1U;
+    CalibMode_JournalConfig(cell, &cfg);
+    if (memcmp(&cfg, &header.config, sizeof(cfg)) != 0)
+        return 3U;
+    for (slot = 0U; slot < CALIB_JOURNAL_SLOTS; slot++)
+    {
+        if (FlashStorage_Read(offset + sizeof(header) + slot * sizeof(point),
+                              (uint8_t *)&point, sizeof(point)) != FLASH_STORAGE_OK)
+            return 2U;
+        if (CalibMode_AllErased(&point, sizeof(point)) != 0U)
+            continue;
+        *next_slot = slot + 1U;
+        if (*completed >= CALIB_SCAN_COUNT || point.index != *completed ||
+            point.commit != CALIB_JOURNAL_COMMIT ||
+            point.commit_inverse != (uint32_t)~CALIB_JOURNAL_COMMIT ||
+            point.crc16 != CalibMode_CRC16((const uint8_t *)&point,
+                                           offsetof(CalibJournalPoint_t, crc16)) ||
+            point.step.duty != CalibMode_StepDuty(*completed))
+            continue;
+        if (steps != 0)
+            steps[*completed] = point.step;
+        (*completed)++;
+    }
+    return 0U;
+}
+
+static uint8_t CalibMode_NewJournal(uint8_t cell)
+{
+    CalibJournalHeader_t header, verify;
     FlashStorage_Status_t ret;
     uint32_t primask;
-    uint8_t i;
+    uint32_t offset = CalibMode_GetFlashOffset(cell);
+    uint32_t pos;
+    uint8_t erased[32];
 
-    memset(&flash_data, 0, sizeof(flash_data));
-
-    flash_data.magic = CALIB_FLASH_MAGIC;
-    flash_data.cell  = (uint8_t)g_calib_cell;
-
-    for (i = 0U; i < CALIB_DUTY_COUNT; i++)
-    {
-#ifdef CALIB_FAST_TEST
-        /* 快速测试：仅第 0 步为真实数据，其�?45 步复制填�?*/
-        uint8_t src = (i < CALIB_SCAN_COUNT) ? i : 0U;
-#else
-        uint8_t src = i;
-#endif
-        flash_data.step[i].duty     = (float)g_calib_result[src].duty;
-        flash_data.step[i].temp_ch0 = (float)g_calib_result[src].temp_ch0;
-        flash_data.step[i].temp_ch1 = (float)g_calib_result[src].temp_ch1;
-        flash_data.step[i].valid    = g_calib_result[src].valid;
-        flash_data.step[i].settled  = g_calib_result[src].settled;
-    }
-
-    /* 计算 CRC（不包含 crc16 字段本身�?*/
-    flash_data.crc16 = CalibMode_CRC16((const uint8_t *)&flash_data,
-                                       offsetof(CalibFlashData_t, crc16));
-
-    /* 擦除目标�?*/
-    {
-        uint32_t calib_offset = CalibMode_GetFlashOffset((uint8_t)g_calib_cell);
-        uint8_t  page_idx     = (uint8_t)(calib_offset / FLASH_STORAGE_PAGE_SIZE);
-        uint32_t abs_addr     = FLASH_STORAGE_START_ADDR + calib_offset;
-        char     buf[80];
-        int      len;
-
-        len = snprintf(buf, sizeof(buf),
-                       "CALIB,FLASH_ERASE,CELL:%u,ADDR:0x%08lX\r\n",
-                       (unsigned int)g_calib_cell,
-                       (unsigned long)abs_addr);
-        if (len > 0 && len < (int)sizeof(buf))
-            CalibMode_UartSend(buf);
-
-        /* 关全局中断，防�?Flash 操作期间 ISR 取指导致 HardFault */
-        primask = __get_PRIMASK();
-        __disable_irq();
-
-        ret = FlashStorage_ErasePage(page_idx);
-
-        __set_PRIMASK(primask);
-
-        len = snprintf(buf, sizeof(buf),
-                       "CALIB,FLASH_ERASE_DONE,STATUS:%u\r\n",
-                       (unsigned int)ret);
-        if (len > 0 && len < (int)sizeof(buf))
-            CalibMode_UartSend(buf);
-
-        /* 验证擦除是否真正生效：关中断内立即读�?*/
-        {
-            uint32_t verify;
-
-            primask = __get_PRIMASK();
-            __disable_irq();
-            verify = *((volatile uint32_t *)abs_addr);
-            __set_PRIMASK(primask);
-
-            len = snprintf(buf, sizeof(buf),
-                           "CALIB,FLASH_ERASE_VERIFY,ADDR:0x%08lX,DATA:0x%08lX\r\n",
-                           (unsigned long)abs_addr, (unsigned long)verify);
-            if (len > 0 && len < (int)sizeof(buf))
-                CalibMode_UartSend(buf);
-        }
-
-        if (ret == FLASH_STORAGE_OK)
-        {
-            len = snprintf(buf, sizeof(buf),
-                           "CALIB,FLASH_WRITE,ADDR:0x%08lX,SIZE:%u\r\n",
-                           (unsigned long)abs_addr,
-                           (unsigned int)sizeof(flash_data));
-            if (len > 0 && len < (int)sizeof(buf))
-                CalibMode_UartSend(buf);
-
-            /* 关全局中断 */
-            primask = __get_PRIMASK();
-            __disable_irq();
-
-            ret = FlashStorage_Write(calib_offset,
-                                     (const uint8_t *)&flash_data,
-                                     sizeof(flash_data));
-
-            __set_PRIMASK(primask);
-
-            len = snprintf(buf, sizeof(buf),
-                           "CALIB,FLASH_WRITE_DONE,STATUS:%u,CRC:0x%04X\r\n",
-                           (unsigned int)ret,
-                           (unsigned int)flash_data.crc16);
-            if (len > 0 && len < (int)sizeof(buf))
-                CalibMode_UartSend(buf);
-        }
-    }
+    memset(&header, 0, sizeof(header));
+    header.magic = CALIB_JOURNAL_MAGIC;
+    header.cell = cell;
+    CalibMode_JournalConfig(cell, &header.config);
+    header.crc16 = CalibMode_CRC16((const uint8_t *)&header,
+                                  offsetof(CalibJournalHeader_t, crc16));
+    header.commit = CALIB_JOURNAL_COMMIT;
+    header.commit_inverse = (uint32_t)~CALIB_JOURNAL_COMMIT;
+    primask = __get_PRIMASK();
+    __disable_irq();
+    ret = FlashStorage_ErasePage((uint8_t)(offset / FLASH_STORAGE_PAGE_SIZE));
+    __set_PRIMASK(primask);
     if (ret != FLASH_STORAGE_OK)
-        return (uint8_t)ret;   /* 返回实际 Flash 错误码供串口输出诊断 */
+        goto fail;
 
+    /* Retain the existing base-page erase mapping; verify its actual result. */
+    for (pos = 0U; pos < FLASH_STORAGE_PAGE_SIZE; pos += sizeof(erased))
+    {
+        ret = FlashStorage_Read(offset + pos, erased, sizeof(erased));
+        if (ret != FLASH_STORAGE_OK)
+            goto fail;
+        if (CalibMode_AllErased(erased, sizeof(erased)) == 0U)
+        {
+            ret = FLASH_STORAGE_ERROR_ERASE;
+            goto fail;
+        }
+    }
+    primask = __get_PRIMASK();
+    __disable_irq();
+    ret = FlashStorage_ProgramErased(offset, (const uint8_t *)&header, sizeof(header));
+    __set_PRIMASK(primask);
+    if (ret != FLASH_STORAGE_OK)
+        goto fail;
+    ret = FlashStorage_Read(offset, (uint8_t *)&verify, sizeof(verify));
+    if (ret == FLASH_STORAGE_OK && memcmp(&header, &verify, sizeof(header)) != 0)
+        ret = FLASH_STORAGE_ERROR_WRITE;
+fail:
+    g_calib_flash_status = (uint32_t)ret;
+    return (ret == FLASH_STORAGE_OK) ? 0U : CALIB_ERR_FLASH_SAVE;
+}
+
+static uint8_t CalibMode_RestoreProgress(void)
+{
+    uint8_t completed;
+    uint16_t next_slot;
+    uint8_t cell = (uint8_t)g_calib_cell;
+    uint8_t ret = CalibMode_ReadJournal(cell, (CalibStep_t *)g_calib_result,
+                                       &completed, &next_slot);
+    char buf[96];
+    int len;
+
+    if (ret == 2U)
+    {
+        g_calib_flash_status = (uint32_t)g_flash_storage_last_error;
+        return CALIB_ERR_FLASH_SAVE;
+    }
+    if (ret == 0U && completed < CALIB_SCAN_COUNT)
+    {
+        g_calib_step_idx = completed;
+        g_calib_saved_count = completed;
+        g_calib_resumed = 1U;
+        s_calib_next_slot = next_slot;
+        if (next_slot >= CALIB_JOURNAL_SLOTS)
+            return CALIB_ERR_FLASH_FULL;
+        len = snprintf(buf, sizeof(buf),
+            "CALIB,RESUME,CELL:%u,SAVED:%u,NEXT_STEP:%u\r\n",
+            (unsigned int)cell, (unsigned int)completed, (unsigned int)completed + 1U);
+    }
+    else
+    {
+        memset((void *)g_calib_result, 0, sizeof(g_calib_result));
+        ret = CalibMode_NewJournal(cell);
+        if (ret != 0U)
+            return ret;
+        g_calib_step_idx = 0U;
+        g_calib_saved_count = 0U;
+        g_calib_resumed = 0U;
+        s_calib_next_slot = 0U;
+        len = snprintf(buf, sizeof(buf), "CALIB,NEW,CELL:%u,NEXT_STEP:1\r\n",
+                       (unsigned int)cell);
+    }
+    if (len > 0 && len < (int)sizeof(buf))
+        CalibMode_UartSend(buf);
+    return 0U;
+}
+
+static uint8_t CalibMode_SavePoint(void)
+{
+    CalibJournalPoint_t point, verify;
+    FlashStorage_Status_t ret;
+    uint32_t primask;
+    uint32_t offset;
+    char buf[96];
+    int len;
+
+    if (s_calib_next_slot >= CALIB_JOURNAL_SLOTS)
+        return CALIB_ERR_FLASH_FULL;
+    memset(&point, 0, sizeof(point));
+    point.step = g_calib_result[g_calib_step_idx];
+    point.index = g_calib_step_idx;
+    point.crc16 = CalibMode_CRC16((const uint8_t *)&point,
+                                 offsetof(CalibJournalPoint_t, crc16));
+    point.commit = CALIB_JOURNAL_COMMIT;
+    point.commit_inverse = (uint32_t)~CALIB_JOURNAL_COMMIT;
+    offset = CalibMode_GetFlashOffset((uint8_t)g_calib_cell) +
+             sizeof(CalibJournalHeader_t) + s_calib_next_slot * sizeof(point);
+    primask = __get_PRIMASK();
+    __disable_irq();
+    ret = FlashStorage_ProgramErased(offset, (const uint8_t *)&point, sizeof(point));
+    __set_PRIMASK(primask);
+    s_calib_next_slot++;
+    if (ret == FLASH_STORAGE_OK)
+    {
+        ret = FlashStorage_Read(offset, (uint8_t *)&verify, sizeof(verify));
+        if (ret == FLASH_STORAGE_OK && memcmp(&point, &verify, sizeof(point)) != 0)
+            ret = FLASH_STORAGE_ERROR_WRITE;
+    }
+    g_calib_flash_status = (uint32_t)ret;
+    if (ret != FLASH_STORAGE_OK)
+        return CALIB_ERR_FLASH_SAVE;
+    g_calib_saved_count = (uint8_t)(g_calib_step_idx + 1U);
+    len = snprintf(buf, sizeof(buf),
+        "CALIB,SAVED,CELL:%u,STEP:%u,TOTAL:%u,VALID:%u\r\n",
+        (unsigned int)g_calib_cell, (unsigned int)g_calib_saved_count,
+        (unsigned int)CALIB_SCAN_COUNT, (unsigned int)point.step.valid);
+    if (len > 0 && len < (int)sizeof(buf))
+        CalibMode_UartSend(buf);
     return 0U;
 }
 
@@ -526,23 +675,20 @@ static void CalibMode_FinishStep(uint8_t settled)
         }
     }
 
+    /* Advance only after the new point has been read back successfully. */
+    {
+        uint8_t save_ret = CalibMode_SavePoint();
+        if (save_ret != 0U)
+        {
+            CalibMode_Fault(save_ret);
+            return;
+        }
+    }
     g_calib_step_idx++;
 
     if (g_calib_step_idx >= CALIB_SCAN_COUNT)
     {
-        /* 全部标定步完�?*/
-        {
-            uint8_t write_ret = CalibMode_WriteToFlash();
-            if (write_ret == 0U)
-            {
-                g_calib_state = CALIB_DONE;
-            }
-            else
-            {
-                g_calib_error = (uint32_t)write_ret;
-                g_calib_state = CALIB_FAULT;
-            }
-        }
+        g_calib_state = CALIB_DONE;
     }
     else
     {
@@ -583,6 +729,9 @@ void CalibMode_Start(uint8_t cell)
     prepare_ret = AppControl_PrepareCalibration(cell);
     g_calib_cell         = cell;
     g_calib_step_idx     = 0U;
+    g_calib_saved_count  = 0U;
+    g_calib_resumed      = 0U;
+    g_calib_flash_status = 0U;
     g_calib_error        = 0U;
     g_calib_state        = CALIB_INIT;
     g_calib_mode_active  = 1U;
@@ -628,7 +777,12 @@ void CalibMode_Task(uint32_t now_ms)
     case CALIB_INIT:
     {
         /* 初始�?Flash 存储 */
-        FlashStorage_Init();
+        uint8_t restore_ret = CalibMode_RestoreProgress();
+        if (restore_ret != 0U)
+        {
+            CalibMode_Fault(restore_ret);
+            break;
+        }
         CalibMode_InitStep();
         s_calib_last_output_ms = now_ms;
         {
@@ -787,6 +941,17 @@ void CalibMode_Task(uint32_t now_ms)
             {
                 CalibMode_UartSend(buf);
             }
+            {
+                char detail[176];
+                (void)snprintf(detail, sizeof(detail),
+                    "CALIB,FAULT_DETAIL,CELL:%u,INDEX:%u,SAVED:%u,RESUMED:%u,FLASH_STATUS:%lu,NEXT_SLOT:%u,SLOTS:%u\r\n",
+                    (unsigned int)cell, (unsigned int)g_calib_step_idx,
+                    (unsigned int)g_calib_saved_count, (unsigned int)g_calib_resumed,
+                    (unsigned long)g_calib_flash_status, (unsigned int)s_calib_next_slot,
+                    (unsigned int)CALIB_JOURNAL_SLOTS);
+                CalibMode_UartSend(detail);
+                AppFault_LogCell("CALIB", cell, g_calib_error);
+            }
         }
 
         g_calib_mode_active = 0U;
@@ -862,30 +1027,46 @@ void CalibMode_Stop(void)
  */
 uint8_t CalibMode_LoadFromFlash(uint8_t cell, CalibFlashData_t *buf)
 {
-    FlashStorage_Status_t ret;
-    uint16_t stored_crc, calc_crc;
-    uint32_t calib_offset = CalibMode_GetFlashOffset(cell);
-
-    if (buf == 0)
+    uint8_t completed, ret;
+    uint16_t next_slot;
+    uint32_t magic;
+    if (cell > 1U || buf == 0)
         return 1U;
-
-    ret = FlashStorage_Read(calib_offset,
-                            (uint8_t *)buf,
-                            sizeof(CalibFlashData_t));
-    if (ret != FLASH_STORAGE_OK)
+    if (FlashStorage_Read(CalibMode_GetFlashOffset(cell), (uint8_t *)&magic,
+                          sizeof(magic)) != FLASH_STORAGE_OK)
         return 2U;
+    if (magic == CALIB_JOURNAL_MAGIC)
+    {
+        memset(buf, 0, sizeof(*buf));
+        ret = CalibMode_ReadJournal(cell, buf->step, &completed, &next_slot);
+        if (ret != 0U)
+            return (ret == 2U) ? 2U : 4U;
+        /* Partial progress must not be exposed as a complete feedforward table. */
+        if (completed != CALIB_SCAN_COUNT)
+            return 5U;
+#ifdef CALIB_FAST_TEST
+        {
+            uint8_t i;
+            for (i = CALIB_SCAN_COUNT; i < CALIB_DUTY_COUNT; i++)
+                buf->step[i] = buf->step[0];
+        }
+#endif
+        buf->magic = CALIB_FLASH_MAGIC;
+        buf->cell = cell;
+        buf->crc16 = CalibMode_CRC16((const uint8_t *)buf,
+                                    offsetof(CalibFlashData_t, crc16));
+        return 0U;
+    }
 
-    /* 校验魔数 */
-    if (buf->magic != CALIB_FLASH_MAGIC)
+    /* Existing complete BISG tables remain readable; they have no resume index. */
+    if (FlashStorage_Read(CalibMode_GetFlashOffset(cell), (uint8_t *)buf,
+                          sizeof(*buf)) != FLASH_STORAGE_OK)
+        return 2U;
+    if (buf->magic != CALIB_FLASH_MAGIC || buf->cell != cell)
         return 3U;
-
-    /* 校验 CRC */
-    stored_crc = buf->crc16;
-    calc_crc   = CalibMode_CRC16((const uint8_t *)buf,
-                                  offsetof(CalibFlashData_t, crc16));
-    if (stored_crc != calc_crc)
+    if (buf->crc16 != CalibMode_CRC16((const uint8_t *)buf,
+                                     offsetof(CalibFlashData_t, crc16)))
         return 4U;
-
     return 0U;
 }
 

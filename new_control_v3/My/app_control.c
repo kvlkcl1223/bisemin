@@ -1,4 +1,5 @@
 #include "app_control.h"
+#include "app_fault_log.h"
 
 #include "adc_measure.h"
 #include "calib_mode.h"
@@ -12,6 +13,10 @@
 
 /** @brief 控制命令队列深度，面�?上位机发起的启停命令会先进入该队列�*/
 #define APP_CONTROL_QUEUE_DEPTH 12U
+
+/* Defer text diagnostics until the control pass has stopped all affected outputs. */
+static uint32_t s_pending_fault_log[APP_CONTROL_CELL_COUNT];
+static uint32_t s_reported_fault_log[APP_CONTROL_CELL_COUNT];
 /** @brief 每颗 DRV8703 初始化失败后的最大重试次数�*/
 #define APP_CONTROL_DRV_RETRY_COUNT 3U
 #define APP_CONTROL_DRV_INIT_ON_BOOT_ENABLE 1U
@@ -1524,6 +1529,8 @@ static void AppControl_SetCellError(uint8_t cell, PanelError_t err)
 
     s_cell[cell].error = err;
     g_app_control_cell_error[cell] = err;
+    if (err == PANEL_ERR_NONE)
+        s_reported_fault_log[cell] = 0U;
 
     /* PC 协议：故障时通知上位机�*/
     if (err != PANEL_ERR_NONE)
@@ -2212,6 +2219,12 @@ static void AppControl_StopCell(uint8_t cell, AppControlStopMode_t mode)
     {
         PcProto_SendEvent(cell, "STOP");
         PcProto_SendState(cell);
+    }
+    if (g_calib_mode_active == 0U && s_cell[cell].error != PANEL_ERR_NONE &&
+        (was_running != 0U || s_reported_fault_log[cell] != (uint32_t)s_cell[cell].error))
+    {
+        s_pending_fault_log[cell] = (uint32_t)s_cell[cell].error;
+        s_reported_fault_log[cell] = (uint32_t)s_cell[cell].error;
     }
 }
 
@@ -3310,6 +3323,8 @@ AppControl_Status_t AppControl_Init(void)
     for (i = 0U; i < APP_CONTROL_CELL_COUNT; i++)
     {
         s_cell[i].running = 0U;
+        s_pending_fault_log[i] = 0U;
+        s_reported_fault_log[i] = 0U;
         s_cell[i].requested = 0U;
         s_cell[i].stopping = 0U;
         s_cell[i].pid_update_pending = 0U;
@@ -3547,6 +3562,17 @@ void AppControl_Task(uint32_t now_ms)
     }
 
     g_app_control_loop_count++;
+    {
+        uint8_t cell;
+        for (cell = 0U; cell < APP_CONTROL_CELL_COUNT; cell++)
+        {
+            if (s_pending_fault_log[cell] != 0U)
+            {
+                AppFault_LogCell("APP", cell, s_pending_fault_log[cell]);
+                s_pending_fault_log[cell] = 0U;
+            }
+        }
+    }
     AppControl_Unlock();
 }
 

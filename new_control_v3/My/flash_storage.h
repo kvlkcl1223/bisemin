@@ -116,6 +116,10 @@ extern "C"
      */
     FlashStorage_Status_t FlashStorage_Write(uint32_t offset, const uint8_t *data, uint32_t len);
 
+    /* Aligned append only: never erase or overwrite previously programmed data. */
+    FlashStorage_Status_t FlashStorage_ProgramErased(uint32_t offset,
+                                                   const uint8_t *data, uint32_t len);
+
     /**
      * @brief  从 Flash 存储区读取数据
      * @param  offset 存储区内偏移地址（字节，0 ~ FLASH_STORAGE_SIZE - 1）

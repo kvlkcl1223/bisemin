@@ -1805,6 +1805,11 @@
               <FilePath>..\My\calib_mode.c</FilePath>
             </File>
             <File>
+              <FileName>app_fault_log.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\My\app_fault_log.c</FilePath>
+            </File>
+            <File>
               <FileName>flash_storage.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\My\flash_storage.c</FilePath>

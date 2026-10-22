@@ -122,7 +122,11 @@ float duty[APP_CONTROL_DRV_COUNT] = {0.20f, 0.0f, -0.10f, 0.0f, 0.15f};
 
 `Core/Src/app_freertos.c` 中 `APP_CALIB_AUTO_START_ENABLE` 当前为 `1U`，系统初始化完成后自动标定温控池1（`APP_CALIB_AUTO_START_CELL=0U`）。需要标定池2时改为 `1U`；关闭自动标定则将启动使能宏改为 `0U`。五路自动开环和原单路自动测试保持关闭。
 
-Flash 标定格式升级为 `BISG`（`0x42495347`，38点）；旧的 `BISF` 36点表不会再加载，须重新标定。PC 软件按 MCU 返回的 `count` 动态读取，无需为38点修改客户端。
+标定现在每完成一个点就追加写入 Flash 并读回校验；下次启动自动从未保存的点继续。已全部完成时，下次启动重新标定；超时无效点仍算已执行点。详见 [逐点保存与断点续标](CALIB_RESUME.md)。
+
+正常控温故障停机、标定故障中止时，会通过 USART2 输出 `FAULT,BEGIN` 到 `FAULT,END` 的详细诊断：通道状态、故障快照 REG0～REG5、逐寄存器读取状态和可用故障位。标定另有 `CALIB,FAULT_DETAIL` 说明保存进度及 Flash 状态。字段含义见上述说明文件。
+
+新的物理存储格式是 `BISH` 日志，完整后重建为原 `BISG` 38点表供前馈和 PC 读取。旧 `BISG` 完整表可读取，旧 `BISF` 36点表不支持。未完成记录不会作为完整结果返回，PC 协议格式保持不变。
 
 Flash 存储布局见 [FLASH_LAYOUT.md](FLASH_LAYOUT.md)。当前代码使用内部 Flash 末尾 8 KB：
 

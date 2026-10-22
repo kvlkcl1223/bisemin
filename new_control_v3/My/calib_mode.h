@@ -1,17 +1,8 @@
 /**
- ******************************************************************************
- * @file    calib_mode.h
- * @brief   自动化标定模�?�?固定占空比扫描，记录稳态平均温�?
- * @author  Bisemin Team
- * @version V1.0.0
- * @date    2026-07-02
- *
- * @details
- * �?+0.37（制冷）�?-0.37（加热）�?-0.02 步进，共 38 步�? * 每一步设定固定占空比后等待温度稳定（波动 < CALIB_STABLE_THRESHOLD
- * 持续 CALIB_STABLE_SECONDS 秒），记录稳定区间的平均温度�?
- * 若超时未稳定则记录当前值并标记 valid=0�?
- * 全部 38 步完成后写入 Flash�? * Cell 0 �?Cell 1 的标定数据分别存储在 Flash 不同页，互不覆盖�?
- ******************************************************************************
+ * @file calib_mode.h
+ * @brief Calibration scan settings, results and persistent progress.
+ * Scan +0.37 to -0.37, save each point, and resume unfinished scans.
+ * Timeout records retain valid=0; each cell has an independent Flash region.
  */
 
 #ifndef __CALIB_MODE_H
@@ -169,6 +160,13 @@ extern "C"
   /* Error codes ---------------------------------------------------------------*/
 
 #define CALIB_ERR_DRV_FAULT 10U
+#define CALIB_ERR_FLASH_SAVE 11U
+#define CALIB_ERR_FLASH_FULL 12U
+
+  /* Durable progress; completed includes timeout records with valid=0. */
+  extern volatile uint8_t g_calib_saved_count;
+  extern volatile uint8_t g_calib_resumed;
+  extern volatile uint32_t g_calib_flash_status;
 
   /* API 函数声明 --------------------------------------------------------------*/
 
