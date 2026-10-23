@@ -1,15 +1,15 @@
 # 标定逐点保存与断点续标
 
-每个标定点结束后，MCU 将占空比、两路温度、`valid`、`settled` 和点索引追加到 Flash；读回校验成功后才进入下一点。启动入口不变，上电自动标定、面板和 PC 的 `START_CALIB` 都使用此逻辑。
+每个标定点结束后，MCU 将占空比、两路温度、`valid`、`settled` 和点索引追加到 Flash；读回校验成功后才进入下一点。上电入口 `CalibMode_AutoStart()` 先只读检查是否允许启动；面板和 PC 的 `START_CALIB` 使用手动入口 `CalibMode_Start()`。
 
 ## 恢复规则
 
 - 本池有未完成且参数匹配的记录：保留已保存点，从下一点继续。中断时尚未保存的点重新测量，PWM 仍从零按原速率变化，重新等待温度稳定。
-- 本池已完成全部 38 点：下次启动创建新一轮，从第 1 点开始。
-- 无有效记录，或扫描范围、配比、DRV/测温映射、共享设置、稳定判据发生变化：创建新一轮。旧固件未保存到 Flash 的半程数据无法恢复。
+- 本池已完成全部 38 点：下次上电保留原表并跳过自动标定，正常控温继续加载该表做前馈。手动发起标定才会创建新一轮，从第 1 点开始覆盖。
+- 全空白存储区：允许首次上电自动开始新一轮。扫描范围、配比、DRV/测温映射、共享设置或稳定判据发生变化，以及非空但无效的记录：上电保留原始数据并提示 `AUTO_SKIP`，不自动擦除；手动发起标定可重建新一轮。参数不匹配的表不会作为当前前馈表加载。旧固件未保存到 Flash 的半程数据无法恢复。
 - 超时点保持原行为：记录 `valid=0, settled=0`，也计入已执行点；恢复时不自动补测这些点。
 - 手动停止、DRV 故障不会删除已保存进度。两个温控池分别恢复各自进度。
-- 新一轮开始时会擦除本池上一轮结果。未完成表不会作为完整前馈表加载；`GET_CALIB_RESULT` 返回 `CALIB_NOT_FOUND,detail=5`，完整后原有 PC 读取方式不变。
+- 手动新建一轮时会擦除本池上一轮结果。未完成表不会作为完整前馈表加载；`GET_CALIB_RESULT` 返回 `CALIB_NOT_FOUND,detail=5`，完整后原有 PC 读取方式不变。
 
 ## 存储布局
 
@@ -28,9 +28,21 @@ CALIB,NEW,CELL:0,NEXT_STEP:1
 CALIB,SAVED,CELL:0,STEP:12,TOTAL:38,VALID:1
 CALIB,RESUME,CELL:0,SAVED:12,NEXT_STEP:13
 CALIB,DONE,CELL:0,STEPS:38
+CALIB,LOAD,CELL:0,BEGIN
+CALIB,LOAD,CELL:0,FOUND,CELL_STORED:0,CRC:0x1234,COUNT:38
+CALIB,STEP,CELL:0,INDEX:0,POINT:1,DUTY:+0.370,T0:20.100,T1:20.200,TAVG:20.150,VALID:1,SETTLED:1
+...
+CALIB,LOAD,CELL:0,END,COUNT:38
+CALIB,AUTO_SKIP,CELL:0,REASON:ALREADY_DONE
 ```
 
 `SAVED` / `NEXT_STEP` 使用从 1 开始的点号；已有 `RUN` / `STEP_START` 的 `STEP` 仍是从 0 开始的索引。`SAVED` 表示写入和读回校验成功，普通结果行只表示测量结束。完成仍输出 `DONE`，不再在最后另写整张表。
+
+标定完成后会从 Flash 重新读取并一次性打印所有结果。每条 `CALIB,STEP` 含池号、零基 `INDEX`、从 1 开始的 `POINT`、占空比、两路温度、均温、有效标志及稳定标志，浮点值打印 3 位小数。以上 CRC 和温度仅为格式示例。
+
+每次上电都会先读取并输出两池历史结果，即使 `APP_CALIB_AUTO_START_ENABLE=0U` 也会输出。完整表打印 38 点；未完成表打印 `CALIB,LOAD,CELL:0,PARTIAL,SAVED:12,TOTAL:38`，随后只打印这 12 个已提交点，不打印未测量的点。此部分数据仍不能作为完整前馈表使用。无有效记录时继续输出 `NOT_FOUND` 及原因。
+
+自动启动的只读检查发生在停止旧控制/准备标定输出之前。`AUTO_SKIP` 原因包括 `ALREADY_DONE`（已有完整表）、`PARAM_CHANGED`（配置变化）、`INVALID_DATA`（非空无效数据）、`READ_ERROR`（读取错误）和 `ACTIVE`（正在标定）。保留完整结果不需要关闭自动标定宏。
 
 | Watch 变量 | 含义 |
 |---|---|

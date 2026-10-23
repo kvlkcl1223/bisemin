@@ -216,7 +216,7 @@ void StartControlTask(void *argument)
 
 #if APP_CALIB_AUTO_START_ENABLE
   if (g_app_control_start_result == APP_CONTROL_OK)
-    CalibMode_Start(APP_CALIB_AUTO_START_CELL);
+    CalibMode_AutoStart(APP_CALIB_AUTO_START_CELL);
 #endif
 
 #if APP_DRV_OPEN_LOOP_AUTO_START_ENABLE

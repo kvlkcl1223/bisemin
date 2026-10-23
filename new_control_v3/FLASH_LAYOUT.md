@@ -223,3 +223,5 @@ CALIB_FLASH_MAGIC = 0x42495347 ("BISG")
 The PC protocol reads calibration results as one metadata frame plus one frame per step, because a full table does not fit in the 256-byte ASCII payload limit.
 
 > Current storage update: see [CALIB_RESUME.md](CALIB_RESUME.md). Calibration now appends one committed point at a time in a BISH journal (72-byte header, 32-byte records, 61 slots in the first 2 KB of each existing 4 KB cell region). The BISG/620-byte layout above remains the reconstructed complete-table API and legacy format, not the new physical layout. Partial journals resume automatically and are not loaded as complete feedforward tables.
+
+> Boot policy: complete tables are read, printed and retained without erasing or starting a new scan. Only blank storage may automatically start a fresh scan; nonblank invalid or incompatible data is preserved for manual intervention. An explicit manual calibration request after completion may replace the old table. Completion also prints the full stored table; boot dumps include the committed prefix of partial journals.

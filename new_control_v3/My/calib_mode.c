@@ -2,7 +2,8 @@
  * @file calib_mode.c
  * @brief Slew-limited duty calibration with per-point Flash journal/resume.
  * Each stable or timed-out point is committed before advancing. An unfinished
- * compatible scan resumes after the last durable point; a full scan restarts.
+ * compatible scan resumes after the last durable point. Boot preserves full
+ * tables; an explicit manual request can restart a completed scan.
  * Driven by AppControl_Task without a separate thread.
  */
 
@@ -709,6 +710,81 @@ static uint8_t s_calib_stop_sent   = 0U;
  * @brief  启动自动标定流程
  * @param  cell Cell 编号 (0 �?1)
  */
+void CalibMode_AutoStart(uint8_t cell)
+{
+    CalibFlashData_t data;
+    uint8_t completed, ret;
+    uint16_t next_slot;
+    uint32_t pos;
+    uint8_t erased[32];
+    const char *reason;
+    char buf[96];
+
+    if (cell > 1U)
+        return;
+    if (g_calib_mode_active != 0U)
+    {
+        reason = "ACTIVE";
+        goto skip;
+    }
+    ret = CalibMode_ReadJournal(cell, 0, &completed, &next_slot);
+    if (ret == 0U)
+    {
+        if (completed == CALIB_SCAN_COUNT)
+        {
+            reason = "ALREADY_DONE";
+            goto skip;
+        }
+        CalibMode_Start(cell);
+        return;
+    }
+    if (ret == 2U)
+    {
+        reason = "READ_ERROR";
+        goto skip;
+    }
+    if (ret == 3U)
+    {
+        reason = "PARAM_CHANGED";
+        goto skip;
+    }
+    /* Preserve legacy complete tables as well as the current journal format. */
+    ret = CalibMode_LoadFromFlash(cell, &data);
+    if (ret == 0U)
+    {
+        reason = "ALREADY_DONE";
+        goto skip;
+    }
+    if (ret == 2U)
+    {
+        reason = "READ_ERROR";
+        goto skip;
+    }
+    /* Only an entirely blank journal page may start a new scan automatically. */
+    for (pos = 0U; pos < FLASH_STORAGE_PAGE_SIZE; pos += sizeof(erased))
+    {
+        if (FlashStorage_Read(CalibMode_GetFlashOffset(cell) + pos,
+                              erased, sizeof(erased)) != FLASH_STORAGE_OK)
+        {
+            reason = "READ_ERROR";
+            goto skip;
+        }
+        if (CalibMode_AllErased(erased, sizeof(erased)) == 0U)
+        {
+            reason = "INVALID_DATA";
+            goto skip;
+        }
+    }
+    CalibMode_Start(cell);
+    return;
+
+skip:
+    (void)snprintf(buf, sizeof(buf), "CALIB,AUTO_SKIP,CELL:%u,REASON:%s\r\n",
+                   (unsigned int)cell, reason);
+    CalibMode_UartSend(buf);
+}
+
+/* Explicit user request: a completed table may be replaced by a new scan. */
 void CalibMode_Start(uint8_t cell)
 {
     DRV8703_Status_t prepare_ret;
@@ -912,6 +988,7 @@ void CalibMode_Task(uint32_t now_ms)
             {
                 CalibMode_UartSend(buf);
             }
+            CalibMode_DumpFlashData(cell);
         }
 
         g_calib_mode_active = 0U;
@@ -1235,56 +1312,58 @@ void CalibMode_DumpFlashData(uint8_t cell)
 {
     CalibFlashData_t data;
     uint8_t ret;
+    uint8_t count = CALIB_DUTY_COUNT;
+    uint8_t partial = 0U;
     uint8_t i;
-    char buf[128];
+    uint16_t next_slot;
+    char buf[192];
     int len;
 
     if (cell > 1U)
         return;
 
-    len = snprintf(buf, sizeof(buf),
-                   "CALIB,LOAD,CELL:%u,BEGIN\r\n",
+    (void)snprintf(buf, sizeof(buf), "CALIB,LOAD,CELL:%u,BEGIN\r\n",
                    (unsigned int)cell);
-    if (len > 0 && len < (int)sizeof(buf))
-        CalibMode_UartSend(buf);
-
+    CalibMode_UartSend(buf);
     memset(&data, 0, sizeof(data));
     ret = CalibMode_LoadFromFlash(cell, &data);
-
+    if (ret == 5U)
+    {
+        /* Read only the committed prefix; do not expose empty/future points. */
+        ret = CalibMode_ReadJournal(cell, data.step, &count, &next_slot);
+        partial = 1U;
+    }
     if (ret != 0U)
     {
-        len = snprintf(buf, sizeof(buf),
-                       "CALIB,LOAD,CELL:%u,NOT_FOUND,ERR:%u\r\n",
+        (void)snprintf(buf, sizeof(buf), "CALIB,LOAD,CELL:%u,NOT_FOUND,ERR:%u\r\n",
                        (unsigned int)cell, (unsigned int)ret);
-        if (len > 0 && len < (int)sizeof(buf))
-            CalibMode_UartSend(buf);
+        CalibMode_UartSend(buf);
         return;
     }
 
-    len = snprintf(buf, sizeof(buf),
-                   "CALIB,LOAD,CELL:%u,FOUND,CELL_STORED:%u,CRC:0x%04X\r\n",
-                   (unsigned int)cell,
-                   (unsigned int)data.cell,
-                   (unsigned int)data.crc16);
-    if (len > 0 && len < (int)sizeof(buf))
-        CalibMode_UartSend(buf);
+    if (partial != 0U)
+        (void)snprintf(buf, sizeof(buf), "CALIB,LOAD,CELL:%u,PARTIAL,SAVED:%u,TOTAL:%u\r\n",
+                       (unsigned int)cell, (unsigned int)count, (unsigned int)CALIB_SCAN_COUNT);
+    else
+        (void)snprintf(buf, sizeof(buf),
+                       "CALIB,LOAD,CELL:%u,FOUND,CELL_STORED:%u,CRC:0x%04X,COUNT:%u\r\n",
+                       (unsigned int)cell, (unsigned int)data.cell,
+                       (unsigned int)data.crc16, (unsigned int)count);
+    CalibMode_UartSend(buf);
 
-    for (i = 0U; i < CALIB_DUTY_COUNT; i++)
+    for (i = 0U; i < count; i++)
     {
         len = snprintf(buf, sizeof(buf),
-                       "CALIB,STEP,%u,%+.2f,%.1f,%.1f,%u\r\n",
-                       (unsigned int)i,
-                       (double)data.step[i].duty,
-                       (double)data.step[i].temp_ch0,
-                       (double)data.step[i].temp_ch1,
-                       (unsigned int)data.step[i].valid);
+            "CALIB,STEP,CELL:%u,INDEX:%u,POINT:%u,DUTY:%+.3f,T0:%.3f,T1:%.3f,TAVG:%.3f,VALID:%u,SETTLED:%u\r\n",
+            (unsigned int)cell, (unsigned int)i, (unsigned int)i + 1U,
+            (double)data.step[i].duty,
+            (double)data.step[i].temp_ch0, (double)data.step[i].temp_ch1,
+            (double)((data.step[i].temp_ch0 + data.step[i].temp_ch1) * 0.5f),
+            (unsigned int)data.step[i].valid, (unsigned int)data.step[i].settled);
         if (len > 0 && len < (int)sizeof(buf))
             CalibMode_UartSend(buf);
     }
-
-    len = snprintf(buf, sizeof(buf),
-                   "CALIB,LOAD,CELL:%u,END\r\n",
-                   (unsigned int)cell);
-    if (len > 0 && len < (int)sizeof(buf))
-        CalibMode_UartSend(buf);
+    (void)snprintf(buf, sizeof(buf), "CALIB,LOAD,CELL:%u,END,COUNT:%u\r\n",
+                   (unsigned int)cell, (unsigned int)count);
+    CalibMode_UartSend(buf);
 }

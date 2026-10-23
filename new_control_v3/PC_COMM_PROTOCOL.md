@@ -829,4 +829,4 @@ Target temperature commands (`SET_TARGET`, `START_NORMAL`, `SET_PROGRAM`) use th
 Current range: `-20.0..120.0 degC`.
 Out-of-range command values return `BAD_TEMP_RANGE`.
 
-> Calibration resume update: START_CALIB resumes the selected cell's unfinished compatible journal; a completed scan starts a new scan. GET_CALIB_RESULT keeps the existing complete-table format and returns CALIB_NOT_FOUND,detail=5 while the journal is incomplete. See [CALIB_RESUME.md](CALIB_RESUME.md) for saved-point logs and recovery rules.
+> Calibration resume update: manual START_CALIB resumes the selected cell's unfinished compatible journal; a manual request after a completed scan starts a new scan. Boot uses CalibMode_AutoStart instead: complete tables are preserved and skipped, partial compatible scans resume, and nonblank invalid/incompatible data is never erased automatically. Boot and completion print stored result tables over UART. GET_CALIB_RESULT keeps the existing complete-table format and returns CALIB_NOT_FOUND,detail=5 while the journal is incomplete. See [CALIB_RESUME.md](CALIB_RESUME.md) for saved-point logs and recovery rules.

@@ -178,6 +178,10 @@ extern "C"
    */
   void CalibMode_Start(uint8_t cell);
 
+  /* Boot-only request: keep complete tables, resume compatible unfinished scans.
+   * Invalid/incompatible existing data is preserved for manual intervention. */
+  void CalibMode_AutoStart(uint8_t cell);
+
   /**
    * @brief  标定模式主任务，�?AppControl_Task 每周期调�?
    * @param  now_ms 当前系统 tick (ms)
